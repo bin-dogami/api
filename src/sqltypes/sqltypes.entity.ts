@@ -2,7 +2,7 @@ import { Entity, Column, PrimaryColumn, PrimaryGeneratedColumn, Index } from 'ty
 
 @Entity()
 // 标签表，只是避免查所有标签时 查 typesdetail 里的数据会慢
-export class types {
+export class sqltypes {
   // books 表里 type 和 tags 共用一个字段
   // 与 bid 组合成复合主键
   @PrimaryGeneratedColumn()

@@ -4,7 +4,7 @@ import { Entity, Column, PrimaryGeneratedColumn, Index, OneToOne, JoinColumn } f
 
 @Entity()
 @Index(["tid", "novelId"], { unique: true })
-export class typesdetail {
+export class sqltypesdetail {
   @PrimaryGeneratedColumn()
   id: number;
 

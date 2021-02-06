@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { types } from './sqltypes.entity';
+import { sqltypes as types } from './sqltypes.entity';
 import { CreateSqltypes } from "./create-sqltypes.dto";
 
 @Injectable()
@@ -16,8 +16,11 @@ export class SqltypesService {
     return this.sqltypesRepository.save(oTypes);
   }
 
-  async findAll(): Promise<types[]> {
-    return this.sqltypesRepository.find();
+  async findAll(isTag: boolean): Promise<types[]> {
+    return this.sqltypesRepository.find({
+      select: ["id", "name"],
+      where: { isTag }
+    });
   }
 
   async findOne(id: string): Promise<types> {

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { pages } from './sqlpages.entity';
+import { sqlpages as pages } from './sqlpages.entity';
 import { CreateSqlpages } from "./create-sqlpages.dto";
 
 @Injectable()

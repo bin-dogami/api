@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SqlmenusService } from './sqlmenus.service';
 import { SqlmenusController } from './sqlmenus.controller';
-import { menus } from './sqlmenus.entity';
+import { sqlmenus as menus } from './sqlmenus.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([menus])],

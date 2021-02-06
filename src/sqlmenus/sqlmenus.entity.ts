@@ -3,7 +3,7 @@ import { Entity, Column, PrimaryColumn, Timestamp, OneToOne, JoinColumn, Index, 
 
 @Entity()
 @Index(["novelId", "index"], { unique: true })
-export class menus {
+export class sqlmenus {
   @PrimaryColumn()
   id: number;
 

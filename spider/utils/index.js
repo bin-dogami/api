@@ -23,6 +23,7 @@ const powMap = {
   '千': 1000,
   '万': 10000,
 }
+// @TODO: 可能是 004失去记忆的自己是个食人魔？（http://localhost:3010/book/23084）
 // 提取标题中的数字
 const getIndexFromTitle = (title) => {
   // 先去除章或者空格之后的内容

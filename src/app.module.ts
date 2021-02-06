@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { GetbookModule } from './getbook/getbook.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Connection } from 'typeorm';
+import { ScanModule } from './scan/scan.module';
 
 @Module({
   imports: [
@@ -18,8 +19,14 @@ import { Connection } from 'typeorm';
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       // autoLoadEntities: true,
       synchronize: true,
+      // 开启缓存 https://typeorm.biunav.com/zh/caching.html
+      cache: {
+        type: "database",
+        tableName: "configs-novelstables-query-result-caches"
+      }
     }),
     GetbookModule,
+    ScanModule,
   ],
   controllers: [AppController],
   providers: [AppService],

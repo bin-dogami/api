@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SqltypesService } from './sqltypes.service';
 import { SqltypesController } from './sqltypes.controller';
-import { types } from './sqltypes.entity';
+import { sqltypes as types } from './sqltypes.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([types])],

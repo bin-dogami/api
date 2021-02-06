@@ -1,7 +1,7 @@
 import { Entity, Column, PrimaryColumn, Timestamp, OneToOne, JoinColumn, Index } from 'typeorm';
 
 @Entity()
-export class pages {
+export class sqlpages {
   // 从menus 表里得到
   @PrimaryColumn()
   id: number;

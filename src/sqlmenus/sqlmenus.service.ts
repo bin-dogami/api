@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { menus } from './sqlmenus.entity';
+import { sqlmenus as menus } from './sqlmenus.entity';
 import { CreateSqlmenus } from "./create-sqlmenus.dto";
 import { getFirstMenuId } from '../utils/index'
 
@@ -38,16 +38,36 @@ export class SqlmenusService {
     });
   }
 
+  // 获取最新一条目录的id
   async findLastIdByNovelId(novelId: number): Promise<any> {
     const menu = await this.findLastByNovelId(novelId);
     return menu && menu.id ? menu.id : getFirstMenuId();
   }
 
-  async findAll(novelId: number): Promise<menus[]> {
-    return this.sqlmenusRepository.find({
-      where: { novelId }
+  // 获取书的目录，以分页的形式
+  async getMenusByBookId(id: number, skip: number, size?: number, isDesc?: boolean): Promise<[menus[], number]> {
+    console.log(isDesc, typeof isDesc)
+    // @TODO: 缓存？
+    // const cache = skip === 0 ? { cache: 60000 * 60 } : {}
+    return await this.sqlmenusRepository.findAndCount({
+      select: ["id", "mname", "index"],
+      where: {
+        novelId: id
+      },
+      order: {
+        id: isDesc ? "DESC" : "ASC"
+      },
+      skip,
+      take: size && size <= 100 ? size : 20,
+      // ...cache
     });
   }
+
+  // async findAll(novelId: number): Promise<menus[]> {
+  //   return this.sqlmenusRepository.find({
+  //     where: { novelId }
+  //   });
+  // }
 
   async findMenuByNovelIdAndIndex(novelId: number, index: number): Promise<menus> {
     return this.sqlmenusRepository.findOne({
@@ -55,14 +75,9 @@ export class SqlmenusService {
     });
   }
 
+  // 获取一本书的总目录数
   async findCountByNovelId(novelId: number): Promise<number> {
     return this.sqlmenusRepository.count({
-      where: { novelId }
-    });
-  }
-
-  async findMenusByNovelId(novelId: number): Promise<menus[]> {
-    return this.sqlmenusRepository.find({
       where: { novelId }
     });
   }

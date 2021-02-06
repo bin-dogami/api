@@ -2,14 +2,14 @@ import { Entity, Column, Index, PrimaryColumn, Timestamp } from 'typeorm';
 
 @Entity()
 @Index(["title", "author"], { unique: true })
-export class novels {
+export class sqlnovels {
   @PrimaryColumn()
   id: number;
 
   @Column({ length: 128 })
   title: string;
 
-  @Column({ length: 255 })
+  @Column({ length: 1000 })
   description: string;
 
   @Column({ length: 100 })
@@ -24,6 +24,7 @@ export class novels {
   faildIndex: number[];
 
   // 分类，= types 表里的 id, types表里是复合主键，所以没法用一对一关系
+  @Index()
   @Column()
   typeid: number;
 

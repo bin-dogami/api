@@ -95,6 +95,7 @@ export const getMenuId = (id: number, isNew?: boolean) => {
 //   return +t
 // }
 
+// @TODO: 可能是 004失去记忆的自己是个食人魔？（http://localhost:3010/book/23084）
 export const getValidTitle = (title: string) => {
   return title.replace(/.*章\s*/, '')
 }

@@ -76,7 +76,7 @@ export class GetBookController {
     const newNovel = {
       id: currentNovelId,
       title,
-      description,
+      description: description.length > 990 ? description.substr(0, 990) : description,
       author,
       typeid: typeInfo.id,
       from: [from],
@@ -86,7 +86,16 @@ export class GetBookController {
     }
     // 写入书信息
     this.logger.log(`# 开始写入书信息 #`);
-    const _novel = await this.sqlnovelsService.create(newNovel);
+    let _novel = null
+    try {
+      _novel = await this.sqlnovelsService.create(newNovel);
+    } catch (err) {
+      console.log(newNovel.description.length)
+      this.logger.end(`### [failed] 写入书数据失败：${err} ###`);
+      return {
+        '错误': `写入书数据失败：${err}`
+      };
+    }
     // 写入分类详情表
     if (isTypeCreateNow) {
       this.logger.log(`# 开始写入分类详情表 #`);
@@ -106,7 +115,7 @@ export class GetBookController {
     let lastIndex = await this.sqlmenusService.findLastIndexByNovelId(args.id)
     const [menus, reFaildIndex] = await this.getMenus(args.from, lastIndex, args.faildIndex.join(','));
     // @TODO: test?
-    args.menus = menus.slice(0, 20);
+    args.menus = menus.slice(0, 5);
     await this.insertMenuAndPages(args, reFaildIndex);
   }
 

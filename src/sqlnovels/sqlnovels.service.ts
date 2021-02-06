@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { novels } from './sqlnovels.entity';
+import { sqlnovels as novels } from './sqlnovels.entity';
 import { CreateSqlnovels } from "./create-sqlnovels.dto";
 import { getFirstNovelId } from '../utils/index'
 
@@ -17,7 +17,37 @@ export class SqlnovelsService {
     return await this.sqlnovelsRepository.save(oBooks);
   }
 
-  async findLastId(): Promise<any> {
+  // 主页用
+  async getIndexBooksByType(typeid: number): Promise<novels[]> {
+    return await this.sqlnovelsRepository.find({
+      select: ["id", "title", "author", "description", "thumb"],
+      where: { typeid },
+      order: {
+        viewnum: "DESC"
+      },
+      take: 4
+    });
+  }
+
+  async getBooksByType(typeid: number, skip: number, size?: number): Promise<[novels[], number]> {
+    const where = typeid === 0 ? {} : {
+      where: { typeid }
+    }
+    // 第一页数据缓存一小时
+    const cache = skip === 0 ? { cache: 60000 * 60 } : {}
+    return await this.sqlnovelsRepository.findAndCount({
+      select: ["id", "title", "author", "description", "thumb"],
+      ...where,
+      order: {
+        viewnum: "DESC"
+      },
+      skip,
+      take: size && size <= 50 ? size : 20,
+      ...cache
+    });
+  }
+
+  async findLastId(): Promise<number> {
     const novel = await this.sqlnovelsRepository.findOne({
       order: {
         id: "DESC"
@@ -26,10 +56,11 @@ export class SqlnovelsService {
     return novel && novel.id ? novel.id : getFirstNovelId();
   }
 
-  async findById(id: number): Promise<novels> {
+  async findById(id: number, getAllFields?: boolean): Promise<novels> {
     return this.sqlnovelsRepository.findOne(
       {
-        id,
+        select: getAllFields ? undefined : ["id", "title", "author", "description", "thumb"],
+        where: { id },
       }
     );
   }
@@ -44,7 +75,7 @@ export class SqlnovelsService {
   }
 
   async updateFields(id: number, fields: any): Promise<any> {
-    const novel = await this.findById(id);
+    const novel = await this.findById(id, true);
     Object.assign(novel, fields);
     return await this.sqlnovelsRepository.save(novel);
   }
