@@ -6,8 +6,10 @@ export class sqlpages {
   @PrimaryColumn()
   id: number;
 
+  @Column()
+  index: number;
+
   //  关联 novels 表
-  @Index()
   @Column()
   novelId: number;
 

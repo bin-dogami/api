@@ -12,6 +12,7 @@ import { SqltypesdetailService } from '../sqltypesdetail/sqltypesdetail.service'
 import { sqlnovels as novels } from '../sqlnovels/sqlnovels.entity';
 import { sqlmenus as menus } from '../sqlmenus/sqlmenus.entity';
 import { sqlrecommends as recommends } from '../sqlrecommends/sqlrecommends.entity';
+import { sqlpages as pages } from '../sqlpages/sqlpages.entity';
 
 import { Mylogger } from '../mylogger/mylogger.service';
 
@@ -66,25 +67,78 @@ export class ScanController {
   }
 
   // 根据推荐书 list
+  // @TODO: 随机选四个吧
   @Get('getRecommendBooks')
   async getRecommendBooks(@Query('skip') skip: number, @Query('size') size?: number): Promise<[recommends[], number]> {
     return await this.sqlrecommendsService.getList(+skip, +size);
   }
 
+  filterRecommendBooks(list: any[], id: number): any[] {
+    if (list.length) {
+      const filterList = list.map((item, index) => item.id === +id ? index : undefined).filter((v) => v !== undefined)
+      if (filterList.length) {
+        list.splice(filterList[0], 1)
+      } else {
+        list.splice(-1, 1)
+      }
+    }
+    return list
+  }
+
   // 获取书信息，缓存一下
   @Get('getBookById')
   async getBookById(@Query('id') id: number): Promise<[novels, menus[], menus[], number, any[]]> {
-    const novel = await this.sqlnovelsService.findById(+id, false)
+    const novel = await this.sqlnovelsService.findById(+id, true)
+    const type = await this.sqltypesService.findOne(novel.typeid)
+    novel['typeName'] = type ? type.name : ''
     const [menus, total] = await this.getMenusByBookId(id, 0, 100, 0)
-    // @TODO: total > 40
-    const [DescMenus] = total > 0 ? await this.getMenusByBookId(id, 0, 5, 1) : [[]]
-    const [recommendBooks] = await this.getRecommendBooks(0, 3)
-    return [novel, menus, DescMenus, total, recommendBooks]
+    const [DescMenus] = total > 40 ? await this.getMenusByBookId(id, 0, 5, 1) : [[]]
+    const [recommendBooks] = await this.getRecommendBooks(0, 4)
+    return [novel, menus, DescMenus, total, this.filterRecommendBooks(recommendBooks, id)]
   }
 
   // skip： 从第几个开始，不是从第几页开始
   @Get('getMenusByBookId')
   async getMenusByBookId(@Query('id') id: number, @Query('skip') skip: number, @Query('size') size?: number, @Query('desc') desc?: string | number): Promise<[menus[], number]> {
     return await this.sqlmenusService.getMenusByBookId(+id, +skip, +size, Boolean(+desc));
+  }
+
+  // 获取当前目录前面的目录或者后面的目录
+  @Get('getPrevNextMenus')
+  async getPrevNextMenus(@Query('id') id: number, @Query('novelId') novelId: number, @Query('isPrev') isPrev?: string | number): Promise<menus[]> {
+    if (+isPrev) {
+      return await this.sqlmenusService.getPrevMenus(+id, +novelId, 50, true);
+    } else {
+      return await this.sqlmenusService.getNextMenus(+id, +novelId);
+    }
+  }
+
+  // page 页数据获取
+  @Get('getPageById')
+  async getPageById(@Query('id') id: number, @Query('onlypage') onlypage: number): Promise<any> {
+    // @TODO: 考虑 id 错误的问题，其他接口也一样
+    let page: any = await this.sqlpagesService.findOne(+id)
+    if (!page || !page.id) {
+      page = await this.sqlmenusService.findOne(+id)
+      if (!page) {
+        return []
+      } else {
+        // http://localhost:3010/page/388340
+        this.logger.start(`{novelId: ${page.novelId}, id: ${page.id} }`, this.logger.createPageLoseErrorLogFile())
+        this.logger.writeLog()
+        page["noPage"] = true
+      }
+    }
+
+    if (page && page.id) {
+      const novel = await this.sqlnovelsService.findById(page.novelId, false)
+      page['novelName'] = novel && novel.title ? novel.title : ''
+      const menus = onlypage ? [] : await this.sqlmenusService.getPrevNextMenus(page.id, page.novelId)
+      const [recommendBooks] = onlypage ? [[]] : await this.getRecommendBooks(0, 4)
+
+      return [page, menus, this.filterRecommendBooks(recommendBooks, novel.id)]
+    }
+
+    return []
   }
 }

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Equal, LessThan, LessThanOrEqual, MoreThan } from 'typeorm';
 import { sqlmenus as menus } from './sqlmenus.entity';
 import { CreateSqlmenus } from "./create-sqlmenus.dto";
 import { getFirstMenuId } from '../utils/index'
@@ -46,7 +46,6 @@ export class SqlmenusService {
 
   // 获取书的目录，以分页的形式
   async getMenusByBookId(id: number, skip: number, size?: number, isDesc?: boolean): Promise<[menus[], number]> {
-    console.log(isDesc, typeof isDesc)
     // @TODO: 缓存？
     // const cache = skip === 0 ? { cache: 60000 * 60 } : {}
     return await this.sqlmenusRepository.findAndCount({
@@ -63,11 +62,52 @@ export class SqlmenusService {
     });
   }
 
+  async getPrevMenus(id: number, novelId: number, take?: number, noEqual?: boolean): Promise<menus[]> {
+    const prevMenus = await this.sqlmenusRepository.find({
+      select: ["id", "mname", "index"],
+      where: {
+        // 用个新奇的方式写
+        novelId: Equal(novelId),
+        id: noEqual ? LessThan(id) : LessThanOrEqual(id),
+      },
+      order: {
+        id: "DESC"
+      },
+      take: take || 50
+    })
+
+    return prevMenus.reverse()
+  }
+
+  async getNextMenus(id: number, novelId: number, take?: number): Promise<menus[]> {
+    return await this.sqlmenusRepository.find({
+      select: ["id", "mname", "index"],
+      where: {
+        novelId,
+        id: MoreThan(id),
+      },
+      order: {
+        id: "ASC"
+      },
+      take: take || 50
+    })
+  }
+
+  async getPrevNextMenus(id: number, novelId: number): Promise<menus[]> {
+    const prevMenus = await this.getPrevMenus(id, novelId, 25)
+    const nextMenus = await this.getNextMenus(id, novelId, 25)
+    return [...prevMenus, ...nextMenus]
+  }
+
   // async findAll(novelId: number): Promise<menus[]> {
   //   return this.sqlmenusRepository.find({
   //     where: { novelId }
   //   });
   // }
+
+  async findOne(id: number): Promise<menus> {
+    return this.sqlmenusRepository.findOne(id);
+  }
 
   async findMenuByNovelIdAndIndex(novelId: number, index: number): Promise<menus> {
     return this.sqlmenusRepository.findOne({

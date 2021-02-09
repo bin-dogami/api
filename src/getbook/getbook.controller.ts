@@ -1,3 +1,4 @@
+import { Test } from '@nestjs/testing';
 import { log, getValidTitle, getHostFromUrl, getNovelId, getMenuId, downloadImage } from '../utils/index'
 import { Controller, Get, Post, Body, Param, HttpCode } from '@nestjs/common';
 import { GetBookService } from './getbook.service';
@@ -5,6 +6,7 @@ import { SqlnovelsService } from '../sqlnovels/sqlnovels.service';
 import { SqltypesService } from '../sqltypes/sqltypes.service';
 import { SqlmenusService } from '../sqlmenus/sqlmenus.service';
 import { SqlpagesService } from '../sqlpages/sqlpages.service';
+import { SqlrecommendsService } from '../sqlrecommends/sqlrecommends.service';
 import { SqltypesdetailService } from '../sqltypesdetail/sqltypesdetail.service';
 import { Mylogger } from '../mylogger/mylogger.service';
 
@@ -18,6 +20,7 @@ export class GetBookController {
     private readonly sqltypesService: SqltypesService,
     private readonly sqlmenusService: SqlmenusService,
     private readonly sqlpagesService: SqlpagesService,
+    private readonly sqlrecommendsService: SqlrecommendsService,
     private readonly sqltypesdetailService: SqltypesdetailService,
   ) { }
 
@@ -89,6 +92,19 @@ export class GetBookController {
     let _novel = null
     try {
       _novel = await this.sqlnovelsService.create(newNovel);
+
+      // // @TODO: Test，造点推荐数据, start
+      // this.logger.log(`# 造点推荐数据 #`);
+      // const level = await this.sqlrecommendsService.findLastLevel()
+      // await this.sqlrecommendsService.create({
+      //   id: _novel.id,
+      //   level: level + 1,
+      //   title,
+      //   description: description.length > 990 ? description.substr(0, 990) : description,
+      //   author,
+      //   thumb: newThumbPath,
+      // });
+      // // 造点推荐数据, end
     } catch (err) {
       console.log(newNovel.description.length)
       this.logger.end(`### [failed] 写入书数据失败：${err} ###`);
@@ -115,7 +131,7 @@ export class GetBookController {
     let lastIndex = await this.sqlmenusService.findLastIndexByNovelId(args.id)
     const [menus, reFaildIndex] = await this.getMenus(args.from, lastIndex, args.faildIndex.join(','));
     // @TODO: test?
-    args.menus = menus.slice(0, 5);
+    args.menus = menus.slice(0, 250);
     await this.insertMenuAndPages(args, reFaildIndex);
   }
 
@@ -189,6 +205,7 @@ export class GetBookController {
         }
         const pageInfo = await this.sqlpagesService.create({
           id: menuInfo.id,
+          index,
           novelId: id,
           mname: getValidTitle(title),
           content: content,

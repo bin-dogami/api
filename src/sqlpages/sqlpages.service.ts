@@ -16,15 +16,11 @@ export class SqlpagesService {
     return this.sqlpagesRepository.save(oPages);
   }
 
-  async findAll(): Promise<pages[]> {
-    return this.sqlpagesRepository.find();
-  }
-
-  findOne(id: string): Promise<pages> {
+  findOne(id: number): Promise<pages> {
     return this.sqlpagesRepository.findOne(id);
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: number): Promise<void> {
     await this.sqlpagesRepository.delete(id);
   }
 }

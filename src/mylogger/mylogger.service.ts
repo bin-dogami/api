@@ -3,12 +3,30 @@ const dayjs = require('dayjs')
 const fs = require('fs');
 const path = require('path')
 const logFilePath = './logs'
+// 章节缺失错误日志文件名
+const PageLose = '章节缺失错误'
 
 @Injectable()
 export class Mylogger extends Logger {
   private tmplLogs = '';
   private filePath = '';
 
+  createPageLoseErrorLogFile() {
+    return this.createErrorLogFile(PageLose)
+  }
+  createErrorLogFile(name = 'errors') {
+    const logPath = path.resolve(logFilePath);
+    if (!fs.existsSync(logPath)) {
+      fs.mkdirSync(logPath);
+    }
+    this.filePath = `${logPath}/${name}.log`;
+    const stderr = fs.createWriteStream(this.filePath, {
+      flags: 'a',
+      encoding: 'utf8',
+    });
+    stderr.end();
+    return this.filePath;
+  }
   // 创建 logs 目录
   createLogFile(filePath?: string) {
     const logPath = path.resolve(logFilePath);

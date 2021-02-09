@@ -23,7 +23,7 @@ export class SqltypesService {
     });
   }
 
-  async findOne(id: string): Promise<types> {
+  async findOne(id: number): Promise<types> {
     return this.sqltypesRepository.findOne(id);
   }
 
@@ -31,7 +31,7 @@ export class SqltypesService {
     return this.sqltypesRepository.findOne({ name });
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: number): Promise<void> {
     await this.sqltypesRepository.delete(id);
   }
 }
