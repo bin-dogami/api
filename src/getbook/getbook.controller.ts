@@ -82,6 +82,7 @@ export class GetBookController {
       description: description.length > 990 ? description.substr(0, 990) : description,
       author,
       typeid: typeInfo.id,
+      typename: typeInfo.name,
       from: [from],
       tags: [],
       thumb: newThumbPath,

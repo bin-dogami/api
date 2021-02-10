@@ -16,6 +16,18 @@ import { sqlpages as pages } from '../sqlpages/sqlpages.entity';
 
 import { Mylogger } from '../mylogger/mylogger.service';
 
+const shuffle = function (arr: any[]): any[] {
+  let m = arr.length,
+    t, i;
+  while (m) {
+    i = Math.floor(Math.random() * m--);
+    t = arr[m];
+    arr[m] = arr[i];
+    arr[i] = t;
+  }
+  return arr;
+}
+
 // @TODO: 每个list请求每次取200个数据存 redis 里，返回给前端固定20
 @Controller('scan')
 export class ScanController {
@@ -32,9 +44,10 @@ export class ScanController {
   ) { }
 
   @Get('getTypesData')
-  async getTypesData(@Query('id') id: number): Promise<any> {
+  async getTypesData(@Query('id') id: number, @Query('skip') skip: number, @Query('size') size?: number): Promise<any> {
     const types = await this.sqltypesService.findAll(false)
-    const list = await this.getBooksByType(id, 0, 5)
+    const _size = +size || 20
+    const list = await this.getBooksByType(id, +skip, Math.min(50, _size))
     return {
       types,
       list
@@ -62,15 +75,28 @@ export class ScanController {
 
   // 根据分类获取书list，skip： 从第几个开始，不是从第几页开始
   @Get('getBooksByType')
-  async getBooksByType(@Query('typeId') typeId: number, @Query('skip') skip: number, @Query('size') size?: number): Promise<[novels[], number]> {
+  async getBooksByType(@Query('typeId') typeId: number, @Query('skip') skip: number, @Query('size') size?: number): Promise<novels[]> {
     return await this.sqlnovelsService.getBooksByType(+typeId, +skip, +size);
   }
 
-  // 根据推荐书 list
-  // @TODO: 随机选四个吧
-  @Get('getRecommendBooks')
-  async getRecommendBooks(@Query('skip') skip: number, @Query('size') size?: number): Promise<[recommends[], number]> {
+  // 根据全本书list
+  @Get('getBooksByCompleted')
+  async getBooksByCompleted(@Query('skip') skip: number, @Query('size') size?: number): Promise<novels[]> {
+    return await this.sqlnovelsService.getBooksByCompleted(+skip, size ? +size : 20);
+  }
+
+  // 根据热门推荐书 list
+  @Get('getBooksByHot')
+  async getBooksByHot(@Query('skip') skip: number, @Query('size') size?: number): Promise<recommends[]> {
     return await this.sqlrecommendsService.getList(+skip, +size);
+  }
+
+  // 前100个里随机取 size 个 推荐书
+  @Get('getRecommendBooks')
+  async getRecommendBooks(@Query('size') size?: number): Promise<recommends[]> {
+    const _size = +size || 4
+    const list = await this.sqlrecommendsService.getList(0, 100);
+    return shuffle(list).slice(0, _size)
   }
 
   filterRecommendBooks(list: any[], id: number): any[] {
@@ -87,13 +113,11 @@ export class ScanController {
 
   // 获取书信息，缓存一下
   @Get('getBookById')
-  async getBookById(@Query('id') id: number): Promise<[novels, menus[], menus[], number, any[]]> {
+  async getBookById(@Query('id') id: number, @Query('skip') skip?: number): Promise<[novels, menus[], menus[], number, any[]]> {
     const novel = await this.sqlnovelsService.findById(+id, true)
-    const type = await this.sqltypesService.findOne(novel.typeid)
-    novel['typeName'] = type ? type.name : ''
-    const [menus, total] = await this.getMenusByBookId(id, 0, 100, 0)
+    const [menus, total] = await this.getMenusByBookId(id, +skip, 100, 0)
     const [DescMenus] = total > 40 ? await this.getMenusByBookId(id, 0, 5, 1) : [[]]
-    const [recommendBooks] = await this.getRecommendBooks(0, 4)
+    const recommendBooks = await this.getRecommendBooks()
     return [novel, menus, DescMenus, total, this.filterRecommendBooks(recommendBooks, id)]
   }
 
@@ -131,10 +155,17 @@ export class ScanController {
     }
 
     if (page && page.id) {
-      const novel = await this.sqlnovelsService.findById(page.novelId, false)
-      page['novelName'] = novel && novel.title ? novel.title : ''
+      const novel = await this.sqlnovelsService.findById(page.novelId, true)
+      if (novel && novel.title) {
+        page['title'] = novel.title
+        page['typename'] = novel.typename
+        page['author'] = novel.author
+        page['isComplete'] = novel.isSpiderComplete
+      } else {
+        page['title'] = ''
+      }
       const menus = onlypage ? [] : await this.sqlmenusService.getPrevNextMenus(page.id, page.novelId)
-      const [recommendBooks] = onlypage ? [[]] : await this.getRecommendBooks(0, 4)
+      const recommendBooks = onlypage ? [] : await this.getRecommendBooks()
 
       return [page, menus, this.filterRecommendBooks(recommendBooks, novel.id)]
     }

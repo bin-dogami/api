@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { sqlrecommends as recommends } from './sqlrecommends.entity';
 import { CreateSqlrecommends } from "./create-sqlrecommends.dto";
 
+
+
 @Injectable()
 export class SqlrecommendsService {
   constructor(
@@ -16,16 +18,16 @@ export class SqlrecommendsService {
     return this.SqlrecommendsRepository.save(oTypes);
   }
 
-  async getList(skip: number, size?: number): Promise<[recommends[], number]> {
+  async getList(skip: number, size?: number): Promise<recommends[]> {
     // 第一页数据缓存一小时
     // const cache = skip === 0 ? { cache: 60000 * 60 } : {}
-    return await this.SqlrecommendsRepository.findAndCount({
+    return await this.SqlrecommendsRepository.find({
       order: {
         level: "DESC",
         index: "DESC"
       },
       skip,
-      take: size && size <= 50 ? size : 20,
+      take: size && size <= 100 ? size : 20,
       // ...cache
     });
   }

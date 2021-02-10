@@ -28,6 +28,9 @@ export class sqlnovels {
   @Column()
   typeid: number;
 
+  @Column({ length: 32 })
+  typename: string;
+
   // 标签, https://typeorm.biunav.com/zh/entities.html#simple-array%E7%9A%84%E5%88%97%E7%B1%BB%E5%9E%8B
   @Column({ type: 'simple-array' })
   tags: number[];
@@ -41,6 +44,7 @@ export class sqlnovels {
   menusLen: number;
 
   // 是否全本，即写完了
+  @Index()
   @Column({ default: false })
   isComplete: boolean;
 

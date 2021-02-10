@@ -4,6 +4,7 @@ export class CreateSqlnovels {
   description: string;
   author: string;
   typeid: number;
+  typename: string;
   thumb: string;
   faildIndex: number[];
   tags: number[];

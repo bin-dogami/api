@@ -24,6 +24,7 @@ const powMap = {
   '万': 10000,
 }
 // @TODO: 可能是 004失去记忆的自己是个食人魔？（http://localhost:3010/book/23084）
+// 11.第11章 再破境界 (http://www.paoshuzw.com/7/7552/) 也可能是这样的
 // 提取标题中的数字
 const getIndexFromTitle = (title) => {
   // 先去除章或者空格之后的内容

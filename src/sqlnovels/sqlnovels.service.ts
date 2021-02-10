@@ -29,15 +29,30 @@ export class SqlnovelsService {
     });
   }
 
-  async getBooksByType(typeid: number, skip: number, size?: number): Promise<[novels[], number]> {
+  async getBooksByType(typeid: number, skip: number, size?: number): Promise<novels[]> {
     const where = typeid === 0 ? {} : {
       where: { typeid }
     }
     // 第一页数据缓存一小时
     const cache = skip === 0 ? { cache: 60000 * 60 } : {}
-    return await this.sqlnovelsRepository.findAndCount({
+    return await this.sqlnovelsRepository.find({
       select: ["id", "title", "author", "description", "thumb"],
       ...where,
+      order: {
+        viewnum: "DESC"
+      },
+      skip,
+      take: size && size <= 50 ? size : 20,
+      ...cache
+    });
+  }
+
+  async getBooksByCompleted(skip: number, size?: number): Promise<novels[]> {
+    // 第一页数据缓存一小时
+    const cache = skip === 0 ? { cache: 60000 * 60 } : {}
+    return await this.sqlnovelsRepository.find({
+      select: ["id", "title", "author", "description", "thumb"],
+      where: { isComplete: false },
       order: {
         viewnum: "DESC"
       },
@@ -59,7 +74,7 @@ export class SqlnovelsService {
   async findById(id: number, getAllFields?: boolean): Promise<novels> {
     return this.sqlnovelsRepository.findOne(
       {
-        select: getAllFields ? undefined : ["id", "title", "author", "description", "thumb"],
+        select: getAllFields ? undefined : ["id", "title", "author", "typename", "description", "thumb", "isComplete"],
         where: { id },
       }
     );
