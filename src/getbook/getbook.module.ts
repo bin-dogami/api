@@ -7,9 +7,10 @@ import { SqlmenusModule } from '../sqlmenus/sqlmenus.module';
 import { SqlpagesModule } from '../sqlpages/sqlpages.module';
 import { SqlrecommendsModule } from '../sqlrecommends/sqlrecommends.module';
 import { SqltypesdetailModule } from '../sqltypesdetail/sqltypesdetail.module';
+import { SqlauthorsModule } from '../sqlauthors/sqlauthors.module';
 
 @Module({
-  imports: [SqlnovelsModule, SqltypesModule, SqlmenusModule, SqlpagesModule, SqlrecommendsModule, SqltypesdetailModule],
+  imports: [SqlnovelsModule, SqltypesModule, SqlmenusModule, SqlpagesModule, SqlrecommendsModule, SqltypesdetailModule, SqlauthorsModule],
   providers: [GetBookService],
   controllers: [GetBookController]
 })

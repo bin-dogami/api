@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Equal, LessThan, LessThanOrEqual, MoreThan } from 'typeorm';
+import { Repository, Equal, LessThan, LessThanOrEqual, MoreThan, In } from 'typeorm';
 import { sqlmenus as menus } from './sqlmenus.entity';
 import { CreateSqlmenus } from "./create-sqlmenus.dto";
 import { getFirstMenuId } from '../utils/index'
@@ -14,7 +14,30 @@ export class SqlmenusService {
 
   async create(createSqlmenus: CreateSqlmenus): Promise<menus> {
     const oMenus = this.sqlmenusRepository.create(createSqlmenus);
-    return this.sqlmenusRepository.save(oMenus);
+    return this.sqlmenusRepository.save(oMenus)
+  }
+
+  // 根据novelId 查询每本书的最新一条目录
+  async findLastMenuByNovelIds(novelIds: number[]): Promise<menus[]> {
+    const _menus = await this.sqlmenusRepository
+      .createQueryBuilder("menus")
+      // 这里只能先查出最大的id和novelId，再查对应的 mname，必须两层嵌套查询
+      .select("max(id)", "_id")
+      // .addSelect("novelId")
+      // .addSelect("mname")
+      // .addSelect("`index`")
+      .where("novelId IN (:...novelIds)", { novelIds })
+      .groupBy("novelId")
+      .execute()
+    // .getSql()
+
+    // 写两次语句也避免 sql_mode=only_full_group_by 这个恶心的问题
+    const menus = await this.sqlmenusRepository.find({
+      select: ["novelId", "id", "mname", "index"],
+      where: { id: In(_menus.map(({ _id }) => _id)) },
+    })
+
+    return menus
   }
 
   // 获取最新 index，id 不一定随着 index 变大而变大，因为有可能前面的某个 id 失败了，然后重新抓取了一次，那这个数据就可能 index 不大，但 id 是最大的

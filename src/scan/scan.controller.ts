@@ -10,8 +10,10 @@ import { SqlrecommendsService } from '../sqlrecommends/sqlrecommends.service';
 import { SqltypesdetailService } from '../sqltypesdetail/sqltypesdetail.service';
 
 import { sqlnovels as novels } from '../sqlnovels/sqlnovels.entity';
+import { sqlauthors as authors } from '../sqlauthors/sqlauthors.entity';
 import { sqlmenus as menus } from '../sqlmenus/sqlmenus.entity';
 import { sqlrecommends as recommends } from '../sqlrecommends/sqlrecommends.entity';
+import { SqlauthorsService } from '../sqlauthors/sqlauthors.service';
 import { sqlpages as pages } from '../sqlpages/sqlpages.entity';
 
 import { Mylogger } from '../mylogger/mylogger.service';
@@ -39,9 +41,39 @@ export class ScanController {
     private readonly sqltypesService: SqltypesService,
     private readonly sqlmenusService: SqlmenusService,
     private readonly sqlpagesService: SqlpagesService,
+    private readonly sqlauthorsService: SqlauthorsService,
     private readonly sqlrecommendsService: SqlrecommendsService,
     private readonly sqltypesdetailService: SqltypesdetailService,
   ) { }
+
+  // 查询具体书
+  @Get('getBookBySearch')
+  async getBookBySearch(@Query('name') name: string, @Query('id') id: number): Promise<novels> {
+    return await this.sqlnovelsService.getBookByTitleId(name, +id)
+  }
+
+  // 阅读历史
+  @Get('getBooksLastPageByIds')
+  async getBooksLastPageByIds(@Query('ids') ids: any[]): Promise<menus[]> {
+    let _ids = ids.length > 20 ? ids.slice(0, 20) : ids
+    _ids = _ids.map((item) => JSON.parse(item))
+    const nIds = _ids.map(({ id }) => id)
+    const list = await this.sqlmenusService.findLastMenuByNovelIds(nIds)
+    return list.filter(({ id, novelId }) => {
+      for (const item of _ids) {
+        if (item.id === novelId) {
+          return id > item.pageId
+        }
+      }
+      return false
+    })
+  }
+
+  // 模糊查询
+  @Get('getBookByName')
+  async getBookByName(@Query('name') name: string): Promise<novels[]> {
+    return await this.sqlnovelsService.getBookByTitleWithLike(name)
+  }
 
   @Get('getTypesData')
   async getTypesData(@Query('id') id: number, @Query('skip') skip: number, @Query('size') size?: number): Promise<any> {
@@ -54,11 +86,11 @@ export class ScanController {
     }
   }
 
+  // 首页
   @Get('getIndexData')
-  async getIndexData(): Promise<any> {
-    // @TODO: 推荐或者个人浏览记录
-    // 热门小说
+  async getIndexData(): Promise<any[]> {
     const types = await this.sqltypesService.findAll(false)
+    const hotsData = await this.getBooksByHot(0, 4)
     const typesData = [];
     for (const { id, name } of types) {
       const books = await this.sqlnovelsService.getIndexBooksByType(id)
@@ -68,9 +100,10 @@ export class ScanController {
         books
       })
     }
-    return {
+    return [
       typesData,
-    }
+      hotsData
+    ]
   }
 
   // 根据分类获取书list，skip： 从第几个开始，不是从第几页开始
@@ -171,5 +204,22 @@ export class ScanController {
     }
 
     return []
+  }
+
+  // 查询作者书list
+  @Get('getAuthorData')
+  async getAuthorData(@Query('id') id: number): Promise<[novels[], authors[]]> {
+    let novelsList = []
+    if (id) {
+      const author = await this.sqlauthorsService.findOne(+id)
+      if (author) {
+        novelsList = await this.sqlnovelsService.getBookByIds(author.novelIds)
+      }
+    }
+    const authorsList = await this.sqlauthorsService.getAuthors(0, 20)
+    return [
+      novelsList,
+      authorsList
+    ]
   }
 }

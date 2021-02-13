@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Like, In } from 'typeorm';
 import { sqlnovels as novels } from './sqlnovels.entity';
 import { CreateSqlnovels } from "./create-sqlnovels.dto";
 import { getFirstNovelId } from '../utils/index'
@@ -20,13 +20,44 @@ export class SqlnovelsService {
   // 主页用
   async getIndexBooksByType(typeid: number): Promise<novels[]> {
     return await this.sqlnovelsRepository.find({
-      select: ["id", "title", "author", "description", "thumb"],
+      select: ["id", "title", "author", "authorId", "description", "thumb"],
       where: { typeid },
       order: {
         viewnum: "DESC"
       },
       take: 4
-    });
+    })
+  }
+
+  // 搜索
+  async getBookByTitleId(title: string, id: number): Promise<novels> {
+    // 第一页数据缓存一小时
+    return await this.sqlnovelsRepository.findOne({
+      select: ["id", "title", "author", "authorId", "description", "thumb"],
+      where: id ? { title, id } : { title }
+    })
+  }
+
+  async getBookByIds(novelIds: number[]): Promise<novels[]> {
+    return await this.sqlnovelsRepository.find({
+      select: ["id", "title", "author", "authorId", "description", "thumb"],
+      where: { id: In(novelIds) },
+    })
+  }
+
+  // 搜索
+  async getBookByTitleWithLike(name: string): Promise<novels[]> {
+    // 第一页数据缓存一小时
+    return await this.sqlnovelsRepository.find({
+      select: ["id", "title", "author", "authorId"],
+      where: {
+        title: Like(`%${name}%`)
+      },
+      order: {
+        viewnum: "DESC"
+      },
+      take: 10
+    })
   }
 
   async getBooksByType(typeid: number, skip: number, size?: number): Promise<novels[]> {
@@ -36,7 +67,7 @@ export class SqlnovelsService {
     // 第一页数据缓存一小时
     const cache = skip === 0 ? { cache: 60000 * 60 } : {}
     return await this.sqlnovelsRepository.find({
-      select: ["id", "title", "author", "description", "thumb"],
+      select: ["id", "title", "author", "authorId", "description", "thumb"],
       ...where,
       order: {
         viewnum: "DESC"
@@ -44,22 +75,22 @@ export class SqlnovelsService {
       skip,
       take: size && size <= 50 ? size : 20,
       ...cache
-    });
+    })
   }
 
   async getBooksByCompleted(skip: number, size?: number): Promise<novels[]> {
     // 第一页数据缓存一小时
     const cache = skip === 0 ? { cache: 60000 * 60 } : {}
     return await this.sqlnovelsRepository.find({
-      select: ["id", "title", "author", "description", "thumb"],
-      where: { isComplete: false },
+      select: ["id", "title", "author", "authorId", "description", "thumb"],
+      where: { isComplete: true },
       order: {
         viewnum: "DESC"
       },
       skip,
       take: size && size <= 50 ? size : 20,
       ...cache
-    });
+    })
   }
 
   async findLastId(): Promise<number> {
@@ -67,14 +98,14 @@ export class SqlnovelsService {
       order: {
         id: "DESC"
       }
-    });
+    })
     return novel && novel.id ? novel.id : getFirstNovelId();
   }
 
   async findById(id: number, getAllFields?: boolean): Promise<novels> {
     return this.sqlnovelsRepository.findOne(
       {
-        select: getAllFields ? undefined : ["id", "title", "author", "typename", "description", "thumb", "isComplete"],
+        select: getAllFields ? undefined : ["id", "title", "author", "authorId", "typename", "description", "thumb", "isComplete"],
         where: { id },
       }
     );

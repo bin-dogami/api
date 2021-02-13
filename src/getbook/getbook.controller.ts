@@ -8,6 +8,7 @@ import { SqlmenusService } from '../sqlmenus/sqlmenus.service';
 import { SqlpagesService } from '../sqlpages/sqlpages.service';
 import { SqlrecommendsService } from '../sqlrecommends/sqlrecommends.service';
 import { SqltypesdetailService } from '../sqltypesdetail/sqltypesdetail.service';
+import { SqlauthorsService } from '../sqlauthors/sqlauthors.service';
 import { Mylogger } from '../mylogger/mylogger.service';
 
 @Controller('getbook')
@@ -20,6 +21,7 @@ export class GetBookController {
     private readonly sqltypesService: SqltypesService,
     private readonly sqlmenusService: SqlmenusService,
     private readonly sqlpagesService: SqlpagesService,
+    private readonly sqlauthorsService: SqlauthorsService,
     private readonly sqlrecommendsService: SqlrecommendsService,
     private readonly sqltypesdetailService: SqltypesdetailService,
   ) { }
@@ -29,8 +31,24 @@ export class GetBookController {
     return this.getBookService.getHello();
   }
 
+  async setRecommend(novel) {
+    const { id, title, description, author, authorId, thumb } = novel
+    this.logger.log(`# 本书设置为推荐 start #`);
+    const level = await this.sqlrecommendsService.findLastLevel()
+    await this.sqlrecommendsService.create({
+      id,
+      level: level + 1,
+      title,
+      description: description.length > 990 ? description.substr(0, 990) : description,
+      author,
+      authorId,
+      thumb,
+    });
+    this.logger.log(`# 本书设置为推荐 end #`);
+  }
+
   @Post('spider')
-  async spider(@Body('url') url: string) {
+  async spider(@Body('url') url: string, @Body('recommend') recommend: string) {
     this.logger.start(`\n ### 【start】 开始抓取书信息 ###`);
     const bookInfo = await this.getBookService.getBookInfo(url);
     if (!bookInfo) {
@@ -51,6 +69,9 @@ export class GetBookController {
     // 查询书信息
     const novel = await this.sqlnovelsService.findByTitle(title, author);
     if (novel) {
+      if (+recommend) {
+        await this.setRecommend(novel)
+      }
       // 查询目录
       const count = await this.sqlmenusService.findCountByNovelId(novel['id']);
 
@@ -76,11 +97,36 @@ export class GetBookController {
     const currentNovelId = getNovelId(lastNovelId);
     this.logger.log(`# 开始抓取书封面到 image 目录 #`);
     const newThumbPath = await downloadImage('images', thumb, currentNovelId)
+    const authorInfo = await this.sqlauthorsService.findOneByAuthorName(author);
+    let authorId = 0
+    if (authorInfo) {
+      authorId = authorInfo.id
+      if (!authorInfo.novelIds.includes(currentNovelId)) {
+        authorInfo.novelIds.push(currentNovelId)
+        await this.sqlauthorsService.updateNovelIds(authorInfo)
+      }
+    } else {
+      try {
+        const authorInfo = await this.sqlauthorsService.create({
+          novelIds: [currentNovelId],
+          name: author,
+          level: 0,
+          levelName: '',
+          desc: '',
+        });
+        if (authorInfo) {
+          authorId = authorInfo.id
+        }
+      } catch (error) {
+        this.logger.log(`# [failed] 创建作者数据失败，作者：[${author}]，错误信息：${error} #`);
+      }
+    }
     const newNovel = {
       id: currentNovelId,
       title,
       description: description.length > 990 ? description.substr(0, 990) : description,
       author,
+      authorId,
       typeid: typeInfo.id,
       typename: typeInfo.name,
       from: [from],
@@ -93,21 +139,10 @@ export class GetBookController {
     let _novel = null
     try {
       _novel = await this.sqlnovelsService.create(newNovel);
-
-      // // @TODO: Test，造点推荐数据, start
-      // this.logger.log(`# 造点推荐数据 #`);
-      // const level = await this.sqlrecommendsService.findLastLevel()
-      // await this.sqlrecommendsService.create({
-      //   id: _novel.id,
-      //   level: level + 1,
-      //   title,
-      //   description: description.length > 990 ? description.substr(0, 990) : description,
-      //   author,
-      //   thumb: newThumbPath,
-      // });
-      // // 造点推荐数据, end
+      if (_novel && +recommend) {
+        await this.setRecommend(_novel)
+      }
     } catch (err) {
-      console.log(newNovel.description.length)
       this.logger.end(`### [failed] 写入书数据失败：${err} ###`);
       return {
         '错误': `写入书数据失败：${err}`
@@ -132,7 +167,7 @@ export class GetBookController {
     let lastIndex = await this.sqlmenusService.findLastIndexByNovelId(args.id)
     const [menus, reFaildIndex] = await this.getMenus(args.from, lastIndex, args.faildIndex.join(','));
     // @TODO: test?
-    args.menus = menus.slice(0, 250);
+    args.menus = menus.slice(0, 5);
     await this.insertMenuAndPages(args, reFaildIndex);
   }
 

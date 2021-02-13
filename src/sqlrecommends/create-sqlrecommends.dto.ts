@@ -3,6 +3,7 @@ export class CreateSqlrecommends {
   level: number;
   title: string;
   author: string;
+  authorId: number;
   description: string;
   thumb: string;
 }

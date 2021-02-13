@@ -20,6 +20,9 @@ export class sqlrecommends {
   @Column({ length: 100 })
   author: string;
 
+  @Column()
+  authorId: number;
+
   @Column({ length: 1000 })
   description: string;
 

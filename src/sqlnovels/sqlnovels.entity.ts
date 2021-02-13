@@ -15,6 +15,9 @@ export class sqlnovels {
   @Column({ length: 100 })
   author: string;
 
+  @Column()
+  authorId: number;
+
   // 封面
   @Column()
   thumb: string;
