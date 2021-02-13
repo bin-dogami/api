@@ -18,14 +18,14 @@ export class SqlnovelsService {
   }
 
   // 主页用
-  async getIndexBooksByType(typeid: number): Promise<novels[]> {
+  async getIndexBooksByType(typeid: number, size?: number): Promise<novels[]> {
     return await this.sqlnovelsRepository.find({
       select: ["id", "title", "author", "authorId", "description", "thumb"],
       where: { typeid },
       order: {
         viewnum: "DESC"
       },
-      take: 4
+      take: size || 6
     })
   }
 

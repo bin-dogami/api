@@ -90,10 +90,10 @@ export class ScanController {
   @Get('getIndexData')
   async getIndexData(): Promise<any[]> {
     const types = await this.sqltypesService.findAll(false)
-    const hotsData = await this.getBooksByHot(0, 4)
+    const hotsData = await this.getBooksByHot(0, 6)
     const typesData = [];
     for (const { id, name } of types) {
-      const books = await this.sqlnovelsService.getIndexBooksByType(id)
+      const books = await this.sqlnovelsService.getIndexBooksByType(id, 6)
       typesData.push({
         id,
         name,
@@ -208,16 +208,18 @@ export class ScanController {
 
   // 查询作者书list
   @Get('getAuthorData')
-  async getAuthorData(@Query('id') id: number): Promise<[novels[], authors[]]> {
+  async getAuthorData(@Query('id') id: number): Promise<[authors, novels[], authors[]]> {
+    let author = null
     let novelsList = []
     if (id) {
-      const author = await this.sqlauthorsService.findOne(+id)
+      author = await this.sqlauthorsService.findOne(+id)
       if (author) {
         novelsList = await this.sqlnovelsService.getBookByIds(author.novelIds)
       }
     }
     const authorsList = await this.sqlauthorsService.getAuthors(0, 20)
     return [
+      author,
       novelsList,
       authorsList
     ]
