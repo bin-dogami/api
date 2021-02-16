@@ -1,5 +1,5 @@
 // import { log } from '../utils/index'
-import { Controller, Get, Post, Query, Body, Param, HttpCode } from '@nestjs/common';
+import { CacheInterceptor, UseInterceptors, Controller, Get, Post, Query, Body, Param, HttpCode } from '@nestjs/common';
 import { ScanService } from './scan.service';
 
 import { SqlnovelsService } from '../sqlnovels/sqlnovels.service';
@@ -75,7 +75,9 @@ export class ScanController {
     return await this.sqlnovelsService.getBookByTitleWithLike(name)
   }
 
+  // 分类页
   @Get('getTypesData')
+  @UseInterceptors(CacheInterceptor)
   async getTypesData(@Query('id') id: number, @Query('skip') skip: number, @Query('size') size?: number): Promise<any> {
     const types = await this.sqltypesService.findAll(false)
     const _size = +size || 20
@@ -88,6 +90,7 @@ export class ScanController {
 
   // 首页
   @Get('getIndexData')
+  @UseInterceptors(CacheInterceptor)
   async getIndexData(): Promise<any[]> {
     const types = await this.sqltypesService.findAll(false)
     const hotsData = await this.getBooksByHot(0, 6)
@@ -108,18 +111,21 @@ export class ScanController {
 
   // 根据分类获取书list，skip： 从第几个开始，不是从第几页开始
   @Get('getBooksByType')
+  @UseInterceptors(CacheInterceptor)
   async getBooksByType(@Query('typeId') typeId: number, @Query('skip') skip: number, @Query('size') size?: number): Promise<novels[]> {
     return await this.sqlnovelsService.getBooksByType(+typeId, +skip, +size);
   }
 
   // 根据全本书list
   @Get('getBooksByCompleted')
+  @UseInterceptors(CacheInterceptor)
   async getBooksByCompleted(@Query('skip') skip: number, @Query('size') size?: number): Promise<novels[]> {
     return await this.sqlnovelsService.getBooksByCompleted(+skip, size ? +size : 20);
   }
 
   // 根据热门推荐书 list
   @Get('getBooksByHot')
+  @UseInterceptors(CacheInterceptor)
   async getBooksByHot(@Query('skip') skip: number, @Query('size') size?: number): Promise<recommends[]> {
     return await this.sqlrecommendsService.getList(+skip, +size);
   }

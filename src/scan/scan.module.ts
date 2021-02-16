@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { CacheModule, Module } from '@nestjs/common';
 import { ScanController } from './scan.controller';
 import { ScanService } from './scan.service';
 import { SqlnovelsModule } from '../sqlnovels/sqlnovels.module';
@@ -10,7 +10,20 @@ import { SqltypesdetailModule } from '../sqltypesdetail/sqltypesdetail.module';
 import { SqlauthorsModule } from '../sqlauthors/sqlauthors.module';
 
 @Module({
-  imports: [SqlnovelsModule, SqltypesModule, SqlmenusModule, SqlpagesModule, SqlrecommendsModule, SqltypesdetailModule, SqlauthorsModule],
+  imports: [
+    // https://docs.nestjs.cn/7/techniques?id=%e9%ab%98%e9%80%9f%e7%bc%93%e5%ad%98%ef%bc%88caching%ef%bc%89
+    CacheModule.register({
+      ttl: 300, //秒
+      max: 20, //缓存中最大和最小数量
+    }),
+    SqlnovelsModule,
+    SqltypesModule,
+    SqlmenusModule,
+    SqlpagesModule,
+    SqlrecommendsModule,
+    SqltypesdetailModule,
+    SqlauthorsModule
+  ],
   providers: [ScanService],
   controllers: [ScanController]
 })

@@ -1,4 +1,3 @@
-import { Test } from '@nestjs/testing';
 import { log, getValidTitle, getHostFromUrl, getNovelId, getMenuId, downloadImage } from '../utils/index'
 import { Controller, Get, Post, Body, Param, HttpCode } from '@nestjs/common';
 import { GetBookService } from './getbook.service';
@@ -10,6 +9,8 @@ import { SqlrecommendsService } from '../sqlrecommends/sqlrecommends.service';
 import { SqltypesdetailService } from '../sqltypesdetail/sqltypesdetail.service';
 import { SqlauthorsService } from '../sqlauthors/sqlauthors.service';
 import { Mylogger } from '../mylogger/mylogger.service';
+
+const ImagePath = '../web-scan/public/'
 
 @Controller('getbook')
 export class GetBookController {
@@ -96,7 +97,7 @@ export class GetBookController {
     const lastNovelId = await this.sqlnovelsService.findLastId();
     const currentNovelId = getNovelId(lastNovelId);
     this.logger.log(`# 开始抓取书封面到 image 目录 #`);
-    const newThumbPath = await downloadImage('images', thumb, currentNovelId)
+    const newThumbPath = await downloadImage(ImagePath + 'images', thumb, currentNovelId)
     const authorInfo = await this.sqlauthorsService.findOneByAuthorName(author);
     let authorId = 0
     if (authorInfo) {
@@ -131,7 +132,7 @@ export class GetBookController {
       typename: typeInfo.name,
       from: [from],
       tags: [],
-      thumb: newThumbPath,
+      thumb: newThumbPath.replace(ImagePath, ''),
       faildIndex: [],
     }
     // 写入书信息
@@ -269,14 +270,4 @@ export class GetBookController {
   async view(@Body('url') url: string) {
     return this.getBookService.getBookInfo(url);
   }
-
-  // @Post('menu')
-  // getMenu(@Body('url') url: string) {
-  //   return 'menu';
-  // }
-
-  // @Post('page')
-  // getPage(@Body('url') url: string) {
-  //   return this.getBookService.getPage(url);
-  // }
 }
