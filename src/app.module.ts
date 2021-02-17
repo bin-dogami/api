@@ -13,7 +13,7 @@ import { ScanModule } from './scan/scan.module';
       host: 'localhost',
       port: 3306,
       username: 'root',
-      password: 'root',
+      password: 'novels$1024%123^LaoWang&2021',
       database: 'novels',
       // entities: [User],
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
