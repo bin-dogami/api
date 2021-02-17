@@ -47,7 +47,6 @@ export class SqlnovelsService {
 
   // 搜索
   async getBookByTitleWithLike(name: string): Promise<novels[]> {
-    // 第一页数据缓存一小时
     return await this.sqlnovelsRepository.find({
       select: ["id", "title", "author", "authorId"],
       where: {
@@ -64,8 +63,6 @@ export class SqlnovelsService {
     const where = typeid === 0 ? {} : {
       where: { typeid }
     }
-    // 第一页数据缓存一小时
-    const cache = skip === 0 ? { cache: 60000 * 60 } : {}
     return await this.sqlnovelsRepository.find({
       select: ["id", "title", "author", "authorId", "description", "thumb"],
       ...where,
@@ -74,13 +71,10 @@ export class SqlnovelsService {
       },
       skip,
       take: size && size <= 50 ? size : 20,
-      ...cache
     })
   }
 
   async getBooksByCompleted(skip: number, size?: number): Promise<novels[]> {
-    // 第一页数据缓存一小时
-    const cache = skip === 0 ? { cache: 60000 * 60 } : {}
     return await this.sqlnovelsRepository.find({
       select: ["id", "title", "author", "authorId", "description", "thumb"],
       where: { isComplete: true },
@@ -89,7 +83,6 @@ export class SqlnovelsService {
       },
       skip,
       take: size && size <= 50 ? size : 20,
-      ...cache
     })
   }
 

@@ -69,8 +69,6 @@ export class SqlmenusService {
 
   // 获取书的目录，以分页的形式
   async getMenusByBookId(id: number, skip: number, size?: number, isDesc?: boolean): Promise<[menus[], number]> {
-    // @TODO: 缓存？
-    // const cache = skip === 0 ? { cache: 60000 * 60 } : {}
     return await this.sqlmenusRepository.findAndCount({
       select: ["id", "mname", "index"],
       where: {
@@ -81,7 +79,6 @@ export class SqlmenusService {
       },
       skip,
       take: size && size <= 100 ? size : 20,
-      // ...cache
     });
   }
 

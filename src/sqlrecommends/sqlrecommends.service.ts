@@ -19,8 +19,6 @@ export class SqlrecommendsService {
   }
 
   async getList(skip: number, size?: number): Promise<recommends[]> {
-    // 第一页数据缓存一小时
-    // const cache = skip === 0 ? { cache: 60000 * 60 } : {}
     return await this.SqlrecommendsRepository.find({
       order: {
         level: "DESC",
@@ -28,7 +26,6 @@ export class SqlrecommendsService {
       },
       skip,
       take: size && size <= 100 ? size : 20,
-      // ...cache
     });
   }
 
