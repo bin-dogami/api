@@ -20,10 +20,10 @@ import { ScanModule } from './scan/scan.module';
       // autoLoadEntities: true,
       synchronize: true,
       // 开启缓存 https://typeorm.biunav.com/zh/caching.html
-      cache: {
-        type: "database",
-        tableName: "configs-novelstables-query-result-caches"
-      }
+      // cache: {
+      //   type: "database",
+      //   tableName: "configs-novelstables-query-result-caches"
+      // }
     }),
     GetbookModule,
     ScanModule,
