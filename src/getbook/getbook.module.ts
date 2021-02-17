@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { GetBookService } from './getBook.service';
-import { GetBookController } from './getBook.controller';
+import { GetBookService } from './getbook.service';
+import { GetBookController } from './getbook.controller';
 import { SqlnovelsModule } from '../sqlnovels/sqlnovels.module';
 import { SqltypesModule } from '../sqltypes/sqltypes.module';
 import { SqlmenusModule } from '../sqlmenus/sqlmenus.module';
