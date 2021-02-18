@@ -8,7 +8,7 @@
   "scripts": {
     "spider": "node spider/app.js",
     "prebuild": "rimraf dist",
-    "build": "nest build && npm start:prod",
+    "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start:dev": "nest start",
     "start": "nest start --watch",
