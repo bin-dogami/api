@@ -6,6 +6,7 @@ const logFilePath = './logs'
 // 章节缺失错误日志文件名
 const PageLose = '章节缺失错误'
 
+// @TODO: 确定 nginx 里会不会再写一遍 log 信息
 @Injectable()
 export class Mylogger extends Logger {
   private tmplLogs = '';
@@ -33,7 +34,7 @@ export class Mylogger extends Logger {
     if (!fs.existsSync(logPath)) {
       fs.mkdirSync(logPath);
     }
-    const fileName = dayjs().format('YYYY-MM-DD HH:mm') + '.log';
+    const fileName = dayjs().format('YYYY-MM-DD') + '.log';
     this.filePath = filePath || `${logPath}/${fileName}`;
     const stderr = fs.createWriteStream(this.filePath, {
       flags: 'a',
@@ -44,12 +45,14 @@ export class Mylogger extends Logger {
   }
   // 写入日志
   writeLog() {
+    if (!this.filePath) {
+      return
+    }
     const stderr = fs.createWriteStream(this.filePath, {
       flags: 'a',
       encoding: 'utf8',
     });
-    // @TODO: 这里总有一次会写入失败，但tmplLogs数据又没丢，真奇怪
-    stderr.on('error', err => this.log(`写入失败: ${err}`));
+    stderr.on('error', err => this.log(`写入失败: ${err};路径：${this.filePath}`));
     stderr.write(this.tmplLogs);
     this.tmplLogs = '';
     stderr.end();
@@ -87,7 +90,7 @@ export class Mylogger extends Logger {
   log(message: string, info?: any) {
     this.dealSpecialSituation(info);
     this.tmplLogs += message + '\n';
-    if (this.tmplLogs.length > 1000) {
+    if (this.tmplLogs.length > 3000) {
       this.writeLog();
     }
     super.log(message);

@@ -1,5 +1,4 @@
 import { Entity, Column, PrimaryColumn, Timestamp, OneToOne, JoinColumn, Index, Generated } from 'typeorm';
-// import { novels } from '../sqlnovels/sqlnovels.entity';
 
 @Entity()
 @Index(["novelId", "index"], { unique: true })
@@ -16,7 +15,6 @@ export class sqlmenus {
   moriginalname: string;
 
   // 第 XXX （阿拉伯数字） 章
-  // @TODO: index 可能为 负数，所以输出的时候负数一律不输出 第XX章(显示 moriginalname 吧)
   // select id, `index`, mname from menus;
   @Index()
   @Column()

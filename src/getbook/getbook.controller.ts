@@ -1,4 +1,4 @@
-import { log, getValidTitle, getHostFromUrl, getNovelId, getMenuId, downloadImage } from '../utils/index'
+import { getValidTitle, getHostFromUrl, getNovelId, getMenuId, downloadImage } from '../utils/index'
 import { Controller, Get, Post, Body, Param, HttpCode } from '@nestjs/common';
 import { GetBookService } from './getbook.service';
 import { SqlnovelsService } from '../sqlnovels/sqlnovels.service';
@@ -8,6 +8,7 @@ import { SqlpagesService } from '../sqlpages/sqlpages.service';
 import { SqlrecommendsService } from '../sqlrecommends/sqlrecommends.service';
 import { SqltypesdetailService } from '../sqltypesdetail/sqltypesdetail.service';
 import { SqlauthorsService } from '../sqlauthors/sqlauthors.service';
+import { IErrors, SqlerrorsService } from '../sqlerrors/sqlerrors.service';
 import { Mylogger } from '../mylogger/mylogger.service';
 
 const ImagePath = '../web-scan/public/'
@@ -23,6 +24,7 @@ export class GetBookController {
     private readonly sqlmenusService: SqlmenusService,
     private readonly sqlpagesService: SqlpagesService,
     private readonly sqlauthorsService: SqlauthorsService,
+    private readonly sqlerrorsService: SqlerrorsService,
     private readonly sqlrecommendsService: SqlrecommendsService,
     private readonly sqltypesdetailService: SqltypesdetailService,
   ) { }
@@ -52,10 +54,11 @@ export class GetBookController {
   async spider(@Body('url') url: string, @Body('recommend') recommend: string) {
     this.logger.start(`\n ### 【start】 开始抓取书信息 ###`);
     const bookInfo = await this.getBookService.getBookInfo(url);
-    if (!bookInfo) {
-      this.logger.log(`# [failed] 抓取书信息出错，失败原因看上一条 #`);
+    if (!bookInfo || bookInfo.err) {
+      const err = bookInfo.err ? `(${bookInfo.err})` : ''
+      this.logger.log(`# [failed] 抓取书信息出错，失败原因看上一条${err} #`);
       return {
-        '错误': '抓取书信息出错'
+        '错误': `抓取书信息出错${err}`
       };
     }
     const { title, description, thumb, author, type, from } = bookInfo;
@@ -166,15 +169,34 @@ export class GetBookController {
 
   async insertMenus(args: any) {
     let lastIndex = await this.sqlmenusService.findLastIndexByNovelId(args.id)
-    const [menus, reFaildIndex] = await this.getMenus(args.from, lastIndex, args.faildIndex.join(','));
-    // @TODO: test?
-    args.menus = menus.slice(0, 5);
-    await this.insertMenuAndPages(args, reFaildIndex);
+    const res = await this.getMenus(args.from, lastIndex, args.faildIndex.join(','));
+    if (res && Array.isArray(res)) {
+      const [menus, reFaildIndex] = res
+      // @TODO: test?
+      args.menus = 1 ? menus : menus.slice(0, 5);
+      await this.insertMenuAndPages(args, reFaildIndex);
+    } else {
+      const err = res && res.err ? `(${res.err})` : ''
+      this.logger.end(`### [failed] 获取目录失败 ${err} ###`);
+      return {
+        '错误': `获取目录失败 ${err}`
+      };
+    }
   }
 
   @Post('getMenus')
   async getMenus(@Body('url') url: string, lastIndex?: number, faildIndex?: string) {
     return this.getBookService.getMenus(url, lastIndex, faildIndex);
+  }
+
+  async insertPageFailed(menuId, novelId, index, from, moriginalname, error) {
+    await this.sqlerrorsService.create({
+      menuId,
+      novelId,
+      menuIndex: index,
+      type: IErrors.MENU_INSERT_FAILED,
+      info: `第${index}章(${moriginalname}), ${error}, 来源: ${from}`,
+    })
   }
 
   // 一次性插入多个目录及对应的章节内容
@@ -194,6 +216,7 @@ export class GetBookController {
       lastPage: '获取或插入page失败'
     }
     let currentMenuId = await this.sqlmenusService.findLastIdByNovelId(id)
+    let menusInsertFailedInfo = ''
     while (menus.length) {
       const { url, title, index } = menus.shift();
       let menuInfo: any;
@@ -214,8 +237,17 @@ export class GetBookController {
         if (menuInfo && menuInfo.id) {
           this.logger.log(`# 此目录已经被写入过数据库了 # 目录名：【${menuInfo.moriginalname}】, 第${index}章；id: ${menuInfo.id}`)
         } else {
-          this.logger.log(`# [failed] 此目录插入失败也找不到此目录数据 # 目录名：【${menuInfo.moriginalname}】, 第${index}章, 来源: ${from} \n`)
+          this.logger.log(`# [failed] 章节插入错误，中止抓取 # 目录名：【${menuInfo.moriginalname}】, 第${index}章, 来源: ${from} \n`)
           index > 0 && res.failedIndex.push(index)
+          menusInsertFailedInfo = '[章节插入错误！！！！！！！ 看上一条错误信息]'
+          await this.sqlerrorsService.create({
+            menuId: 0,
+            novelId: id,
+            menuIndex: index,
+            type: IErrors.MENU_INSERT_FAILED,
+            info: `第${index}章(${menuInfo.moriginalname}) 插入目录失败, 来源: ${from}`,
+          })
+          break;
         }
       }
       if (!menuInfo || !menuInfo.id) {
@@ -226,6 +258,14 @@ export class GetBookController {
       try {
         this.logger.log(`# 第${index}章开始抓取数据 # 来源：${host + url}`);
         const list = await this.getBookService.getPageInfo(host + url);
+        if (!list || !Array.isArray(list) || 'err' in list) {
+          const err = list && list.err ? `(${list.err})` : ''
+          this.logger.log(`### [failed] 获取章节内容失败 ${err}, 目录名：【${menuInfo.moriginalname}】, 是第${index}章 ###`);
+          index > 0 && res.failedIndex.push(index)
+          await this.insertPageFailed(menuInfo.id, id, index, host + url, menuInfo.moriginalname, '获取章节内容失败: ' + err)
+          continue;
+        }
+
         this.logger.log(`# 第${index}章开始插入page #`);
         let content = list.length ? list.map((text) => text.trim().length ? `<p>${text}</p>` : '').filter((text) => !!text).join('') : '';
         // // @TODO: test
@@ -236,8 +276,9 @@ export class GetBookController {
           res.lastPage = `第${index}章: 【${menuInfo.moriginalname}】 <br />${content}`;
         }
         if (!content.trim().length) {
-          this.logger.log(`# [failed] 插入章节内容失败，没抓到内容 # 目录名：【${menuInfo.moriginalname}】, 是第${index}章, 错误信息：一个字也没抓到 \n`)
+          this.logger.log(`# [failed] 插入章节内容失败，抓到的内容为空或错误 # 目录名：【${menuInfo.moriginalname}】, 是第${index}章, 错误信息：一个字也没抓到 \n`)
           index > 0 && res.failedIndex.push(index)
+          await this.insertPageFailed(menuInfo.id, id, index, host + url, menuInfo.moriginalname, '插入章节内容失败，抓到的内容为空或错误')
           continue;
         }
         const pageInfo = await this.sqlpagesService.create({
@@ -252,8 +293,9 @@ export class GetBookController {
         this.logger.log(`# 插入章节内容成功 # 目录名：【${pageInfo.mname}】, 是第${index}章, 字数：${content.length}；id: ${menuInfo.id} \n`)
         res.successLen++
       } catch (err) {
-        this.logger.log(`# [failed] 插入章节内容错误 # 目录名：【${menuInfo.moriginalname}】, 是第${index}章, 错误信息：${err}} \n`)
+        this.logger.log(`# [failed] 章节内容插入表中失败: ${err} # 目录名：【${menuInfo.moriginalname}】, 是第${index}章 \n`)
         index > 0 && res.failedIndex.push(index)
+        await this.insertPageFailed(menuInfo.id, id, index, host + url, menuInfo.moriginalname, `章节内容插入表中失败: ${err}`)
       }
     }
     const menusLen = await this.sqlmenusService.findCountByNovelId(id);
@@ -262,7 +304,8 @@ export class GetBookController {
       faildIndex: res.failedIndex
     });
     this.logger.log(' ############################################### ');
-    this.logger.end(`### 【end】完成目录及page插入，本插入成功 ${res.successLen} 条，失败章节 ${res.failedIndex.length} 条（index.）：${res.failedIndex.length ? res.failedIndex.join(', ') : '无'}。 ### \n\n\n`);
+    const failedInfo = menusInsertFailedInfo ? menusInsertFailedInfo : `失败章节 ${res.failedIndex.length} 条（index.）：${res.failedIndex.length ? res.failedIndex.join(', ') : '无'}`
+    this.logger.end(`### 【end】完成目录及page插入，插入成功 ${res.successLen} 条，${failedInfo}。 ### \n\n\n`);
     return res
   }
 

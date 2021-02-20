@@ -1,5 +1,4 @@
 import { Entity, Column, PrimaryColumn, Timestamp, OneToOne, JoinColumn, Index } from 'typeorm';
-
 @Entity()
 export class sqlpages {
   // 从menus 表里得到

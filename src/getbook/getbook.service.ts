@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { downloadImage, log } from '../utils/index';
+import { downloadImage } from '../utils/index';
 var spawn = require("child_process").spawn;
 var child_process = require('child_process');
 
@@ -14,7 +14,7 @@ export class GetBookService {
       var child = child_process.fork('./spider/getbook.js', [url]);
       child.on('message', function (v, error) {
         if (error) {
-          log(error);
+          reject(error);
         }
         resolve(v);
       });
@@ -22,11 +22,17 @@ export class GetBookService {
   }
 
   async getBookInfo(url: string): Promise<any> {
-    const o = await this._getBook(url);
-    if (typeof o === 'object') {
-      o['from'] = url;
+    try {
+      const o = await this._getBook(url);
+      if (typeof o === 'object') {
+        o['from'] = url;
+      }
+      return o;
+    } catch (err) {
+      return {
+        err
+      };
     }
-    return o;
   }
 
   _getMenu(url: string, lastIndex?: number, faildIndex?: string) {
@@ -34,7 +40,7 @@ export class GetBookService {
       var child = child_process.fork('./spider/getmenu.js', [url, lastIndex, faildIndex]);
       child.on('message', function (v, error) {
         if (error) {
-          log(error);
+          reject(error);
         }
         resolve(v);
       });
@@ -42,7 +48,14 @@ export class GetBookService {
   }
 
   async getMenus(url: string, lastIndex?: number, faildIndex?: string): Promise<any> {
-    return await this._getMenu(url, lastIndex, faildIndex);
+    try {
+      const o = await this._getMenu(url, lastIndex, faildIndex);
+      return o;
+    } catch (err) {
+      return {
+        err
+      };
+    }
   }
 
   _getPage(url: string): Promise<any> {
@@ -50,7 +63,7 @@ export class GetBookService {
       var child = child_process.fork('./spider/getpage.js', [url]);
       child.on('message', function (v, error) {
         if (error) {
-          log(error);
+          reject(error);
         }
         resolve(v);
       });
@@ -58,27 +71,36 @@ export class GetBookService {
   }
 
   delayDo(fnName, ...args): Promise<any> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       setTimeout(() => {
-        resolve(this[fnName](...args))
-      }, 1000);
+        try {
+          const res = this[fnName](...args)
+          resolve(res)
+        } catch (err) {
+          reject(err)
+        }
+      }, 1500);
     })
   }
 
   async getPageInfo(url: string): Promise<any> {
-    let list = await this._getPage(url);
-    if (list && list.length) {
-      return list;
-    }
-
-    let i = 5
-    while (i-- > 0) {
-      list = await this.delayDo('_getPage', url)
+    try {
+      const list = await this._getPage(url);
       if (list && list.length) {
-        return list
+        return list;
+      }
+    } catch (err) {
+      let i = 5
+      while (i-- > 0) {
+        const list = await this.delayDo('_getPage', url)
+        if (list && list.length) {
+          return list
+        }
+      }
+      return {
+        err: '抓取页面失败'
       }
     }
-    return []
   }
 
   async getImage(path: string, url: string, id: number): Promise<any> {

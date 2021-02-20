@@ -23,12 +23,21 @@ const powMap = {
   '千': 1000,
   '万': 10000,
 }
-// @TODO: 可能是 004失去记忆的自己是个食人魔？（http://localhost:3010/book/23084）
-// 11.第11章 再破境界 (http://www.paoshuzw.com/7/7552/) 也可能是这样的
 // 提取标题中的数字
 const getIndexFromTitle = (title) => {
-  // 先去除章或者空格之后的内容
-  let t = `${title}`.replace(/[章].*/, '').replace(/[^零一二三四五六七八九十百千万\d]/g, '')
+  let t = `${title}`
+  if (t.includes('章')) {
+    t = t.replace(/章.*/, '').trim()
+  }
+  if (t.includes('第')) {
+    t = t.replace(/.*第/, '').trim()
+  }
+  // 004失去记忆的自己是个食人魔？ 这样没有章也没有第的
+  if (t === title) {
+    const matches = t.trim().match(/^(\d+)/)
+    t = matches && matches.length ? matches[1] : t
+  }
+  t = t.replace(/[^零一二三四五六七八九十百千万\d]/g, '')
   // 有汉字数字
   if (!/^\d+$/.test(t)) {
     // 汉字数字转化为阿拉伯数字，字母加空格好分组

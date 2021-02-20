@@ -1,15 +1,6 @@
 const fs = require('fs');
 const download = require('download');
 
-export const log = (...msgs) => {
-  if (!msgs.length) {
-    return;
-  }
-  console.log(...msgs);
-
-  // @TODO: log 日志
-}
-
 const getRandom = (min: number, max: number) => {
   return Math.floor(Math.random() * (max - min)) + min
 }
@@ -95,9 +86,12 @@ export const getMenuId = (id: number, isNew?: boolean) => {
 //   return +t
 // }
 
-// @TODO: 可能是 004失去记忆的自己是个食人魔？（http://localhost:3010/book/23084）
+// 可能是这样： 004失去记忆的自己是个食人魔？（http://localhost:3010/book/23084）
 export const getValidTitle = (title: string) => {
-  return title.replace(/.*章\s*/, '')
+  if (title.includes('章')) {
+    return title.replace(/.*章\s*/, '').trim()
+  }
+  return title.trim().replace(/^(\d+)/, '')
 }
 
 // url 是带 https? 的

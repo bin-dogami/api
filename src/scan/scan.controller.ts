@@ -30,7 +30,6 @@ const shuffle = function (arr: any[]): any[] {
   return arr;
 }
 
-// @TODO: 每个list请求每次取200个数据存 redis 里，返回给前端固定20
 @Controller('scan')
 export class ScanController {
   private readonly logger = new Mylogger(ScanController.name);
@@ -179,7 +178,6 @@ export class ScanController {
   // page 页数据获取
   @Get('getPageById')
   async getPageById(@Query('id') id: number, @Query('onlypage') onlypage: number): Promise<any> {
-    // @TODO: 考虑 id 错误的问题，其他接口也一样
     let page: any = await this.sqlpagesService.findOne(+id)
     if (!page || !page.id) {
       page = await this.sqlmenusService.findOne(+id)

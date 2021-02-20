@@ -1,6 +1,4 @@
 import { Entity, Column, PrimaryGeneratedColumn, Index, OneToOne, JoinColumn } from 'typeorm';
-// import { novels } from '../sqlnovels/sqlnovels.entity';
-// import { types } from '../sqltypes/sqltypes.entity';
 
 @Entity()
 export class sqlauthors {
