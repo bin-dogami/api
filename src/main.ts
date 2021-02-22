@@ -15,6 +15,6 @@ async function bootstrap() {
   // 处理response数据
   app.useGlobalInterceptors(new TransformInterceptor());
   app.useGlobalFilters(new HttpExceptionFilter());
-  await app.listen(3000);
+  await app.listen(3001);
 }
 bootstrap();

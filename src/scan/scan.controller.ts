@@ -1,3 +1,4 @@
+import { sqlerrors } from './../sqlerrors/sqlerrors.entity';
 // import { log } from '../utils/index'
 import { CacheInterceptor, UseInterceptors, Controller, Get, Post, Query, Body, Param, HttpCode } from '@nestjs/common';
 import { ScanService } from './scan.service';
@@ -186,6 +187,7 @@ export class ScanController {
       } else {
         // http://localhost:3010/page/388340
         this.logger.start(`{novelId: ${page.novelId}, id: ${page.id} }`, this.logger.createPageLoseErrorLogFile())
+        // @TODO: 这里再建个用户反馈表，然后把这个 章节缺失错误 也写进去，和 sqlerrors 表差不多结构就行
         this.logger.writeLog()
         page["noPage"] = true
       }

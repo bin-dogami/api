@@ -7,7 +7,6 @@ export class CreateSqlnovels {
   typeid: number;
   typename: string;
   thumb: string;
-  faildIndex: number[];
   tags: number[];
   from: string[];
   viewnum?: number;

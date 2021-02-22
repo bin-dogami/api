@@ -1,5 +1,5 @@
 import { getValidTitle, getHostFromUrl, getNovelId, getMenuId, downloadImage } from '../utils/index'
-import { Controller, Get, Post, Body, Param, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { GetBookService } from './getbook.service';
 import { SqlnovelsService } from '../sqlnovels/sqlnovels.service';
 import { SqltypesService } from '../sqltypes/sqltypes.service';
@@ -79,7 +79,7 @@ export class GetBookController {
       // 查询目录
       const count = await this.sqlmenusService.findCountByNovelId(novel['id']);
 
-      const { id, title, description, author, faildIndex } = novel;
+      const { id, title, description, author } = novel;
       this.insertMenus({ ...novel, ...{ from: url }, ...{ filePath } });
       this.logger.end(`### 【end】本书不是第一次抓取 ### id: ${id}； \n\n `);
       return { '本书不是第一次抓取': '', '已抓取章数': count, id, title, description, author };
@@ -136,7 +136,6 @@ export class GetBookController {
       from: [from],
       tags: [],
       thumb: newThumbPath.replace(ImagePath, ''),
-      faildIndex: [],
     }
     // 写入书信息
     this.logger.log(`# 开始写入书信息 #`);
@@ -169,12 +168,12 @@ export class GetBookController {
 
   async insertMenus(args: any) {
     let lastIndex = await this.sqlmenusService.findLastIndexByNovelId(args.id)
-    const res = await this.getMenus(args.from, lastIndex, args.faildIndex.join(','));
+    const res = await this.getMenus(args.from, lastIndex);
     if (res && Array.isArray(res)) {
-      const [menus, reFaildIndex] = res
+      const [menus] = res
       // @TODO: test?
       args.menus = 1 ? menus : menus.slice(0, 5);
-      await this.insertMenuAndPages(args, reFaildIndex);
+      await this.insertMenuAndPages(args);
     } else {
       const err = res && res.err ? `(${res.err})` : ''
       this.logger.end(`### [failed] 获取目录失败 ${err} ###`);
@@ -194,14 +193,69 @@ export class GetBookController {
       menuId,
       novelId,
       menuIndex: index,
-      type: IErrors.MENU_INSERT_FAILED,
+      type: IErrors.PAGE_LOST,
       info: `第${index}章(${moriginalname}), ${error}, 来源: ${from}`,
     })
   }
 
+  async insertPages(id, mId, index, moriginalname, host, url, res, menus) {
+    // 插入page
+    try {
+      this.logger.log(`# 第${index}章开始抓取数据 # 来源：${host + url}`);
+      const list = await this.getBookService.getPageInfo(host + url);
+      if (!list || !Array.isArray(list) || 'err' in list) {
+        const err = list && list.err ? `(${list.err})` : ''
+        this.logger.log(`### [failed] 获取章节内容失败 ${err}, 目录名：【${moriginalname}】, 是第${index}章 ###`);
+        if (res) {
+          index > 0 && res.failedIndex.push(index)
+          await this.insertPageFailed(mId, id, index, host + url, moriginalname, '获取章节内容失败: ' + err)
+        }
+
+        return false
+      }
+
+      this.logger.log(`# 第${index}章开始插入page #`);
+      let content = list.length ? list.map((text) => text.trim().length ? `<p>${text}</p>` : '').filter((text) => !!text).join('') : '';
+      // // @TODO: test
+      // if (index === 91) {
+      //   content = '';
+      // }
+      if (res && !menus.length) {
+        res.lastPage = `第${index}章: 【${moriginalname}】 <br />${content}`;
+      }
+      if (!content.trim().length) {
+        this.logger.log(`# [failed] 插入章节内容失败，抓到的内容为空或错误 # 目录名：【${moriginalname}】, 是第${index}章, 错误信息：一个字也没抓到 \n`)
+        if (res) {
+          index > 0 && res.failedIndex.push(index)
+          await this.insertPageFailed(mId, id, index, host + url, moriginalname, '插入章节内容失败，抓到的内容为空或错误')
+        }
+        return false
+      }
+      const pageInfo = await this.sqlpagesService.create({
+        id: mId,
+        index,
+        novelId: id,
+        mname: getValidTitle(moriginalname),
+        content: content,
+        wordsnum: content.length,
+        from: host + url,
+      });
+      this.logger.log(`# 插入章节内容成功 # 目录名：【${pageInfo.mname}】, 是第${index}章, 字数：${content.length}；id: ${mId} \n`)
+      res && res.successLen++
+      return true
+    } catch (err) {
+      this.logger.log(`# [failed] 章节内容插入表中失败: ${err} # 目录名：【${moriginalname}】, 是第${index}章 \n`)
+      if (res) {
+        index > 0 && res.failedIndex.push(index)
+        await this.insertPageFailed(mId, id, index, host + url, moriginalname, `章节内容插入表中失败: ${err}`)
+      }
+      return false
+    }
+  }
+
   // 一次性插入多个目录及对应的章节内容
   @Post('insertMenuAndPages')
-  async insertMenuAndPages(@Body() args: any, reFaildIndex?: number[]) {
+  async insertMenuAndPages(@Body() args: any) {
     const { id, title, menus, from, filePath } = args;
     const host = getHostFromUrl(from);
     this.logger.start(` ### 【start】开始插入目录及page ###`, filePath);
@@ -212,7 +266,7 @@ export class GetBookController {
     this.logger.log('###############################################\n');
     const res = {
       successLen: 0,
-      failedIndex: reFaildIndex || [],
+      failedIndex: [],
       lastPage: '获取或插入page失败'
     }
     let currentMenuId = await this.sqlmenusService.findLastIdByNovelId(id)
@@ -254,63 +308,82 @@ export class GetBookController {
         continue;
       }
 
-      // 插入page
-      try {
-        this.logger.log(`# 第${index}章开始抓取数据 # 来源：${host + url}`);
-        const list = await this.getBookService.getPageInfo(host + url);
-        if (!list || !Array.isArray(list) || 'err' in list) {
-          const err = list && list.err ? `(${list.err})` : ''
-          this.logger.log(`### [failed] 获取章节内容失败 ${err}, 目录名：【${menuInfo.moriginalname}】, 是第${index}章 ###`);
-          index > 0 && res.failedIndex.push(index)
-          await this.insertPageFailed(menuInfo.id, id, index, host + url, menuInfo.moriginalname, '获取章节内容失败: ' + err)
-          continue;
-        }
-
-        this.logger.log(`# 第${index}章开始插入page #`);
-        let content = list.length ? list.map((text) => text.trim().length ? `<p>${text}</p>` : '').filter((text) => !!text).join('') : '';
-        // // @TODO: test
-        // if (index === 91) {
-        //   content = '';
-        // }
-        if (!menus.length) {
-          res.lastPage = `第${index}章: 【${menuInfo.moriginalname}】 <br />${content}`;
-        }
-        if (!content.trim().length) {
-          this.logger.log(`# [failed] 插入章节内容失败，抓到的内容为空或错误 # 目录名：【${menuInfo.moriginalname}】, 是第${index}章, 错误信息：一个字也没抓到 \n`)
-          index > 0 && res.failedIndex.push(index)
-          await this.insertPageFailed(menuInfo.id, id, index, host + url, menuInfo.moriginalname, '插入章节内容失败，抓到的内容为空或错误')
-          continue;
-        }
-        const pageInfo = await this.sqlpagesService.create({
-          id: menuInfo.id,
-          index,
-          novelId: id,
-          mname: getValidTitle(title),
-          content: content,
-          wordsnum: content.length,
-          from: host + url,
-        });
-        this.logger.log(`# 插入章节内容成功 # 目录名：【${pageInfo.mname}】, 是第${index}章, 字数：${content.length}；id: ${menuInfo.id} \n`)
-        res.successLen++
-      } catch (err) {
-        this.logger.log(`# [failed] 章节内容插入表中失败: ${err} # 目录名：【${menuInfo.moriginalname}】, 是第${index}章 \n`)
-        index > 0 && res.failedIndex.push(index)
-        await this.insertPageFailed(menuInfo.id, id, index, host + url, menuInfo.moriginalname, `章节内容插入表中失败: ${err}`)
-      }
+      await this.insertPages(id, currentMenuId, index, title, host, url, res, menus)
     }
     const menusLen = await this.sqlmenusService.findCountByNovelId(id);
-    await this.sqlnovelsService.updateFields(id, {
-      menusLen,
-      faildIndex: res.failedIndex
-    });
     this.logger.log(' ############################################### ');
     const failedInfo = menusInsertFailedInfo ? menusInsertFailedInfo : `失败章节 ${res.failedIndex.length} 条（index.）：${res.failedIndex.length ? res.failedIndex.join(', ') : '无'}`
     this.logger.end(`### 【end】完成目录及page插入，插入成功 ${res.successLen} 条，${failedInfo}。 ### \n\n\n`);
     return res
   }
 
+  // 获取失败page对应的书ID列表
+  @Get('getFailedPages')
+  async getFailedPages() {
+    return await this.sqlerrorsService.getFailedPageList();
+  }
+
+  // 重新抓取书的失败page
+  @Get('reGetPages')
+  async reGetPages(@Query('id') id: number) {
+    const mIds = await this.sqlerrorsService.getAllSqlerrorsByNovelId(id);
+    if (!mIds.length) {
+      return '没有目录需要重新抓取'
+    }
+    const book = await this.sqlnovelsService.findById(id, true)
+    if (!book) {
+      return '数据库里查不到此书'
+    }
+    const from = book.from[book.from.length - 1]
+    this.logger.start(`\n ### 【start】 开始抓取上次未抓取成功的章节内容 ###`);
+    const filePath = this.logger.log(`# 书名: ${book.title}；作者: ${book.author}；id: ${id}；来源: ${from}； #`, {
+      bookname: `$[book.title}][章节内容抓取失败修复`
+    });
+    const ids = mIds.map(({ menuId }: { menuId: number }) => menuId)
+    const menuInfos = await this.sqlmenusService.getMenusByIds(ids)
+    const res = await this.getMenus(from, 999999, JSON.stringify(menuInfos));
+    const [_m, menusWithFrom] = res && Array.isArray(res) && res.length > 1 ? res : [[], {}]
+    if (!Object.keys(menusWithFrom).length) {
+      this.logger.end(`### 没有抓取到目录信息或者获取不到 menus 表里的数据 ### \n\n\n`);
+      return '没有抓取到目录信息或者获取不到 menus 表里的数据'
+    }
+    this.logger.log(` ### 修复开始, 总共要修复 ${mIds.length} 章，ids为：${ids} ###`, filePath);
+    const successIds = []
+    while (mIds.length) {
+      const currentMid = mIds.shift()
+      const { menuId, menuIndex } = currentMid
+      const filterMenus = menuInfos.filter(({ id }) => id === menuId)
+      const menuInfo = filterMenus.length ? filterMenus[0] : null
+      if (menuIndex > 0) {
+        if (menuInfo && menuId in menusWithFrom) {
+          const { url, title, index } = menusWithFrom[menuId];
+          const success = await this.insertPages(id, menuId, index, title, getHostFromUrl(from), url, null, [])
+          if (success) {
+            successIds.push(menuId)
+            // 删除 sqlerrors 表里数据
+            await this.sqlerrorsService.remove(currentMid.id)
+          }
+        }
+      } else {
+        // 不属于书具体章节内容的先做删掉处理吧
+        await this.sqlmenusService.remove(menuId)
+      }
+    }
+    const successText = `成功修复了${successIds.length}, 他们的ids为：${successIds.join(', ')}`
+    this.logger.end(`### 修复完成，${successText} ### \n\n\n`);
+    return successText
+  }
+
+  // 获取书的前20条page列表
+  @Get('getFailedMenuIds')
+  async getFailedMenuIds(@Query('id') id: number) {
+    const mIds = await this.sqlerrorsService.getSqlerrorsByNovelId(id);
+    return mIds.map(({ menuId }: { menuId: number }) => menuId)
+  }
+
+
   @Post('view')
   async view(@Body('url') url: string) {
-    return this.getBookService.getBookInfo(url);
+    return await this.getBookService.getBookInfo(url);
   }
 }

@@ -32,10 +32,12 @@ export class SqlmenusService {
     // .getSql()
 
     // 写两次语句也避免 sql_mode=only_full_group_by 这个恶心的问题
-    const menus = await this.sqlmenusRepository.find({
-      select: ["novelId", "id", "mname", "index"],
-      where: { id: In(_menus.map(({ _id }) => _id)) },
-    })
+    const ids = _menus.map(({ _id }) => _id)
+    const menus = await this.getMenusByIds(ids)
+    // const menus = await this.sqlmenusRepository.find({
+    //   select: ["novelId", "id", "mname", "index"],
+    //   where: { id: In() },
+    // })
 
     return menus
   }
@@ -79,6 +81,17 @@ export class SqlmenusService {
       },
       skip,
       take: size && size <= 100 ? size : 20,
+    });
+  }
+
+  // 暂时只一个地方用，只需要这两个字段，需要增加记得加个判断，不要给原接口返回过多字段了
+  async getMenusByIds(ids: number[]): Promise<menus[]> {
+    return await this.sqlmenusRepository.find({
+      select: ["id", "moriginalname"],
+      where: { id: In(ids) },
+      order: {
+        id: "ASC"
+      },
     });
   }
 
@@ -142,7 +155,7 @@ export class SqlmenusService {
     });
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: number): Promise<void> {
     await this.sqlmenusRepository.delete(id);
   }
 }

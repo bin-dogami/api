@@ -31,7 +31,7 @@ class GetInfo {
     return o;
   }
 
-  getMenus ($, hasSpideredIndex, faildIndex) {
+  getMenus ($, hasSpideredIndex, failedMenus) {
     if (!this.selectorMenu) {
       return [];
     }
@@ -40,33 +40,42 @@ class GetInfo {
       return [];
     }
     let uselessIndex = 0;
-    const reFaildIndex = [];
-    const _faildIndex = faildIndex.split(',').map((v) => v > 0 ? +v : 0).filter((v) => !!v);
-    const menus = [].map.call(selectorMenu, (item, key) => {
+    const menusWithFrom = {};
+    let _failedMenus = JSON.parse(failedMenus)
+    _failedMenus = Array.isArray(_failedMenus) ? _failedMenus : [];
+    const menus = [];
+    [].forEach.call(selectorMenu, (item) => {
       const _item = $(item);
       const url = _item.attr('href');
       const title = _item.text();
       const index = getIndexFromTitle(title);
       if (!url || !url.trim() || !title || !title.trim()) {
-        if (Array.isArray(faildIndex) && faildIndex.includes(index)) {
-          reFaildIndex.push(index);
-        }
-        return false;
+        return
       }
-      if (Array.isArray(_faildIndex) && _faildIndex.includes(index)) {
-        // nothing
-      } else if (index <= hasSpideredIndex) {
-        return false;
+      if (hasSpideredIndex == 999999) {
+        const _menuInfos = _failedMenus.filter(({ moriginalname }) => moriginalname === title)
+        if (_menuInfos.length) {
+          const id = _menuInfos[0].id
+          menusWithFrom[id] = {
+            url,
+            title,
+            index
+          }
+        }
+        return
+      }
+      if (index <= hasSpideredIndex) {
+        return
       }
 
-      return {
+      menus.push({
         url,
         title,
         // 获取不到index 的就把 index 设置为 -1、-2、-3...
         index: index > 0 ? index : --uselessIndex
-      }
+      })
     });
-    return [menus.filter((item) => !!item), reFaildIndex];
+    return [menus, menusWithFrom];
   }
 }
 

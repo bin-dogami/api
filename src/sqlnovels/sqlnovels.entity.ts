@@ -22,10 +22,6 @@ export class sqlnovels {
   @Column()
   thumb: string;
 
-  // 插入失败的 page 章节名(index)
-  @Column({ type: 'simple-array' })
-  faildIndex: number[];
-
   // 分类，= types 表里的 id, types表里是复合主键，所以没法用一对一关系
   @Index()
   @Column()

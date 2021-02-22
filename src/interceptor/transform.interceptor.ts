@@ -20,7 +20,6 @@ export class TransformInterceptor<T>
     // https://docs.nestjs.cn/7/exceptionfilters?id=arguments-host
     const ctx = context.switchToHttp();
     const request = ctx.getRequest();
-    console.log(request.url)
 
     return next.handle().pipe(
       map(data => {

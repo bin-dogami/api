@@ -35,9 +35,9 @@ export class GetBookService {
     }
   }
 
-  _getMenu(url: string, lastIndex?: number, faildIndex?: string) {
+  _getMenu(url: string, lastIndex?: number, failedMenus?: string) {
     return new Promise((resolve, reject) => {
-      var child = child_process.fork('./spider/getmenu.js', [url, lastIndex, faildIndex]);
+      var child = child_process.fork('./spider/getmenu.js', [url, lastIndex, failedMenus]);
       child.on('message', function (v, error) {
         if (error) {
           reject(error);
@@ -47,9 +47,9 @@ export class GetBookService {
     })
   }
 
-  async getMenus(url: string, lastIndex?: number, faildIndex?: string): Promise<any> {
+  async getMenus(url: string, lastIndex?: number, failedMenus?: string): Promise<any> {
     try {
-      const o = await this._getMenu(url, lastIndex, faildIndex);
+      const o = await this._getMenu(url, lastIndex, failedMenus);
       return o;
     } catch (err) {
       return {
