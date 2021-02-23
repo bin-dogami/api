@@ -34,10 +34,6 @@ export class SqlmenusService {
     // 写两次语句也避免 sql_mode=only_full_group_by 这个恶心的问题
     const ids = _menus.map(({ _id }) => _id)
     const menus = await this.getMenusByIds(ids)
-    // const menus = await this.sqlmenusRepository.find({
-    //   select: ["novelId", "id", "mname", "index"],
-    //   where: { id: In() },
-    // })
 
     return menus
   }

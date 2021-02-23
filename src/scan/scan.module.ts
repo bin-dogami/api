@@ -8,6 +8,7 @@ import { SqlpagesModule } from '../sqlpages/sqlpages.module';
 import { SqlrecommendsModule } from '../sqlrecommends/sqlrecommends.module';
 import { SqltypesdetailModule } from '../sqltypesdetail/sqltypesdetail.module';
 import { SqlauthorsModule } from '../sqlauthors/sqlauthors.module';
+import { SqlerrorsModule } from '../sqlerrors/sqlerrors.module';
 
 @Module({
   imports: [
@@ -22,7 +23,8 @@ import { SqlauthorsModule } from '../sqlauthors/sqlauthors.module';
     SqlpagesModule,
     SqlrecommendsModule,
     SqltypesdetailModule,
-    SqlauthorsModule
+    SqlauthorsModule,
+    SqlerrorsModule
   ],
   providers: [ScanService],
   controllers: [ScanController]

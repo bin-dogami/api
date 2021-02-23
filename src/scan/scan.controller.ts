@@ -9,6 +9,7 @@ import { SqlmenusService } from '../sqlmenus/sqlmenus.service';
 import { SqlpagesService } from '../sqlpages/sqlpages.service';
 import { SqlrecommendsService } from '../sqlrecommends/sqlrecommends.service';
 import { SqltypesdetailService } from '../sqltypesdetail/sqltypesdetail.service';
+import { IErrors, SqlerrorsService } from '../sqlerrors/sqlerrors.service';
 
 import { sqlnovels as novels } from '../sqlnovels/sqlnovels.entity';
 import { sqlauthors as authors } from '../sqlauthors/sqlauthors.entity';
@@ -41,6 +42,7 @@ export class ScanController {
     private readonly sqltypesService: SqltypesService,
     private readonly sqlmenusService: SqlmenusService,
     private readonly sqlpagesService: SqlpagesService,
+    private readonly sqlerrorsService: SqlerrorsService,
     private readonly sqlauthorsService: SqlauthorsService,
     private readonly sqlrecommendsService: SqlrecommendsService,
     private readonly sqltypesdetailService: SqltypesdetailService,
@@ -176,6 +178,17 @@ export class ScanController {
     }
   }
 
+  async insertPageFailed(menusInfo, error) {
+    const { id, novelId, index, moriginalname, from } = menusInfo
+    await this.sqlerrorsService.create({
+      menuId: id,
+      novelId,
+      menuIndex: index,
+      type: IErrors.PAGE_LOST,
+      info: `第${index}章(${moriginalname}), ${error}, 来源（目录页的）: ${from}`,
+    })
+  }
+
   // page 页数据获取
   @Get('getPageById')
   async getPageById(@Query('id') id: number, @Query('onlypage') onlypage: number): Promise<any> {
@@ -185,9 +198,9 @@ export class ScanController {
       if (!page) {
         return []
       } else {
-        // http://localhost:3010/page/388340
+        // 也写入 sqlerrors 表，index > 0 才行 @TODO: index <= 0 直接删掉目录？考虑 getIndexFromTitle 不太准了
+        page.index > 0 && await this.insertPageFailed(page, '章节缺失: 来自用户浏览时服务器自动提报')
         this.logger.start(`{novelId: ${page.novelId}, id: ${page.id} }`, this.logger.createPageLoseErrorLogFile())
-        // @TODO: 这里再建个用户反馈表，然后把这个 章节缺失错误 也写进去，和 sqlerrors 表差不多结构就行
         this.logger.writeLog()
         page["noPage"] = true
       }

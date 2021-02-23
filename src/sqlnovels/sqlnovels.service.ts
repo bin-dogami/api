@@ -115,6 +115,9 @@ export class SqlnovelsService {
 
   async updateFields(id: number, fields: any): Promise<any> {
     const novel = await this.findById(id, true);
+    if (!novel) {
+      return '保存失败，找不到书本信息'
+    }
     Object.assign(novel, fields);
     return await this.sqlnovelsRepository.save(novel);
   }

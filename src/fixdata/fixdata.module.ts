@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { GetBookService } from './getbook.service';
-import { GetBookController } from './getbook.controller';
+import { FixdataService } from './fixdata.service';
+import { FixdataController } from './fixdata.controller';
 import { SqlnovelsModule } from '../sqlnovels/sqlnovels.module';
 import { SqltypesModule } from '../sqltypes/sqltypes.module';
 import { SqlmenusModule } from '../sqlmenus/sqlmenus.module';
@@ -13,7 +13,7 @@ import { SqltumorModule } from '../sqltumor/sqltumor.module';
 
 @Module({
   imports: [SqlnovelsModule, SqltypesModule, SqlmenusModule, SqlpagesModule, SqlrecommendsModule, SqltypesdetailModule, SqlauthorsModule, SqlerrorsModule, SqltumorModule],
-  providers: [GetBookService],
-  controllers: [GetBookController]
+  providers: [FixdataService],
+  controllers: [FixdataController]
 })
-export class GetbookModule { }
+export class FixdataModule { }

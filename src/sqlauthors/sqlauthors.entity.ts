@@ -16,9 +16,6 @@ export class sqlauthors {
   @Column()
   levelName: string;
 
-  @Column()
-  desc: string;
-
   // 书ids
   @Column({ type: 'simple-array' })
   novelIds: number[];

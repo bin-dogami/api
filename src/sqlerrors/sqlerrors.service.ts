@@ -20,9 +20,24 @@ export class SqlerrorsService {
     private readonly sqlerrorsRepository: Repository<sqlerrors>,
   ) { }
 
-  create(createSqlerrors: CreateSqlerrors): Promise<sqlerrors> {
+  async create(createSqlerrors: CreateSqlerrors): Promise<sqlerrors> {
     const oError = this.sqlerrorsRepository.create(createSqlerrors);
-    return this.sqlerrorsRepository.save(oError);
+    // @TODO: IErrors.MENU_INSERT_FAILED, 目录插入失败也要防止重复插入
+    if (oError.type === IErrors.PAGE_LOST) {
+      const res = await this.getPageLostErrors(oError)
+      // 防止重复创建
+      if (res.length) {
+        return
+      }
+    }
+    return await this.sqlerrorsRepository.save(oError);
+  }
+
+  async getPageLostErrors(oError: sqlerrors): Promise<any[]> {
+    const { novelId, menuId } = oError
+    return await this.sqlerrorsRepository.find({
+      where: { novelId, menuId, type: IErrors.PAGE_LOST },
+    })
   }
 
   async getAllSqlerrorsByNovelId(novelId: number): Promise<any[]> {
@@ -53,8 +68,7 @@ export class SqlerrorsService {
       // 这里只能先查出最大的id和novelId，再查对应的 mname，必须两层嵌套查询
       .select("novelId", "id")
       .addSelect("count(*)", "count")
-      // @TODO: 这里应该是 IErrors.PAGE_LOST
-      .where("`type` = :type", { type: "menu_insert_failed" })
+      .where("`type` = :type", { type: IErrors.PAGE_LOST })
       .groupBy("novelId")
       .execute()
   }

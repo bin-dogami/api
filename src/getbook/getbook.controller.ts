@@ -1,4 +1,4 @@
-import { getValidTitle, getHostFromUrl, getNovelId, getMenuId, downloadImage } from '../utils/index'
+import { getValidTitle, getHostFromUrl, getHost, getNovelId, getMenuId, downloadImage } from '../utils/index'
 import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { GetBookService } from './getbook.service';
 import { SqlnovelsService } from '../sqlnovels/sqlnovels.service';
@@ -9,9 +9,17 @@ import { SqlrecommendsService } from '../sqlrecommends/sqlrecommends.service';
 import { SqltypesdetailService } from '../sqltypesdetail/sqltypesdetail.service';
 import { SqlauthorsService } from '../sqlauthors/sqlauthors.service';
 import { IErrors, SqlerrorsService } from '../sqlerrors/sqlerrors.service';
+import { SqltumorService } from '../sqltumor/sqltumor.service';
 import { Mylogger } from '../mylogger/mylogger.service';
 
 const ImagePath = '../web-scan/public/'
+
+const getValidUrl = (host: string, url: string) => {
+  if (host.includes(getHost(url))) {
+    return url.includes('http') ? url : `http://${url}`
+  }
+  return host + (/^\//.test(url) ? url : `/${url}`)
+}
 
 @Controller('getbook')
 export class GetBookController {
@@ -25,6 +33,7 @@ export class GetBookController {
     private readonly sqlpagesService: SqlpagesService,
     private readonly sqlauthorsService: SqlauthorsService,
     private readonly sqlerrorsService: SqlerrorsService,
+    private readonly sqltumorService: SqltumorService,
     private readonly sqlrecommendsService: SqlrecommendsService,
     private readonly sqltypesdetailService: SqltypesdetailService,
   ) { }
@@ -107,7 +116,7 @@ export class GetBookController {
       authorId = authorInfo.id
       if (!authorInfo.novelIds.includes(currentNovelId)) {
         authorInfo.novelIds.push(currentNovelId)
-        await this.sqlauthorsService.updateNovelIds(authorInfo)
+        await this.sqlauthorsService.updateAuthor(authorInfo)
       }
     } else {
       try {
@@ -116,7 +125,6 @@ export class GetBookController {
           name: author,
           level: 0,
           levelName: '',
-          desc: '',
         });
         if (authorInfo) {
           authorId = authorInfo.id
@@ -168,11 +176,11 @@ export class GetBookController {
 
   async insertMenus(args: any) {
     let lastIndex = await this.sqlmenusService.findLastIndexByNovelId(args.id)
-    const res = await this.getMenus(args.from, lastIndex);
+    const res = await this.getMenus(args.from, lastIndex, '');
     if (res && Array.isArray(res)) {
       const [menus] = res
       // @TODO: test?
-      args.menus = 1 ? menus : menus.slice(0, 5);
+      args.menus = 0 ? menus : menus.slice(0, 5);
       await this.insertMenuAndPages(args);
     } else {
       const err = res && res.err ? `(${res.err})` : ''
@@ -199,23 +207,31 @@ export class GetBookController {
   }
 
   async insertPages(id, mId, index, moriginalname, host, url, res, menus) {
+    const _url = getValidUrl(host, url)
     // 插入page
     try {
-      this.logger.log(`# 第${index}章开始抓取数据 # 来源：${host + url}`);
-      const list = await this.getBookService.getPageInfo(host + url);
+      this.logger.log(`# 第${index}章开始抓取数据 # 来源：${_url}`);
+      const list = await this.getBookService.getPageInfo(_url);
       if (!list || !Array.isArray(list) || 'err' in list) {
         const err = list && list.err ? `(${list.err})` : ''
         this.logger.log(`### [failed] 获取章节内容失败 ${err}, 目录名：【${moriginalname}】, 是第${index}章 ###`);
         if (res) {
           index > 0 && res.failedIndex.push(index)
-          await this.insertPageFailed(mId, id, index, host + url, moriginalname, '获取章节内容失败: ' + err)
+          await this.insertPageFailed(mId, id, index, _url, moriginalname, '获取章节内容失败: ' + err)
         }
 
         return false
       }
 
       this.logger.log(`# 第${index}章开始插入page #`);
-      let content = list.length ? list.map((text) => text.trim().length ? `<p>${text}</p>` : '').filter((text) => !!text).join('') : '';
+      const tumorList = await this.sqltumorService.findList(getHost(_url));
+      let content = list.length ? list.map((text) => {
+        let _text = text.trim()
+        tumorList.forEach((item) => {
+          _text = _text.replace(item.text, '')
+        })
+        return _text.length ? `<p>${text}</p>` : ''
+      }).filter((text) => !!text).join('') : '';
       // // @TODO: test
       // if (index === 91) {
       //   content = '';
@@ -227,7 +243,7 @@ export class GetBookController {
         this.logger.log(`# [failed] 插入章节内容失败，抓到的内容为空或错误 # 目录名：【${moriginalname}】, 是第${index}章, 错误信息：一个字也没抓到 \n`)
         if (res) {
           index > 0 && res.failedIndex.push(index)
-          await this.insertPageFailed(mId, id, index, host + url, moriginalname, '插入章节内容失败，抓到的内容为空或错误')
+          const inertRes = await this.insertPageFailed(mId, id, index, _url, moriginalname, '插入章节内容失败，抓到的内容为空或错误')
         }
         return false
       }
@@ -238,7 +254,7 @@ export class GetBookController {
         mname: getValidTitle(moriginalname),
         content: content,
         wordsnum: content.length,
-        from: host + url,
+        from: _url,
       });
       this.logger.log(`# 插入章节内容成功 # 目录名：【${pageInfo.mname}】, 是第${index}章, 字数：${content.length}；id: ${mId} \n`)
       res && res.successLen++
@@ -247,7 +263,7 @@ export class GetBookController {
       this.logger.log(`# [failed] 章节内容插入表中失败: ${err} # 目录名：【${moriginalname}】, 是第${index}章 \n`)
       if (res) {
         index > 0 && res.failedIndex.push(index)
-        await this.insertPageFailed(mId, id, index, host + url, moriginalname, `章节内容插入表中失败: ${err}`)
+        await this.insertPageFailed(mId, id, index, _url, moriginalname, `章节内容插入表中失败: ${err}`)
       }
       return false
     }
@@ -310,7 +326,7 @@ export class GetBookController {
 
       await this.insertPages(id, currentMenuId, index, title, host, url, res, menus)
     }
-    const menusLen = await this.sqlmenusService.findCountByNovelId(id);
+    // const menusLen = await this.sqlmenusService.findCountByNovelId(id);
     this.logger.log(' ############################################### ');
     const failedInfo = menusInsertFailedInfo ? menusInsertFailedInfo : `失败章节 ${res.failedIndex.length} 条（index.）：${res.failedIndex.length ? res.failedIndex.join(', ') : '无'}`
     this.logger.end(`### 【end】完成目录及page插入，插入成功 ${res.successLen} 条，${failedInfo}。 ### \n\n\n`);

@@ -94,9 +94,15 @@ export const getValidTitle = (title: string) => {
   return title.trim().replace(/^(\d+)/, '')
 }
 
-// url 是带 https? 的
+// 获取域名，带 http 或 https 的
 export const getHostFromUrl = (url: string) => {
   return url.replace(/(?<=(https?:\/\/)[^\/]+)\/.*/, '')
+}
+
+// 获取域名，不带 http
+export const getHost = (url: string) => {
+  const _url = getHostFromUrl(url)
+  return _url.replace(/https?:\/\//, '')
 }
 
 export const downloadImage = async (path: string, url: string, id: number) => {

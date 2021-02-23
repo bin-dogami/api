@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Like } from 'typeorm';
 import { sqlauthors as authors } from './sqlauthors.entity';
 import { CreateSqlauthors } from "./create-sqlauthors.dto";
 
@@ -27,6 +27,13 @@ export class SqlauthorsService {
     })
   }
 
+  async findByAuthorName(name: string): Promise<authors[]> {
+    console.log(name)
+    return this.sqlauthorsRepository.find({
+      where: { name: Like(`%${name}%`) }
+    });
+  }
+
   async findOneByAuthorName(name: string): Promise<authors> {
     return this.sqlauthorsRepository.findOne({
       where: { name }
@@ -41,7 +48,7 @@ export class SqlauthorsService {
     return this.sqlauthorsRepository.findOne(id);
   }
 
-  async updateNovelIds(author: authors): Promise<void> {
+  async updateAuthor(author: authors): Promise<void> {
     await this.sqlauthorsRepository.save(author);
   }
 }

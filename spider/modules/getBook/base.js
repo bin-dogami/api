@@ -41,7 +41,7 @@ class GetInfo {
     }
     let uselessIndex = 0;
     const menusWithFrom = {};
-    let _failedMenus = JSON.parse(failedMenus)
+    let _failedMenus = failedMenus ? JSON.parse(failedMenus) : null;
     _failedMenus = Array.isArray(_failedMenus) ? _failedMenus : [];
     const menus = [];
     [].forEach.call(selectorMenu, (item) => {

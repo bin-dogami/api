@@ -3,5 +3,4 @@ export class CreateSqlauthors {
   name: string;
   level: number;
   levelName: string;
-  desc: string;
 }

@@ -37,6 +37,13 @@ const getIndexFromTitle = (title) => {
     const matches = t.trim().match(/^(\d+)/)
     t = matches && matches.length ? matches[1] : t
   }
+
+  // @TODO: 这里还是有些问题，得判断出是否以数字开头，且数字有效
+  // 先简单修复 万分抱歉 这样的标题
+  if (t === title) {
+    return 0
+  }
+
   t = t.replace(/[^零一二三四五六七八九十百千万\d]/g, '')
   // 有汉字数字
   if (!/^\d+$/.test(t)) {

@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { GetbookModule } from './getbook/getbook.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Connection } from 'typeorm';
+import { AppController } from './app.controller';
+import { GetbookModule } from './getbook/getbook.module';
+import { FixdataModule } from './fixdata/fixdata.module';
 import { ScanModule } from './scan/scan.module';
 
 @Module({
@@ -26,6 +27,7 @@ import { ScanModule } from './scan/scan.module';
       // }
     }),
     GetbookModule,
+    FixdataModule,
     ScanModule,
   ],
   controllers: [AppController],
