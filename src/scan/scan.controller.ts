@@ -207,12 +207,14 @@ export class ScanController {
     }
 
     if (page && page.id) {
-      const novel = await this.sqlnovelsService.findById(page.novelId, true)
+      const novel: novels = await this.sqlnovelsService.findById(page.novelId, true)
       if (novel && novel.title) {
         page['title'] = novel.title
         page['typename'] = novel.typename
         page['author'] = novel.author
         page['isComplete'] = novel.isSpiderComplete
+        novel['viewnum'] = novel['viewnum'] + 1
+        this.sqlnovelsService.saveNovel(novel)
       } else {
         page['title'] = ''
       }

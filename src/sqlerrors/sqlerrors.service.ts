@@ -22,10 +22,14 @@ export class SqlerrorsService {
 
   async create(createSqlerrors: CreateSqlerrors): Promise<sqlerrors> {
     const oError = this.sqlerrorsRepository.create(createSqlerrors);
-    // @TODO: IErrors.MENU_INSERT_FAILED, 目录插入失败也要防止重复插入
+    // 防止重复创建
     if (oError.type === IErrors.PAGE_LOST) {
       const res = await this.getPageLostErrors(oError)
-      // 防止重复创建
+      if (res.length) {
+        return
+      }
+    } else if (oError.type === IErrors.MENU_INSERT_FAILED) {
+      const res = await this.getMenuFailedErrors(oError)
       if (res.length) {
         return
       }
@@ -37,6 +41,13 @@ export class SqlerrorsService {
     const { novelId, menuId } = oError
     return await this.sqlerrorsRepository.find({
       where: { novelId, menuId, type: IErrors.PAGE_LOST },
+    })
+  }
+
+  async getMenuFailedErrors(oError: sqlerrors): Promise<any[]> {
+    const { novelId, info } = oError
+    return await this.sqlerrorsRepository.find({
+      where: { novelId, info, type: IErrors.MENU_INSERT_FAILED },
     })
   }
 

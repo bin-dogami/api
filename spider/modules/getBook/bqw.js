@@ -24,7 +24,7 @@ const selectors = {
   title: "#info h1",
   author: ($) => $("#info p").eq(0),
   description: ($) => $("#intro p").eq(1),
-  type: ($) => $(".con_top a").eq(2),
+  type: ($) => $(".con_top").children('a').eq(1),
   thumb: "#fmimg img",
 }
 

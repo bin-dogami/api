@@ -28,7 +28,6 @@ export class SqlauthorsService {
   }
 
   async findByAuthorName(name: string): Promise<authors[]> {
-    console.log(name)
     return this.sqlauthorsRepository.find({
       where: { name: Like(`%${name}%`) }
     });

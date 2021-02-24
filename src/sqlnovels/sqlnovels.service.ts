@@ -119,14 +119,14 @@ export class SqlnovelsService {
       return '保存失败，找不到书本信息'
     }
     Object.assign(novel, fields);
+    return await this.saveNovel(novel);
+  }
+
+  async saveNovel(novel: novels): Promise<novels> {
     return await this.sqlnovelsRepository.save(novel);
   }
 
-  // async findAll(): Promise<novels[]> {
-  //   return this.sqlnovelsRepository.find();
-  // }
-
-  // async remove(id: string): Promise<void> {
-  //   await this.sqlnovelsRepository.delete(id);
-  // }
+  async remove(id: number): Promise<void> {
+    await this.sqlnovelsRepository.delete(id);
+  }
 }

@@ -9,16 +9,18 @@ import { SqlrecommendsService } from '../sqlrecommends/sqlrecommends.service';
 import { SqltypesdetailService } from '../sqltypesdetail/sqltypesdetail.service';
 import { SqlauthorsService } from '../sqlauthors/sqlauthors.service';
 import { IErrors, SqlerrorsService } from '../sqlerrors/sqlerrors.service';
-import { SqltumorService } from '../sqltumor/sqltumor.service';
+import { ITumor, formula, SqltumorService } from '../sqltumor/sqltumor.service';
 import { Mylogger } from '../mylogger/mylogger.service';
+const dayjs = require('dayjs')
 
 const ImagePath = '../web-scan/public/'
 
-const getValidUrl = (host: string, url: string) => {
+const getValidUrl = (host: string, url: string, from: string) => {
+  // url 带域名
   if (host.includes(getHost(url))) {
     return url.includes('http') ? url : `http://${url}`
   }
-  return host + (/^\//.test(url) ? url : `/${url}`)
+  return /^\//.test(url) ? host + url : `${from}/${url}`
 }
 
 @Controller('getbook')
@@ -181,6 +183,13 @@ export class GetBookController {
       const [menus] = res
       // @TODO: test?
       args.menus = 0 ? menus : menus.slice(0, 5);
+      const host = getHost(args.from)
+      const aHost = host.split('.')
+      await this.sqltumorService.create({
+        type: aHost.length > 2 ? ITumor.ARRAY_REPLACE : ITumor.JUST_REPLACE,
+        text: aHost.length > 2 ? `${aHost[0]},${aHost[aHost.length - 1]}` : host,
+        host: host
+      })
       await this.insertMenuAndPages(args);
     } else {
       const err = res && res.err ? `(${res.err})` : ''
@@ -206,8 +215,25 @@ export class GetBookController {
     })
   }
 
-  async insertPages(id, mId, index, moriginalname, host, url, res, menus) {
-    const _url = getValidUrl(host, url)
+  dealContent(list: string[], tumorList: any[]) {
+    if (!list || !list.length) {
+      return ''
+    }
+
+    const splitStr = '$&$#@@@#$&$'
+    const content = list.join(splitStr)
+    // 直接替换 的排前面，避免 直接替换 的内容部分里含其他类型的
+    const _tumorList = tumorList.sort(({ type }) => type === ITumor.JUST_REPLACE ? -1 : 1)
+    const _content = formula(content, _tumorList)
+    return _content.split(splitStr).map((str) => {
+      const _str = str.trim()
+      return _str.length ? `<p>${_str}</p>` : false
+    }).filter((str) => !!str).join('')
+  }
+
+  async insertPages(id, mId, index, moriginalname, from, url, res, menus) {
+    const host = getHostFromUrl(from);
+    const _url = getValidUrl(host, url, from)
     // 插入page
     try {
       this.logger.log(`# 第${index}章开始抓取数据 # 来源：${_url}`);
@@ -225,17 +251,7 @@ export class GetBookController {
 
       this.logger.log(`# 第${index}章开始插入page #`);
       const tumorList = await this.sqltumorService.findList(getHost(_url));
-      let content = list.length ? list.map((text) => {
-        let _text = text.trim()
-        tumorList.forEach((item) => {
-          _text = _text.replace(item.text, '')
-        })
-        return _text.length ? `<p>${text}</p>` : ''
-      }).filter((text) => !!text).join('') : '';
-      // // @TODO: test
-      // if (index === 91) {
-      //   content = '';
-      // }
+      let content = this.dealContent(list, tumorList)
       if (res && !menus.length) {
         res.lastPage = `第${index}章: 【${moriginalname}】 <br />${content}`;
       }
@@ -243,7 +259,7 @@ export class GetBookController {
         this.logger.log(`# [failed] 插入章节内容失败，抓到的内容为空或错误 # 目录名：【${moriginalname}】, 是第${index}章, 错误信息：一个字也没抓到 \n`)
         if (res) {
           index > 0 && res.failedIndex.push(index)
-          const inertRes = await this.insertPageFailed(mId, id, index, _url, moriginalname, '插入章节内容失败，抓到的内容为空或错误')
+          await this.insertPageFailed(mId, id, index, _url, moriginalname, '插入章节内容失败，抓到的内容为空或错误')
         }
         return false
       }
@@ -324,9 +340,16 @@ export class GetBookController {
         continue;
       }
 
-      await this.insertPages(id, currentMenuId, index, title, host, url, res, menus)
+      await this.insertPages(id, currentMenuId, index, title, from, url, res, menus)
     }
-    // const menusLen = await this.sqlmenusService.findCountByNovelId(id);
+    // novel 表更新
+    if (res.successLen) {
+      const menusLen = await this.sqlmenusService.findCountByNovelId(id);
+      await this.sqlnovelsService.updateFields(id, {
+        menusLen,
+        updatetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
+      })
+    }
     this.logger.log(' ############################################### ');
     const failedInfo = menusInsertFailedInfo ? menusInsertFailedInfo : `失败章节 ${res.failedIndex.length} 条（index.）：${res.failedIndex.length ? res.failedIndex.join(', ') : '无'}`
     this.logger.end(`### 【end】完成目录及page插入，插入成功 ${res.successLen} 条，${failedInfo}。 ### \n\n\n`);
@@ -373,7 +396,7 @@ export class GetBookController {
       if (menuIndex > 0) {
         if (menuInfo && menuId in menusWithFrom) {
           const { url, title, index } = menusWithFrom[menuId];
-          const success = await this.insertPages(id, menuId, index, title, getHostFromUrl(from), url, null, [])
+          const success = await this.insertPages(id, menuId, index, title, from, url, null, [])
           if (success) {
             successIds.push(menuId)
             // 删除 sqlerrors 表里数据

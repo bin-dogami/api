@@ -5,7 +5,7 @@ export class sqlerrors {
   @PrimaryGeneratedColumn()
   id: number;
 
-  // type 值为 ./utils 里ErrorTypes key
+  // type 值为 ./service 里ErrorTypes key
   @Index()
   @Column()
   type: string;

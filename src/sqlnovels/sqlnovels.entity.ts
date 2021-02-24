@@ -61,7 +61,8 @@ export class sqlnovels {
 
   @Column({
     type: 'timestamp',
-    onUpdate: 'current_timestamp',
+    // 只要有update，onUpdate 就会触发
+    // onUpdate: 'current_timestamp',
     default: () => 'current_timestamp',
   })
   updatetime: Timestamp;

@@ -5,6 +5,11 @@ export class sqltumor {
   @PrimaryGeneratedColumn()
   id: number;
 
+  // type 值为 ./service 里ErrorTypes key
+  @Index()
+  @Column()
+  type: string;
+
   @Index()
   @Column()
   text: string;

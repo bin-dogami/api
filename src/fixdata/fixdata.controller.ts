@@ -8,8 +8,8 @@ import { SqlpagesService } from '../sqlpages/sqlpages.service';
 import { SqlrecommendsService } from '../sqlrecommends/sqlrecommends.service';
 import { SqltypesdetailService } from '../sqltypesdetail/sqltypesdetail.service';
 import { SqlauthorsService } from '../sqlauthors/sqlauthors.service';
-import { IErrors, SqlerrorsService } from '../sqlerrors/sqlerrors.service';
-import { SqltumorService } from '../sqltumor/sqltumor.service';
+import { SqlerrorsService } from '../sqlerrors/sqlerrors.service';
+import { TumorTypes, SqltumorService } from '../sqltumor/sqltumor.service';
 
 import { sqlnovels as novels } from '../sqlnovels/sqlnovels.entity';
 import { sqlauthors as authors } from '../sqlauthors/sqlauthors.entity';
@@ -100,6 +100,11 @@ export class FixdataController {
   //   const book = await this.sqlnovelsService.findById(+id, true);
   // }
 
+  @Get('getTumorTypes')
+  async getTumorTypes(): Promise<any> {
+    return TumorTypes
+  }
+
   @Get('getTumorList')
   async getTumorList(@Query('host') host: string): Promise<any[]> {
     return await this.sqltumorService.findList(host.trim());
@@ -111,7 +116,8 @@ export class FixdataController {
   }
 
   @Post('addTumor')
-  async addTumor(@Body('host') host: string, @Body('text') text: string): Promise<string> {
-    return await this.sqltumorService.create({ host: getHost(host), text }) ? '' : '添加失败';
+  async addTumor(@Body('type') type: string, @Body('host') host: string, @Body('text') text: string): Promise<string> {
+    const tumor = await this.sqltumorService.create({ type, host: getHost(host), text })
+    return typeof tumor === 'string' ? tumor : (tumor ? '' : '添加失败');
   }
 }
