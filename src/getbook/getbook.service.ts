@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { downloadImage } from '../utils/index';
-var spawn = require("child_process").spawn;
-var child_process = require('child_process');
+const spawn = require("child_process").spawn;
+const child_process = require('child_process');
 
 @Injectable()
 export class GetBookService {
@@ -11,7 +11,7 @@ export class GetBookService {
 
   _getBook(url: string) {
     return new Promise((resolve, reject) => {
-      var child = child_process.fork('./spider/getbook.js', [url]);
+      const child = child_process.fork('./spider/getbook.js', [url]);
       child.on('message', function (v, error) {
         if (error) {
           reject(error);
@@ -37,7 +37,7 @@ export class GetBookService {
 
   _getMenu(url: string, lastIndex?: number, failedMenus?: string) {
     return new Promise((resolve, reject) => {
-      var child = child_process.fork('./spider/getmenu.js', [url, lastIndex, failedMenus]);
+      const child = child_process.fork('./spider/getmenu.js', [url, lastIndex, failedMenus]);
       child.on('message', function (v, error) {
         if (error) {
           reject(error);
@@ -60,7 +60,7 @@ export class GetBookService {
 
   _getPage(url: string): Promise<any> {
     return new Promise((resolve, reject) => {
-      var child = child_process.fork('./spider/getpage.js', [url]);
+      const child = child_process.fork('./spider/getpage.js', [url]);
       child.on('message', function (v, error) {
         if (error) {
           reject(error);

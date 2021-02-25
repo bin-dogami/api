@@ -177,12 +177,12 @@ export class GetBookController {
   }
 
   async insertMenus(args: any) {
-    let lastIndex = await this.sqlmenusService.findLastIndexByNovelId(args.id)
+    const lastIndex = await this.sqlmenusService.findLastIndexByNovelId(args.id)
     const res = await this.getMenus(args.from, lastIndex, '');
     if (res && Array.isArray(res)) {
       const [menus] = res
       // @TODO: test?
-      args.menus = 0 ? menus : menus.slice(0, 5);
+      args.menus = 1 ? menus : menus.slice(0, 5);
       const host = getHost(args.from)
       const aHost = host.split('.')
       await this.sqltumorService.create({
@@ -251,7 +251,7 @@ export class GetBookController {
 
       this.logger.log(`# 第${index}章开始插入page #`);
       const tumorList = await this.sqltumorService.findList(getHost(_url));
-      let content = this.dealContent(list, tumorList)
+      const content = this.dealContent(list, tumorList)
       if (res && !menus.length) {
         res.lastPage = `第${index}章: 【${moriginalname}】 <br />${content}`;
       }
