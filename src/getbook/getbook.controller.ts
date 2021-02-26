@@ -382,7 +382,6 @@ export class GetBookController {
     if (!this.reSpiderInfo) {
       this.reSpiderInfo = {
         id,
-        lastSpiderNum: 0,
         index: 0
       }
     }
@@ -453,7 +452,6 @@ export class GetBookController {
 
     // 还有没抓取完的继续抓取一下
     if (ids.length > successIds.length) {
-      this.reSpiderInfo.lastSpiderNum = successIds.length
       this.reGetPages(id)
     } else {
       this.reSpiderInfo = null
