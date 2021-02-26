@@ -364,7 +364,16 @@ export class GetBookController {
   // 获取失败page对应的书ID列表
   @Get('getFailedPages')
   async getFailedPages() {
-    return await this.sqlerrorsService.getFailedPageList();
+    const list = await this.sqlerrorsService.getFailedPageList();
+    const ids = list.map(({ id }) => id)
+    const books = await this.sqlnovelsService.getBookByIds(ids)
+    books.length && list.forEach((item) => {
+      const fBook = books.filter((b) => b.id === item.id)
+      if (fBook.length) {
+        Object.assign(item, fBook[0])
+      }
+    })
+    return list
   }
 
   // 重新抓取书的失败page
@@ -382,8 +391,9 @@ export class GetBookController {
 
     const mIds = await this.sqlerrorsService.getAllSqlerrorsByNovelId(id);
 
+    // 尝试抓取15次，15次还没抓完就不抓了吧
     if (this.reSpiderInfo.index > 10) {
-      this.logger.end(`### [end] 已经是第 *** 11 *** 次抓取了，还没有抓取完，休息一下，还有 ${mIds.length} 章需要重新抓取  ### \n\n\n`);
+      this.logger.end(`### [end] 已经抓取 *** 10 *** 次了，还没有抓取完，休息一下，还有 ${mIds.length} 章需要重新抓取  ### \n\n\n`);
       // 每一个 return 都需要重置一下 this.reSpiderInfo
       this.reSpiderInfo = null;
       return ''
@@ -438,11 +448,11 @@ export class GetBookController {
         await this.sqlmenusService.remove(menuId)
       }
     }
-    const successText = `成功修复了 *** ${successIds.length} 章 ***, 他们的ids为：${successIds.join(', ')}`
-    this.logger.end(`### ${mIds.length <= successIds.length ? '需要修复的章节全部' : '部分'}修复完成，${successText} ### \n\n\n`);
+    const successText = `书名: ${book.title}；id: ${id}。成功修复了 *** ${successIds.length} 章 ***（共 ${ids.length} 章）, 他们的ids为：${successIds.join(', ')}`
+    this.logger.end(`### ${ids.length <= successIds.length ? '需要修复的章节全部' : '部分'}修复完成，${successText} ### \n\n\n`);
 
     // 还有没抓取完的继续抓取一下
-    if (mIds.length > successIds.length) {
+    if (ids.length > successIds.length) {
       this.reSpiderInfo.lastSpiderNum = successIds.length
       this.reGetPages(id)
     } else {
