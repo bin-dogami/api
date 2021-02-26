@@ -26,6 +26,7 @@ const getValidUrl = (host: string, url: string, from: string) => {
 @Controller('getbook')
 export class GetBookController {
   private readonly logger = new Mylogger(GetBookController.name);
+  reSpiderInfo = null;
 
   constructor(
     private readonly getBookService: GetBookService,
@@ -38,7 +39,8 @@ export class GetBookController {
     private readonly sqltumorService: SqltumorService,
     private readonly sqlrecommendsService: SqlrecommendsService,
     private readonly sqltypesdetailService: SqltypesdetailService,
-  ) { }
+  ) {
+  }
 
   @Get()
   getHello(): string {
@@ -182,7 +184,7 @@ export class GetBookController {
     if (res && Array.isArray(res)) {
       const [menus] = res
       // @TODO: test?
-      args.menus = 1 ? menus : menus.slice(0, 5);
+      args.menus = 1 ? menus : menus.slice(0, 25);
       const host = getHost(args.from)
       const aHost = host.split('.')
       await this.sqltumorService.create({
@@ -353,6 +355,9 @@ export class GetBookController {
     this.logger.log(' ############################################### ');
     const failedInfo = menusInsertFailedInfo ? menusInsertFailedInfo : `失败章节 ${res.failedIndex.length} 条（index.）：${res.failedIndex.length ? res.failedIndex.join(', ') : '无'}`
     this.logger.end(`### 【end】完成目录及page插入，插入成功 ${res.successLen} 条，${failedInfo}。 ### \n\n\n`);
+
+    // 抓取章节
+    this.reGetPages(id)
     return res
   }
 
@@ -365,16 +370,39 @@ export class GetBookController {
   // 重新抓取书的失败page
   @Get('reGetPages')
   async reGetPages(@Query('id') id: number) {
+    if (!this.reSpiderInfo) {
+      this.reSpiderInfo = {
+        id,
+        lastSpiderNum: 0,
+        index: 0
+      }
+    }
+    this.reSpiderInfo.index++
+    this.logger.start(`\n ### 【start】 开始抓取上次未抓取成功的章节内容，这是第 *** ${this.reSpiderInfo.index} *** 次抓取 ###`);
+
     const mIds = await this.sqlerrorsService.getAllSqlerrorsByNovelId(id);
+
+    if (this.reSpiderInfo.index > 10) {
+      this.logger.end(`### [end] 已经是第 *** 11 *** 次抓取了，还没有抓取完，休息一下，还有 ${mIds.length} 章需要重新抓取  ### \n\n\n`);
+      // 每一个 return 都需要重置一下 this.reSpiderInfo
+      this.reSpiderInfo = null;
+      return ''
+    }
+
     if (!mIds.length) {
+      this.logger.end(`### [end] 没有目录需要重新抓取 ### \n\n\n`);
+      // 每一个 return 都需要重置一下 this.reSpiderInfo
+      this.reSpiderInfo = null;
       return '没有目录需要重新抓取'
     }
     const book = await this.sqlnovelsService.findById(id, true)
     if (!book) {
+      this.logger.end(`### [end] 数据库里查不到此书 ### \n\n\n`);
+      // 每一个 return 都需要重置一下 this.reSpiderInfo
+      this.reSpiderInfo = null;
       return '数据库里查不到此书'
     }
     const from = book.from[book.from.length - 1]
-    this.logger.start(`\n ### 【start】 开始抓取上次未抓取成功的章节内容 ###`);
     const filePath = this.logger.log(`# 书名: ${book.title}；作者: ${book.author}；id: ${id}；来源: ${from}； #`, {
       bookname: `$[book.title}][章节内容抓取失败修复`
     });
@@ -384,9 +412,11 @@ export class GetBookController {
     const [_m, menusWithFrom] = res && Array.isArray(res) && res.length > 1 ? res : [[], {}]
     if (!Object.keys(menusWithFrom).length) {
       this.logger.end(`### 没有抓取到目录信息或者获取不到 menus 表里的数据 ### \n\n\n`);
+      // 每一个 return 都需要重置一下 this.reSpiderInfo
+      this.reSpiderInfo = null;
       return '没有抓取到目录信息或者获取不到 menus 表里的数据'
     }
-    this.logger.log(` ### 修复开始, 总共要修复 ${mIds.length} 章，ids为：${ids} ###`, filePath);
+    this.logger.log(` ### 修复开始, 总共要修复 *** ${mIds.length} 章 ***，ids为：${ids} ###`, filePath);
     const successIds = []
     while (mIds.length) {
       const currentMid = mIds.shift()
@@ -408,8 +438,17 @@ export class GetBookController {
         await this.sqlmenusService.remove(menuId)
       }
     }
-    const successText = `成功修复了${successIds.length}, 他们的ids为：${successIds.join(', ')}`
-    this.logger.end(`### 修复完成，${successText} ### \n\n\n`);
+    const successText = `成功修复了 *** ${successIds.length} 章 ***, 他们的ids为：${successIds.join(', ')}`
+    this.logger.end(`### ${mIds.length <= successIds.length ? '需要修复的章节全部' : '部分'}修复完成，${successText} ### \n\n\n`);
+
+    // 还有没抓取完的继续抓取一下
+    if (mIds.length > successIds.length) {
+      this.reSpiderInfo.lastSpiderNum = successIds.length
+      this.reGetPages(id)
+    } else {
+      this.reSpiderInfo = null
+    }
+
     return successText
   }
 
