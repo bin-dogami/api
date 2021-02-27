@@ -67,7 +67,7 @@ export class GetBookController {
   // 用完先注释掉吧
   // @Get('fixfrom')
   // async fixfrom() {
-  //   const allNovels = await this.sqlnovelsService.getAll()
+  //   const allNovels = await this.sqlnovelsService.getAllBooks()
   //   let index = allNovels.length - 1
   //   while (index >= 0) {
   //     const novel = allNovels[index]
@@ -115,11 +115,20 @@ export class GetBookController {
   //   }
   // }
 
+  @Post('spiderBooksNewMenus')
+  async spiderBooksNewMenus() {
+    const allNovels = await this.sqlnovelsService.getAllBooks()
+    // @TODO: 使用map 可能导致同步失效，必须找个合适的办法，建个表或者弄个全局的办法
+    allNovels.map(async (novel: any) => {
+      const { from } = novel
+      await this.spider(from, '', 0)
+    })
+  }
+
   // mnum 为暂时只抓取几章，先记入数据库，再慢慢抓取
   @Post('spider')
   async spider(@Body('url') url: string, @Body('recommend') recommend: string, @Body('mnum') mnum: number) {
     const _mnum = mnum ? +mnum : 0
-    console.log(_mnum, typeof _mnum)
     this.logger.start(`\n ### 【start】 开始抓取书信息 ###`);
     const bookInfo = await this.getBookService.getBookInfo(url);
     if (!bookInfo || bookInfo.err) {
