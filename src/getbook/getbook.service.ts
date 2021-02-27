@@ -92,6 +92,7 @@ export class GetBookService {
     } catch (err) {
       let i = 5
       while (i-- > 0) {
+        console.log(`上一次抓取page内容失败，第${6 - i}次尝试抓取`)
         const list = await this.delayDo('_getPage', url)
         if (list && list.length) {
           return list

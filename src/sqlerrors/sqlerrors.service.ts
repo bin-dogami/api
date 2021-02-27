@@ -6,10 +6,15 @@ import { CreateSqlerrors } from "./create-sqlerrors.dto";
 
 export enum IErrors {
   MENU_INSERT_FAILED = 'menu_insert_failed',
+  MENU_INDEX_ABNORMAL = 'menu_insert_abnormal',
   PAGE_LOST = 'page_lost',
 }
 export const ErrorTypes = {
+  // 除了目录index重复的目录插入失败
   [IErrors.MENU_INSERT_FAILED]: '目录插入失败',
+  // 抓取到的目录的 index 已经有了（说明index 不对），需要人工修复
+  // @TODO: 建一个后台人工处理这个问题
+  [IErrors.MENU_INDEX_ABNORMAL]: '目录index异常',
   [IErrors.PAGE_LOST]: 'page缺失'
 }
 

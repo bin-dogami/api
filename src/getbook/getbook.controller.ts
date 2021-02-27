@@ -63,6 +63,37 @@ export class GetBookController {
     this.logger.log(`# 本书设置为推荐 end #`);
   }
 
+  // 修复 menus 表中的 from，错误的from 是 novels 表中的from，应改为 pages 中的from
+  // 用完先注释掉吧
+  @Get('fixfrom')
+  async fixfrom() {
+    const allNovels = await this.sqlnovelsService.getAll()
+    let index = allNovels.length - 1
+    while (index >= 0) {
+      const novel = allNovels[index]
+      const from = novel.from[0]
+      console.log(`id: ${novel.id}, title: #${novel.title}#, from: #${from}# `)
+      const res = await this.getMenus(from, 0, '');
+      if (res && Array.isArray(res)) {
+        const [menus] = res
+        if (menus.length) {
+          while (menus.length) {
+            const currentMenuInfo = menus.shift();
+            const { url, title } = currentMenuInfo
+            const host = getHostFromUrl(from);
+            const _url = getValidUrl(host, url, from)
+            const menu: any = await this.sqlmenusService.getMenuByMoriginalname(+novel.id, title)
+            if (menu) {
+              menu.from = _url
+              await this.sqlmenusService.save(menu)
+            }
+          }
+        }
+      }
+      index--
+    }
+  }
+
   @Post('spider')
   async spider(@Body('url') url: string, @Body('recommend') recommend: string) {
     this.logger.start(`\n ### 【start】 开始抓取书信息 ###`);
@@ -184,7 +215,7 @@ export class GetBookController {
     if (res && Array.isArray(res)) {
       const [menus] = res
       // @TODO: test?
-      args.menus = 1 ? menus : menus.slice(0, 25);
+      args.menus = 0 ? menus : menus.slice(0, 25);
       const host = getHost(args.from)
       const aHost = host.split('.')
       await this.sqltumorService.create({
@@ -233,6 +264,7 @@ export class GetBookController {
     }).filter((str) => !!str).join('')
   }
 
+  // insertPages 参数更改要慎重，有两个地方在用
   async insertPages(id, mId, index, moriginalname, from, url, res, menus) {
     const host = getHostFromUrl(from);
     const _url = getValidUrl(host, url, from)
@@ -304,10 +336,17 @@ export class GetBookController {
       lastPage: '获取或插入page失败'
     }
     let currentMenuId = await this.sqlmenusService.findLastIdByNovelId(id)
+    // 最小的 index
+    let leastIndex = await this.sqlmenusService.findLeastIndexByNovelId(id)
     let menusInsertFailedInfo = ''
     while (menus.length) {
-      const { url, title, index } = menus.shift();
+      const currentMenuInfo = menus.shift();
+      const { url, title } = currentMenuInfo
+      // index 小于0 的往最小index后面减
+      const index = currentMenuInfo.index <= 0 && leastIndex < 0 ? currentMenuInfo.index + leastIndex : currentMenuInfo.index
       let menuInfo: any;
+      const host = getHostFromUrl(from);
+      const _url = getValidUrl(host, url, from)
       // 插入或获取 index 这一条目录数据
       try {
         currentMenuId = getMenuId(currentMenuId, true)
@@ -317,15 +356,38 @@ export class GetBookController {
           mname: getValidTitle(title),
           moriginalname: title,
           index,
-          from,
+          from: _url,
         });
         this.logger.log(`# 插入目录成功 # 目录名：【${menuInfo.moriginalname}】 是第${index}章；id: ${menuInfo.id}`)
       } catch (err) {
         menuInfo = await this.sqlmenusService.findMenuByNovelIdAndIndex(id, index);
         if (menuInfo && menuInfo.id) {
-          this.logger.log(`# 此目录已经被写入过数据库了 # 目录名：【${menuInfo.moriginalname}】, 第${index}章；id: ${menuInfo.id}`)
+          const relationMenuName = menuInfo.moriginalname
+          const relationMenuId = menuInfo.id
+          // menuInfo.index 值超小（负好几K）说明是抓取的这个目录的 index 有错误，需要人生处理一下，所以这些把 index 改特别小以便把这个数据插入到数据库里
+          // random 是避免出现极其极端情况下的同一个 index 多次重复问题
+          // @TODO: http://www.paoshuzw.com/1/1017/ 分卷的时候需要再注意一下
+          // @TODO: 抓取目录的时候分析一下，如果是有分卷的直接中断并通知管理员；还是直接改数据库字段，使用卷；还是直接把重复章节在上一卷基础上累加上去？后面两个都不容易弄
+          let _index = - menuInfo.index * 1000 - Math.round(Math.random() * 100)
+          this.logger.log(`# 此目录的index异常，需要人工查看 # 目录名：【${menuInfo.moriginalname}】, 第${index}章；id: ${menuInfo.id}。现在改下 index 再重新插入一下，新的 index 为 ${_index}`)
+          currentMenuId = getMenuId(currentMenuId, true)
+          menuInfo = await this.sqlmenusService.create({
+            id: currentMenuId,
+            novelId: id,
+            mname: getValidTitle(title),
+            moriginalname: title,
+            index: _index,
+            from: _url,
+          });
+          await this.sqlerrorsService.create({
+            menuId: currentMenuId,
+            novelId: id,
+            menuIndex: _index,
+            type: IErrors.MENU_INDEX_ABNORMAL,
+            info: `${menuInfo.moriginalname} index 异常，需要人工处理。相关联的 index 为 ${index}，目录ID: ${relationMenuId}，目录名: ${relationMenuName}`,
+          })
         } else {
-          this.logger.log(`# [failed] 章节插入错误，中止抓取 # 目录名：【${menuInfo.moriginalname}】, 第${index}章, 来源: ${from} \n`)
+          this.logger.log(`# [failed] 章节插入错误，中止抓取 # 目录名：【${menuInfo.moriginalname}】, 第${index}章, 目录list来源: ${from} \n`)
           index > 0 && res.failedIndex.push(index)
           menusInsertFailedInfo = '[章节插入错误！！！！！！！ 看上一条错误信息]'
           await this.sqlerrorsService.create({
@@ -333,7 +395,7 @@ export class GetBookController {
             novelId: id,
             menuIndex: index,
             type: IErrors.MENU_INSERT_FAILED,
-            info: `第${index}章(${menuInfo.moriginalname}) 插入目录失败, 来源: ${from}`,
+            info: `第${index}章(${menuInfo.moriginalname}) 插入目录失败, 目录list来源: ${from}`,
           })
           break;
         }
@@ -342,7 +404,7 @@ export class GetBookController {
         continue;
       }
 
-      await this.insertPages(id, currentMenuId, index, title, from, url, res, menus)
+      await this.insertPages(id, currentMenuId, menuInfo.index, title, from, url, res, menus)
     }
     // novel 表更新
     if (res.successLen) {
@@ -385,10 +447,9 @@ export class GetBookController {
         index: 0
       }
     }
-    this.reSpiderInfo.index++
-    this.logger.start(`\n ### 【start】 开始抓取上次未抓取成功的章节内容，这是第 *** ${this.reSpiderInfo.index} *** 次抓取 ###`);
-
     const mIds = await this.sqlerrorsService.getAllSqlerrorsByNovelId(id);
+    this.reSpiderInfo.index++
+    this.logger.start(`\n ### 【start】 开始抓取上次未抓取成功的章节内容，这是第 *** ${this.reSpiderInfo.index} *** 次抓取，有 ${mIds.length} 章需要重新抓取 ###`);
 
     // 尝试抓取15次，15次还没抓完就不抓了吧
     if (this.reSpiderInfo.index > 10) {
@@ -417,6 +478,7 @@ export class GetBookController {
     });
     const ids = mIds.map(({ menuId }: { menuId: number }) => menuId)
     const menuInfos = await this.sqlmenusService.getMenusByIds(ids)
+    // @TODO: 看是否有把  getMenus 换成用 menus 表里本身的 from 参数
     const res = await this.getMenus(from, 999999, JSON.stringify(menuInfos));
     const [_m, menusWithFrom] = res && Array.isArray(res) && res.length > 1 ? res : [[], {}]
     if (!Object.keys(menusWithFrom).length) {

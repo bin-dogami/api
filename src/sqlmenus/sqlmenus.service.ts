@@ -49,6 +49,17 @@ export class SqlmenusService {
     return menu ? menu.index : -1;
   }
 
+  // 获取最小的 index
+  async findLeastIndexByNovelId(novelId: number): Promise<any> {
+    const menu = await this.sqlmenusRepository.findOne({
+      where: { novelId },
+      order: {
+        index: "ASC"
+      }
+    });
+    return menu ? menu.index : -1;
+  }
+
   // 获取最新一条menu
   async findLastByNovelId(novelId: number): Promise<any> {
     return await this.sqlmenusRepository.findOne({
@@ -153,5 +164,17 @@ export class SqlmenusService {
 
   async remove(id: number): Promise<void> {
     await this.sqlmenusRepository.delete(id);
+  }
+
+  // @TODO: 仅用于 fixfrom，用后删掉吧
+  async getMenuByMoriginalname(novelId: number, moriginalname: string): Promise<any> {
+    return await this.sqlmenusRepository.findOne({
+      where: { novelId, moriginalname },
+    });
+  }
+
+  // @TODO: 仅用于 fixfrom，用后删掉吧
+  async save(oMenus) {
+    await this.sqlmenusRepository.save(oMenus)
   }
 }

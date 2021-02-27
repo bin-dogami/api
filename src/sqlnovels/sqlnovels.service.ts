@@ -129,4 +129,9 @@ export class SqlnovelsService {
   async remove(id: number): Promise<void> {
     await this.sqlnovelsRepository.delete(id);
   }
+
+  // @TODO: 仅用于 fixfrom，用后删掉吧
+  async getAll(): Promise<novels[]> {
+    return await this.sqlnovelsRepository.find();
+  }
 }
