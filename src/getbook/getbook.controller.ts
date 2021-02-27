@@ -63,60 +63,63 @@ export class GetBookController {
     this.logger.log(`# 本书设置为推荐 end #`);
   }
 
-  // 修复 menus 表中的 from，错误的from 是 novels 表中的from，应改为 pages 中的from
+  // 2021-02-28，已用完！！！修复 menus 表中的 from，错误的from 是 novels 表中的from，应改为 pages 中的from
   // 用完先注释掉吧
-  @Get('fixfrom')
-  async fixfrom() {
-    const allNovels = await this.sqlnovelsService.getAll()
-    let index = allNovels.length - 1
-    while (index >= 0) {
-      const novel = allNovels[index]
-      const from = novel.from[0]
-      const res = await this.getMenus(from, 0, '');
-      const menusInfos: any = await this.sqlmenusService.getMenuByFrom(+novel.id, from)
-      console.log(`id: ${novel.id}, title: #${novel.title}#, from: #${from}#，需要修改的目录数： ${menusInfos.length}， index：${index} `)
-      let fixedNum = 0
-      if (res && Array.isArray(res)) {
-        const [menus] = res
-        if (menus.length) {
-          console.log(`menus.length: ${menus.length}, last menu: ${menus[menus.length - 1].title}|${menus[menus.length - 1].url}|${menus[menus.length - 1].index}`)
-        }
-        if (menusInfos.length) {
-          menusInfos.map(async (menu: any) => {
-            let hasFixed = false
-            while (menus.length) {
-              const currentMenuInfo = menus.shift();
-              const { url, title } = currentMenuInfo
-              const host = getHostFromUrl(from);
-              const _url = getValidUrl(host, url, from)
-              if (menu.moriginalname === title) {
-                fixedNum++
-                hasFixed = true
-                menu.from = _url
-                // await this.sqlmenusService.save(menu)
-                break;
-              }
-            }
-            if (!hasFixed) {
-              console.log(`第 ${menu.index} 章 #${menu.moriginalname}# 修复失败， #${from}#`)
-              if (menu.index <= 0) {
-                await this.sqlmenusService.remove(menu.id)
-                await this.sqlpagesService.remove(menu.id)
-                const errors = await this.sqlerrorsService.getPageLostErrors({ novelId: novel.id, menuId: menu.id })
-                if (errors.length) {
-                  await this.sqlerrorsService.remove(errors[0].id)
-                }
-              }
-            }
-          })
-        }
-      }
-      index--
-    }
-  }
+  // @Get('fixfrom')
+  // async fixfrom() {
+  //   const allNovels = await this.sqlnovelsService.getAll()
+  //   let index = allNovels.length - 1
+  //   while (index >= 0) {
+  //     const novel = allNovels[index]
+  //     const from = novel.from[0]
+  //     const res = await this.getMenus(from, 0, '');
+  //     const menusInfos: any = await this.sqlmenusService.getMenuByFrom(+novel.id, from)
+  //     console.log(`id: ${novel.id}, title: #${novel.title}#, from: #${from}#，需要修改的目录数： ${menusInfos.length}， index：${index} `)
+  //     let fixedNum = 0
+  //     if (res && Array.isArray(res)) {
+  //       const [menus] = res
+  //       if (menus.length) {
+  //         console.log(`menus.length: ${menus.length}, last menu: ${menus[menus.length - 1].title}|${menus[menus.length - 1].url}|${menus[menus.length - 1].index}`)
+  //       }
+  //       if (menusInfos.length) {
+  //         menusInfos.map(async (menu: any) => {
+  //           let hasFixed = false
+  //           while (menus.length) {
+  //             const currentMenuInfo = menus.shift();
+  //             const { url, title } = currentMenuInfo
+  //             const host = getHostFromUrl(from);
+  //             const _url = getValidUrl(host, url, from)
+  //             if (menu.moriginalname === title) {
+  //               fixedNum++
+  //               hasFixed = true
+  //               menu.from = _url
+  //               // await this.sqlmenusService.save(menu)
+  //               break;
+  //             }
+  //           }
+  //           if (!hasFixed) {
+  //             console.log(`第 ${menu.index} 章 #${menu.moriginalname}# 修复失败， #${from}#`)
+  //             if (menu.index <= 0) {
+  //               await this.sqlmenusService.remove(menu.id)
+  //               await this.sqlpagesService.remove(menu.id)
+  //               const errors = await this.sqlerrorsService.getPageLostErrors({ novelId: novel.id, menuId: menu.id })
+  //               if (errors.length) {
+  //                 await this.sqlerrorsService.remove(errors[0].id)
+  //               }
+  //             }
+  //           }
+  //         })
+  //       }
+  //     }
+  //     index--
+  //   }
+  // }
 
+  // mnum 为暂时只抓取几章，先记入数据库，再慢慢抓取
   @Post('spider')
-  async spider(@Body('url') url: string, @Body('recommend') recommend: string) {
+  async spider(@Body('url') url: string, @Body('recommend') recommend: string, @Body('mnum') mnum: number) {
+    const _mnum = mnum ? +mnum : 0
+    console.log(_mnum, typeof _mnum)
     this.logger.start(`\n ### 【start】 开始抓取书信息 ###`);
     const bookInfo = await this.getBookService.getBookInfo(url);
     if (!bookInfo || bookInfo.err) {
@@ -145,7 +148,7 @@ export class GetBookController {
       const count = await this.sqlmenusService.findCountByNovelId(novel['id']);
 
       const { id, title, description, author } = novel;
-      this.insertMenus({ ...novel, ...{ from: url }, ...{ filePath } });
+      this.insertMenus({ ...novel, ...{ from: url }, ...{ filePath }, ...{ mnum: _mnum } });
       this.logger.end(`### 【end】本书不是第一次抓取 ### id: ${id}； \n\n `);
       return { '本书不是第一次抓取': '', '已抓取章数': count, id, title, description, author };
     }
@@ -225,7 +228,7 @@ export class GetBookController {
         novelId: _novel.id
       });
     }
-    this.insertMenus({ ..._novel, ...{ from: url }, ...{ filePath } });
+    this.insertMenus({ ..._novel, ...{ from: url }, ...{ filePath }, ...{ mnum: _mnum } });
     this.logger.end(`### 【end】结束抓取/更新书信息 ### \n`);
     return _novel
   }
@@ -235,8 +238,7 @@ export class GetBookController {
     const res = await this.getMenus(args.from, lastIndex, '');
     if (res && Array.isArray(res)) {
       const [menus] = res
-      // @TODO: test?
-      args.menus = 0 ? menus : menus.slice(0, 25);
+      args.menus = args.mnum > 0 ? menus.slice(0, args.mnum) : menus;
       const host = getHost(args.from)
       const aHost = host.split('.')
       await this.sqltumorService.create({
