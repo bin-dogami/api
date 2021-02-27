@@ -64,7 +64,7 @@ class GetInfo {
         }
         return
       }
-      if (index <= hasSpideredIndex) {
+      if (index > 0 && index <= hasSpideredIndex) {
         return
       }
 

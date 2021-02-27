@@ -78,6 +78,9 @@ export class GetBookController {
       let fixedNum = 0
       if (res && Array.isArray(res)) {
         const [menus] = res
+        if (menus.length) {
+          console.log(`menus.length: ${menus.length}, last menu: ${menus[menus.length - 1].title}|${menus[menus.length - 1].url}|${menus[menus.length - 1].index}`)
+        }
         if (menusInfos.length) {
           menusInfos.map(async (menu: any) => {
             let hasFixed = false
@@ -95,7 +98,7 @@ export class GetBookController {
               }
             }
             if (!hasFixed) {
-              console.log(`第 ${index} 章 #${menu.moriginalname}# 修复失败， #${from}#`)
+              console.log(`第 ${menu.index} 章 #${menu.moriginalname}# 修复失败， #${from}#`)
             }
           })
         }
