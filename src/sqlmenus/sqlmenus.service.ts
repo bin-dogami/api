@@ -175,7 +175,7 @@ export class SqlmenusService {
 
   // @TODO: 仅用于 fixfrom，用后删掉吧
   async getMenuByFrom(novelId: number, from: string): Promise<any> {
-    return await this.sqlmenusRepository.findOne({
+    return await this.sqlmenusRepository.find({
       where: { novelId, from },
     });
   }
