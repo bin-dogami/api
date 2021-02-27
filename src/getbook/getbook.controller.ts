@@ -72,22 +72,32 @@ export class GetBookController {
     while (index >= 0) {
       const novel = allNovels[index]
       const from = novel.from[0]
-      console.log(`id: ${novel.id}, title: #${novel.title}#, from: #${from}# `)
       const res = await this.getMenus(from, 0, '');
+      const menusInfos: any = await this.sqlmenusService.getMenuByFrom(+novel.id, from)
+      console.log(`id: ${novel.id}, title: #${novel.title}#, from: #${from}#，需要修改的目录数： ${menusInfos.length}， index：${index} `)
+      let fixedNum = 0
       if (res && Array.isArray(res)) {
         const [menus] = res
-        if (menus.length) {
-          while (menus.length) {
-            const currentMenuInfo = menus.shift();
-            const { url, title } = currentMenuInfo
-            const host = getHostFromUrl(from);
-            const _url = getValidUrl(host, url, from)
-            const menu: any = await this.sqlmenusService.getMenuByMoriginalname(+novel.id, title)
-            if (menu) {
-              menu.from = _url
-              await this.sqlmenusService.save(menu)
+        if (menusInfos.length) {
+          menusInfos.map(async (menu: any) => {
+            let hasFixed = false
+            while (menus.length) {
+              const currentMenuInfo = menus.shift();
+              const { url, title } = currentMenuInfo
+              const host = getHostFromUrl(from);
+              const _url = getValidUrl(host, url, from)
+              if (menu.moriginalname === title) {
+                fixedNum++
+                hasFixed = true
+                menu.from = _url
+                await this.sqlmenusService.save(menu)
+                break;
+              }
             }
-          }
+            if (!hasFixed) {
+              console.log(`第 ${index} 章 #${menu.moriginalname}# 修复失败， #${from}#`)
+            }
+          })
         }
       }
       index--
