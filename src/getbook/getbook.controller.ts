@@ -93,12 +93,20 @@ export class GetBookController {
                 fixedNum++
                 hasFixed = true
                 menu.from = _url
-                await this.sqlmenusService.save(menu)
+                // await this.sqlmenusService.save(menu)
                 break;
               }
             }
             if (!hasFixed) {
               console.log(`第 ${menu.index} 章 #${menu.moriginalname}# 修复失败， #${from}#`)
+              if (menu.index <= 0) {
+                await this.sqlmenusService.remove(menu.id)
+                await this.sqlpagesService.remove(menu.id)
+                const errors = await this.sqlerrorsService.getPageLostErrors({ novelId: novel.id, menuId: menu.id })
+                if (errors.length) {
+                  await this.sqlerrorsService.remove(errors[0].id)
+                }
+              }
             }
           })
         }

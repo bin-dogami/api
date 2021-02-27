@@ -162,10 +162,6 @@ export class SqlmenusService {
     });
   }
 
-  async remove(id: number): Promise<void> {
-    await this.sqlmenusRepository.delete(id);
-  }
-
   // @TODO: 仅用于 fixfrom，用后删掉吧
   async getMenuByMoriginalname(novelId: number, moriginalname: string): Promise<any> {
     return await this.sqlmenusRepository.findOne({
@@ -183,5 +179,9 @@ export class SqlmenusService {
   // @TODO: 仅用于 fixfrom，用后删掉吧
   async save(oMenus) {
     await this.sqlmenusRepository.save(oMenus)
+  }
+
+  async remove(id: number) {
+    return await this.sqlmenusRepository.delete(id);
   }
 }

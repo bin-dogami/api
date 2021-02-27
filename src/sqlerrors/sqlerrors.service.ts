@@ -42,14 +42,14 @@ export class SqlerrorsService {
     return await this.sqlerrorsRepository.save(oError);
   }
 
-  async getPageLostErrors(oError: sqlerrors): Promise<any[]> {
+  async getPageLostErrors(oError: any): Promise<any[]> {
     const { novelId, menuId } = oError
     return await this.sqlerrorsRepository.find({
       where: { novelId, menuId, type: IErrors.PAGE_LOST },
     })
   }
 
-  async getMenuFailedErrors(oError: sqlerrors): Promise<any[]> {
+  async getMenuFailedErrors(oError: any): Promise<any[]> {
     const { novelId, info } = oError
     return await this.sqlerrorsRepository.find({
       where: { novelId, info, type: IErrors.MENU_INSERT_FAILED },
