@@ -13,9 +13,9 @@ export class SqlrecommendsService {
     private readonly SqlrecommendsRepository: Repository<recommends>,
   ) { }
 
-  create(createSqlrecommends: CreateSqlrecommends): Promise<recommends> {
+  async create(createSqlrecommends: CreateSqlrecommends): Promise<recommends> {
     const oTypes = this.SqlrecommendsRepository.create(createSqlrecommends);
-    return this.SqlrecommendsRepository.save(oTypes);
+    return await this.SqlrecommendsRepository.save(oTypes);
   }
 
   async getList(skip: number, size?: number): Promise<recommends[]> {
@@ -30,7 +30,7 @@ export class SqlrecommendsService {
   }
 
   async findById(id: number): Promise<recommends> {
-    return this.SqlrecommendsRepository.findOne(
+    return await this.SqlrecommendsRepository.findOne(
       {
         where: { id },
       }

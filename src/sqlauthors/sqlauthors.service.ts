@@ -11,9 +11,9 @@ export class SqlauthorsService {
     private readonly sqlauthorsRepository: Repository<authors>,
   ) { }
 
-  create(createSqlauthors: CreateSqlauthors): Promise<authors> {
+  async create(createSqlauthors: CreateSqlauthors): Promise<authors> {
     const oAuthor = this.sqlauthorsRepository.create(createSqlauthors);
-    return this.sqlauthorsRepository.save(oAuthor);
+    return await this.sqlauthorsRepository.save(oAuthor);
   }
 
   async getAuthors(skip: number, size?: number): Promise<authors[]> {
@@ -28,23 +28,23 @@ export class SqlauthorsService {
   }
 
   async findByAuthorName(name: string): Promise<authors[]> {
-    return this.sqlauthorsRepository.find({
+    return await this.sqlauthorsRepository.find({
       where: { name: Like(`%${name}%`) }
     });
   }
 
   async findOneByAuthorName(name: string): Promise<authors> {
-    return this.sqlauthorsRepository.findOne({
+    return await this.sqlauthorsRepository.findOne({
       where: { name }
     });
   }
 
   async findAll(): Promise<authors[]> {
-    return this.sqlauthorsRepository.find();
+    return await this.sqlauthorsRepository.find();
   }
 
   async findOne(id: number): Promise<authors> {
-    return this.sqlauthorsRepository.findOne(id);
+    return await this.sqlauthorsRepository.findOne(id);
   }
 
   async updateAuthor(author: authors): Promise<void> {

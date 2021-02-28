@@ -116,7 +116,7 @@ export class SqltumorService {
 
   async getOne(oTumor: sqltumor): Promise<sqltumor> {
     const { type, text, host, } = oTumor
-    return this.sqltumorRepository.findOne({
+    return await this.sqltumorRepository.findOne({
       where: {
         type,
         text,
@@ -127,7 +127,7 @@ export class SqltumorService {
 
   async findList(host: string): Promise<any[]> {
     const where = host ? { where: { host } } : {}
-    return this.sqltumorRepository.find({
+    return await this.sqltumorRepository.find({
       ...where,
       order: {
         id: 'DESC'

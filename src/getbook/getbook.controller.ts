@@ -267,7 +267,7 @@ export class GetBookController {
 
   @Post('getMenus')
   async getMenus(@Body('url') url: string, lastIndex?: number, faildIndex?: string) {
-    return this.getBookService.getMenus(url, lastIndex, faildIndex);
+    return await this.getBookService.getMenus(url, lastIndex, faildIndex);
   }
 
   async insertPageFailed(menuId, novelId, index, from, moriginalname, error) {
@@ -490,6 +490,7 @@ export class GetBookController {
       }
     }
     const mIds = await this.sqlerrorsService.getAllSqlerrorsByNovelId(id);
+    console.log(mIds)
     this.reSpiderInfo.index++
     this.logger.start(`\n ### 【start】 开始抓取上次未抓取成功的章节内容，这是第 *** ${this.reSpiderInfo.index} *** 次抓取，有 ${mIds.length} 章需要重新抓取 ###`);
 
@@ -522,6 +523,7 @@ export class GetBookController {
     const menuInfos = await this.sqlmenusService.getMenusByIds(ids)
     // @TODO: 看是否有把  getMenus 换成用 menus 表里本身的 from 参数
     const res = await this.getMenus(from, 999999, JSON.stringify(menuInfos));
+    console.log(from, ids, menuInfos, res)
     const [_m, menusWithFrom] = res && Array.isArray(res) && res.length > 1 ? res : [[], {}]
     if (!Object.keys(menusWithFrom).length) {
       this.logger.end(`### 没有抓取到目录信息或者获取不到 menus 表里的数据 ### \n\n\n`);

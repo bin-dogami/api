@@ -11,13 +11,13 @@ export class SqlpagesService {
     private readonly sqlpagesRepository: Repository<pages>,
   ) { }
 
-  create(createSqlpages: CreateSqlpages): Promise<pages> {
+  async create(createSqlpages: CreateSqlpages): Promise<pages> {
     const oPages = this.sqlpagesRepository.create(createSqlpages);
-    return this.sqlpagesRepository.save(oPages);
+    return await this.sqlpagesRepository.save(oPages);
   }
 
-  findOne(id: number): Promise<pages> {
-    return this.sqlpagesRepository.findOne(id);
+  async findOne(id: number): Promise<pages> {
+    return await this.sqlpagesRepository.findOne(id);
   }
 
   async remove(id: number): Promise<void> {

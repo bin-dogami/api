@@ -48,13 +48,28 @@ export class GetBookService {
   }
 
   async getMenus(url: string, lastIndex?: number, failedMenus?: string): Promise<any> {
-    try {
-      const o = await this._getMenu(url, lastIndex, failedMenus);
-      return o;
-    } catch (err) {
+    const fn = async () => {
+      let i = 5
+      while (i-- > 0) {
+        console.log(`上一次抓取目录list失败，第${6 - i}次尝试抓取`)
+        const o = await this.delayDo('_getMenu', url)
+        if (o && o.length) {
+          return o
+        }
+      }
+
       return {
-        err
-      };
+        err: '抓取目录失败'
+      }
+    }
+    try {
+      const o: any = await this._getMenu(url, lastIndex, failedMenus);
+      if (o && o.length) {
+        return o;
+      }
+      return await fn()
+    } catch (err) {
+      return await fn()
     }
   }
 
@@ -72,9 +87,9 @@ export class GetBookService {
 
   delayDo(fnName, ...args): Promise<any> {
     return new Promise((resolve, reject) => {
-      setTimeout(() => {
+      setTimeout(async () => {
         try {
-          const res = this[fnName](...args)
+          const res = await this[fnName](...args)
           resolve(res)
         } catch (err) {
           reject(err)
@@ -84,12 +99,7 @@ export class GetBookService {
   }
 
   async getPageInfo(url: string): Promise<any> {
-    try {
-      const list = await this._getPage(url);
-      if (list && list.length) {
-        return list;
-      }
-    } catch (err) {
+    const fn = async () => {
       let i = 5
       while (i-- > 0) {
         console.log(`上一次抓取page内容失败，第${6 - i}次尝试抓取`)
@@ -98,9 +108,19 @@ export class GetBookService {
           return list
         }
       }
+
       return {
         err: '抓取页面失败'
       }
+    }
+    try {
+      const list = await this._getPage(url);
+      if (list && list.length) {
+        return list;
+      }
+      return await fn()
+    } catch (err) {
+      return await fn()
     }
   }
 

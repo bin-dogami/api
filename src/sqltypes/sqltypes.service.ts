@@ -11,24 +11,24 @@ export class SqltypesService {
     private readonly sqltypesRepository: Repository<types>,
   ) { }
 
-  create(createSqltypes: CreateSqltypes): Promise<types> {
+  async create(createSqltypes: CreateSqltypes): Promise<types> {
     const oTypes = this.sqltypesRepository.create(createSqltypes);
-    return this.sqltypesRepository.save(oTypes);
+    return await this.sqltypesRepository.save(oTypes);
   }
 
   async findAll(isTag: boolean): Promise<types[]> {
-    return this.sqltypesRepository.find({
+    return await this.sqltypesRepository.find({
       select: ["id", "name"],
       where: { isTag }
     });
   }
 
   async findOne(id: number): Promise<types> {
-    return this.sqltypesRepository.findOne(id);
+    return await this.sqltypesRepository.findOne(id);
   }
 
   async findOneByName(name: string): Promise<types> {
-    return this.sqltypesRepository.findOne({ name });
+    return await this.sqltypesRepository.findOne({ name });
   }
 
   async remove(id: number): Promise<void> {
