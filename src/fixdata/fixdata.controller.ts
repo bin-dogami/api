@@ -64,21 +64,28 @@ export class FixdataController {
       await this.sqlnovelsService.remove(_id)
       const _novel = await this.sqlnovelsService.findById(_id)
       let res = ''
+      let text = ''
       if (_novel && _novel.id) {
         res = '书本表数据删除失败，'
+        console.log(res)
       } else {
         res = `书本表数据(id: ${_id})删除成功，`
+        console.log(res)
       }
 
       // 删除 author 表中关联数据
       const author = await this.sqlauthorsService.findOne(novel.authorId)
-      res += author.novelIds.includes(_id) ? `开始删除 author 表中对应的书id，` : 'author 表里并没有书id(哈?)，'
+      text = author.novelIds.includes(_id) ? `开始删除 author 表中对应的书id，` : 'author 表里并没有书id(哈?)，'
+      res += text
+      console.log(text)
       author.novelIds = author.novelIds.filter((id) => id != _id)
       await this.sqlauthorsService.updateAuthor(author)
 
       // 删除 typesdetail 中的关联数据
       const typesdetails = await this.sqltypesdetailService.getAllByNovelId(_id)
-      res += `typesdetail里 共${typesdetails.length}条数据要删除，`
+      text = `typesdetail里 共${typesdetails.length}条数据要删除，`
+      res += text
+      console.log(text)
       while (typesdetails.length) {
         const { id } = typesdetails.shift()
         await this.sqltypesdetailService.remove(id)
@@ -87,13 +94,18 @@ export class FixdataController {
       // 删除推荐
       const recommend = await this.sqlrecommendsService.findById(_id)
       if (recommend && recommend.index) {
-        res += `本书为删除推荐数据，`
+        text = `本书为删除推荐数据，`
+        res += text
+        console.log(text)
+
         await this.sqlrecommendsService.remove(recommend.index)
       }
 
       // 删除 error 表关联数据
       const errors = await this.sqlerrorsService.getAllSqlerrorsByNovelId(_id)
-      res += `错误数据共${errors.length}条要删除，`
+      text = `错误数据共${errors.length}条要删除，`
+      res += text
+      console.log(text)
       while (errors.length) {
         const { id } = errors.shift()
         await this.sqlerrorsService.remove(id)
@@ -101,7 +113,9 @@ export class FixdataController {
 
       // 删除 menus 表
       const menus = await this.sqlmenusService.findAll(_id)
-      res += `共${menus.length}章要删除，`
+      text = `共${menus.length}章要删除，`
+      res += text
+      console.log(text)
       while (menus.length) {
         const { id } = menus.shift()
         await this.sqlmenusService.remove(id)
