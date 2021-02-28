@@ -36,9 +36,9 @@ const getIndexFromTitle = (title) => {
     isSureMenuNum++
   }
   if (isSureMenuNum >= 2) {
-    const match = t.match(/(?<=[^\d])\d+(?=[^\d])/g)
+    // 对这样的进行处理： 第901、902、903章 了却因果
+    const match = t.match(/(?<=[^\d]?)\d+(?=[^\d]?)/g)
     if (match && match.length > 1) {
-      // 对这样的进行处理： 第901、902、903章 了却因果
       return match
     }
   }

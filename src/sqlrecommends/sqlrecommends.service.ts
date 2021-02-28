@@ -52,4 +52,8 @@ export class SqlrecommendsService {
     novel.level = toZero ? 0 : await this.findLastLevel() + 1;
     return await this.SqlrecommendsRepository.save(novel);
   }
+
+  async remove(id: number): Promise<void> {
+    await this.SqlrecommendsRepository.delete(id);
+  }
 }

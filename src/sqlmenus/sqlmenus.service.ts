@@ -154,18 +154,25 @@ export class SqlmenusService {
   // }
 
   async findOne(id: number): Promise<menus> {
-    return this.sqlmenusRepository.findOne(id);
+    return await this.sqlmenusRepository.findOne(id);
+  }
+
+  async findAll(novelId: number): Promise<menus[]> {
+    return await this.sqlmenusRepository.find({
+      select: ["id"],
+      where: { novelId }
+    });
   }
 
   async findMenuByNovelIdAndIndex(novelId: number, index: number): Promise<menus> {
-    return this.sqlmenusRepository.findOne({
+    return await this.sqlmenusRepository.findOne({
       where: { novelId, index }
     });
   }
 
   // 获取一本书的总目录数
   async findCountByNovelId(novelId: number): Promise<number> {
-    return this.sqlmenusRepository.count({
+    return await this.sqlmenusRepository.count({
       where: { novelId }
     });
   }

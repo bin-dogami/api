@@ -11,20 +11,27 @@ export class SqltypesdetailService {
     private readonly sqltypesdetailRepository: Repository<typesdetail>,
   ) { }
 
-  create(createSqltypesdetail: CreateSqltypesdetail): Promise<typesdetail> {
+  async create(createSqltypesdetail: CreateSqltypesdetail): Promise<typesdetail> {
     const oTypes = this.sqltypesdetailRepository.create(createSqltypesdetail);
-    return this.sqltypesdetailRepository.save(oTypes);
+    return await this.sqltypesdetailRepository.save(oTypes);
   }
 
   async findAll(): Promise<typesdetail[]> {
-    return this.sqltypesdetailRepository.find();
+    return await this.sqltypesdetailRepository.find();
   }
 
-  findOne(id: string): Promise<typesdetail> {
-    return this.sqltypesdetailRepository.findOne(id);
+  async findOne(id: string): Promise<typesdetail> {
+    return await this.sqltypesdetailRepository.findOne(id);
   }
 
-  async remove(id: string): Promise<void> {
+  async getAllByNovelId(novelId: number): Promise<typesdetail[]> {
+    return await this.sqltypesdetailRepository.find({
+      select: ["id"],
+      where: { novelId }
+    });
+  }
+
+  async remove(id: number): Promise<void> {
     await this.sqltypesdetailRepository.delete(id);
   }
 }
