@@ -27,6 +27,7 @@ export class SqlerrorsService {
 
   async create(createSqlerrors: CreateSqlerrors): Promise<sqlerrors> {
     const oError = this.sqlerrorsRepository.create(createSqlerrors);
+    // @TODO: MENU_INDEX_ABNORMAL及其他处理
     // 防止重复创建
     if (oError.type === IErrors.PAGE_LOST) {
       const res = await this.getPageLostErrors(oError)

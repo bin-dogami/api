@@ -3,7 +3,7 @@ import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { GetBookService } from './getbook.service';
 import { SqlnovelsService } from '../sqlnovels/sqlnovels.service';
 import { SqltypesService } from '../sqltypes/sqltypes.service';
-import { SqlmenusService } from '../sqlmenus/sqlmenus.service';
+import { IMenuErrors, SqlmenusService } from '../sqlmenus/sqlmenus.service';
 import { SqlpagesService } from '../sqlpages/sqlpages.service';
 import { SqlrecommendsService } from '../sqlrecommends/sqlrecommends.service';
 import { SqltypesdetailService } from '../sqltypesdetail/sqltypesdetail.service';
@@ -374,8 +374,15 @@ export class GetBookController {
     while (menus.length) {
       const currentMenuInfo = menus.shift();
       const { url, title } = currentMenuInfo
+      let _index = currentMenuInfo.index
+      let ErrorType = 0
+      // 可能是 第901、902、903章 了却因果 这样的，需要写入数据库，章节错误
+      if (Array.isArray(_index)) {
+        _index = _index[0]
+        ErrorType = IMenuErrors.MULTI_MENUS_IN_ONE_PAGE
+      }
       // index 小于0 的往最小index后面减
-      const index = currentMenuInfo.index <= 0 && leastIndex < 0 ? currentMenuInfo.index + leastIndex : currentMenuInfo.index
+      const index = _index <= 0 && leastIndex < 0 ? _index + leastIndex : _index
       let menuInfo: any;
       const host = getHostFromUrl(from);
       const _url = getValidUrl(host, url, from)
@@ -388,6 +395,8 @@ export class GetBookController {
           mname: getValidTitle(title),
           moriginalname: title,
           index,
+          // @TODO: 建一个后台页面专门手动查看处理问题吧
+          ErrorType,
           from: _url,
         });
         this.logger.log(`# 插入目录成功 # 目录名：【${menuInfo.moriginalname}】 是第${index}章；id: ${menuInfo.id}`)
@@ -400,7 +409,7 @@ export class GetBookController {
           // random 是避免出现极其极端情况下的同一个 index 多次重复问题
           // @TODO: http://www.paoshuzw.com/1/1017/ 分卷的时候需要再注意一下
           // @TODO: 抓取目录的时候分析一下，如果是有分卷的直接中断并通知管理员；还是直接改数据库字段，使用卷；还是直接把重复章节在上一卷基础上累加上去？后面两个都不容易弄
-          let _index = - menuInfo.index * 1000 - Math.round(Math.random() * 100)
+          let _index = -menuInfo.index * 100 - Math.round(Math.random() * 10000)
           this.logger.log(`# 此目录的index异常，需要人工查看 # 目录名：【${menuInfo.moriginalname}】, 第${index}章；id: ${menuInfo.id}。现在改下 index 再重新插入一下，新的 index 为 ${_index}`)
           currentMenuId = getMenuId(currentMenuId, true)
           menuInfo = await this.sqlmenusService.create({
@@ -409,6 +418,7 @@ export class GetBookController {
             mname: getValidTitle(title),
             moriginalname: title,
             index: _index,
+            ErrorType,
             from: _url,
           });
           await this.sqlerrorsService.create({
@@ -529,7 +539,8 @@ export class GetBookController {
       if (menuIndex > 0) {
         if (menuInfo && menuId in menusWithFrom) {
           const { url, title, index } = menusWithFrom[menuId];
-          const success = await this.insertPages(id, menuId, index, title, from, url, null, [])
+          const _index = Array.isArray(index) ? index[0] : index
+          const success = await this.insertPages(id, menuId, _index, title, from, url, null, [])
           if (success) {
             successIds.push(menuId)
             // 删除 sqlerrors 表里数据

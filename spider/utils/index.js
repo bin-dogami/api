@@ -26,11 +26,21 @@ const powMap = {
 // 提取标题中的数字
 const getIndexFromTitle = (title) => {
   let t = `${title}`
+  let isSureMenuNum = 0
   if (t.includes('章')) {
     t = t.replace(/章.*/, '').trim()
+    isSureMenuNum++
   }
   if (t.includes('第')) {
     t = t.replace(/.*第/, '').trim()
+    isSureMenuNum++
+  }
+  if (isSureMenuNum >= 2) {
+    const match = t.match(/(?<=[^\d])\d+(?=[^\d])/g)
+    if (match && match.length > 1) {
+      // 对这样的进行处理： 第901、902、903章 了却因果
+      return match
+    }
   }
   // 004失去记忆的自己是个食人魔？ 这样没有章也没有第的
   if (t === title) {

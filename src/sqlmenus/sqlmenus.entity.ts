@@ -34,6 +34,10 @@ export class sqlmenus {
   @Column({ default: '' })
   from: string;
 
+  // 错误类型
+  @Column({ default: 0 })
+  ErrorType: number;
+
   // 字数
   // @Column({ default: 0 })
   // wordsnum: number;

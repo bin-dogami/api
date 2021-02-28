@@ -5,6 +5,14 @@ import { sqlmenus as menus } from './sqlmenus.entity';
 import { CreateSqlmenus } from "./create-sqlmenus.dto";
 import { getFirstMenuId } from '../utils/index'
 
+export enum IMenuErrors {
+  MULTI_MENUS_IN_ONE_PAGE = 1,
+}
+export const ErrorTypes = {
+  // 多个章节写到一个章节里了
+  [IMenuErrors.MULTI_MENUS_IN_ONE_PAGE]: '目录插入失败',
+}
+
 @Injectable()
 export class SqlmenusService {
   constructor(

@@ -5,5 +5,6 @@ export class CreateSqlmenus {
   moriginalname: string;
   index: number;
   from: string;
+  ErrorType?: number;
   volume?: string;
 }

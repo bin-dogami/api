@@ -3,7 +3,6 @@ const { getIndexFromTitle } = require("../../utils/index");
 // 笔趣网
 class GetInfo {
   constructor(selectors, selectorMenu) {
-
     // this.hosts = hosts || [];
     // @TODO: 过滤的看有没有必要抽离成基类
     // this.forbidWords = forbidWords || [];
@@ -49,6 +48,7 @@ class GetInfo {
       const url = _item.attr('href');
       const title = _item.text();
       const index = getIndexFromTitle(title);
+      const _index = Array.isArray(index) ? index[0] : index
       if (!url || !url.trim() || !title || !title.trim()) {
         return
       }
@@ -64,7 +64,7 @@ class GetInfo {
         }
         return
       }
-      if (index > 0 && index <= hasSpideredIndex) {
+      if (_index > 0 && _index <= hasSpideredIndex) {
         return
       }
 
@@ -72,7 +72,7 @@ class GetInfo {
         url,
         title,
         // 获取不到index 的就把 index 设置为 -1、-2、-3...
-        index: index > 0 ? index : --uselessIndex
+        index: _index > 0 ? index : --uselessIndex
       })
     });
     return [menus, menusWithFrom];
