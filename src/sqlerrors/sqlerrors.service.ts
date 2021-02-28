@@ -12,8 +12,7 @@ export enum IErrors {
 export const ErrorTypes = {
   // 除了目录index重复的目录插入失败
   [IErrors.MENU_INSERT_FAILED]: '目录插入失败',
-  // 抓取到的目录的 index 已经有了（说明index 不对），需要人工修复
-  // @TODO: 建一个后台人工处理这个问题
+  // 抓取到的目录的 index 重复问题（原网站有这个问题），需要人工修复
   [IErrors.MENU_INDEX_ABNORMAL]: '目录index异常',
   [IErrors.PAGE_LOST]: 'page缺失'
 }
@@ -27,9 +26,13 @@ export class SqlerrorsService {
 
   async create(createSqlerrors: CreateSqlerrors): Promise<sqlerrors> {
     const oError = this.sqlerrorsRepository.create(createSqlerrors);
-    // @TODO: MENU_INDEX_ABNORMAL及其他处理
     // 防止重复创建
-    if (oError.type === IErrors.PAGE_LOST) {
+    if (oError.type === IErrors.MENU_INSERT_FAILED) {
+      const res = await this.getMenuInsertFailedErrors(oError)
+      if (res.length) {
+        return
+      }
+    } else if (oError.type === IErrors.PAGE_LOST) {
       const res = await this.getPageLostErrors(oError)
       if (res.length) {
         return
@@ -41,6 +44,13 @@ export class SqlerrorsService {
       }
     }
     return await this.sqlerrorsRepository.save(oError);
+  }
+
+  async getMenuInsertFailedErrors(oError: any): Promise<any[]> {
+    const { novelId, menuId } = oError
+    return await this.sqlerrorsRepository.find({
+      where: { novelId, menuId, type: IErrors.MENU_INSERT_FAILED },
+    })
   }
 
   async getPageLostErrors(oError: any): Promise<any[]> {
@@ -57,10 +67,10 @@ export class SqlerrorsService {
     })
   }
 
-  async getAllSqlerrorsByNovelId(novelId: number): Promise<any[]> {
+  async getAllPageLostByNovelId(novelId: number): Promise<any[]> {
     return await this.sqlerrorsRepository.find({
       select: ["id", "menuId", "menuIndex"],
-      where: { novelId },
+      where: { novelId, type: IErrors.PAGE_LOST },
       order: {
         menuId: "ASC"
       }
@@ -82,7 +92,6 @@ export class SqlerrorsService {
   async getFailedPageList(): Promise<sqlerrors[]> {
     return await this.sqlerrorsRepository
       .createQueryBuilder()
-      // 这里只能先查出最大的id和novelId，再查对应的 mname，必须两层嵌套查询
       .select("novelId", "id")
       .addSelect("count(*)", "count")
       .where("`type` = :type", { type: IErrors.PAGE_LOST })
@@ -90,7 +99,34 @@ export class SqlerrorsService {
       .execute()
   }
 
-  async remove(id: number): Promise<void> {
-    await this.sqlerrorsRepository.delete(id);
+  // 获取抓取到的index是重复的目录对应的书ID列表
+  async getRepeatedMenuBooks(): Promise<sqlerrors[]> {
+    return await this.sqlerrorsRepository
+      .createQueryBuilder()
+      .select("novelId", "id")
+      .addSelect("count(*)", "count")
+      .where("`type` = :type", { type: IErrors.MENU_INDEX_ABNORMAL })
+      .groupBy("novelId")
+      .execute()
+  }
+
+  // 获取抓取到的index是重复的目录列表
+  async getRepeatedMenuIdsByNovelId(novelId: number): Promise<sqlerrors[]> {
+    return await this.sqlerrorsRepository.find({
+      select: ["id", "menuId", "menuIndex", "info"],
+      where: { novelId, type: IErrors.MENU_INDEX_ABNORMAL },
+    })
+  }
+
+  async remove(id: number): Promise<any> {
+    return await this.sqlerrorsRepository.delete(id);
+  }
+
+  async removeByNovelId(novelId: number): Promise<any> {
+    return await this.sqlerrorsRepository
+      .createQueryBuilder()
+      .delete()
+      .where("novelId = :novelId", { novelId })
+      .execute()
   }
 }

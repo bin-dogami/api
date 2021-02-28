@@ -244,6 +244,7 @@ export class GetBookController {
 
   async insertMenus(args: any) {
     const lastIndex = await this.sqlmenusService.findLastIndexByNovelId(args.id)
+    this.logger.log(`### 上一次抓取的最后的 index 为 ${lastIndex} ###`);
     const res = await this.getMenus(args.from, lastIndex, '');
     if (res && Array.isArray(res)) {
       const [menus] = res
@@ -329,7 +330,7 @@ export class GetBookController {
         }
         return false
       }
-      const pageInfo = await this.sqlpagesService.create({
+      await this.sqlpagesService.create({
         id: mId,
         index,
         novelId: id,
@@ -338,7 +339,7 @@ export class GetBookController {
         wordsnum: content.length,
         from: _url,
       });
-      this.logger.log(`# 插入章节内容成功 # 目录名：【${pageInfo.mname}】, 是第${index}章, 字数：${content.length}；id: ${mId} \n`)
+      this.logger.log(`# 插入章节内容成功 # 目录名：【${moriginalname}】, 是第${index}章, 字数：${content.length}；id: ${mId} \n`)
       res && res.successLen++
       return true
     } catch (err) {
@@ -410,8 +411,8 @@ export class GetBookController {
           // @TODO: http://www.paoshuzw.com/1/1017/ 分卷的时候需要再注意一下
           // @TODO: 抓取目录的时候分析一下，如果是有分卷的直接中断并通知管理员；还是直接改数据库字段，使用卷；还是直接把重复章节在上一卷基础上累加上去？后面两个都不容易弄
           let _index = -menuInfo.index * 100 - Math.round(Math.random() * 10000)
-          this.logger.log(`# 此目录的index异常，需要人工查看 # 目录名：【${menuInfo.moriginalname}】, 第${index}章；id: ${menuInfo.id}。现在改下 index 再重新插入一下，新的 index 为 ${_index}`)
-          currentMenuId = getMenuId(currentMenuId, true)
+          this.logger.log(`# 此目录的index异常，需要人工查看 # 目录名：【${title}】，与【${relationMenuName}(id: ${relationMenuId})】 重复。现在改下 index 再重新插入一下，新的 index 为 ${_index}`)
+          // currentMenuId = getMenuId(currentMenuId, true)
           menuInfo = await this.sqlmenusService.create({
             id: currentMenuId,
             novelId: id,
@@ -426,7 +427,7 @@ export class GetBookController {
             novelId: id,
             menuIndex: _index,
             type: IErrors.MENU_INDEX_ABNORMAL,
-            info: `${menuInfo.moriginalname} index 异常，需要人工处理。相关联的 index 为 ${index}，目录ID: ${relationMenuId}，目录名: ${relationMenuName}`,
+            info: `${menuInfo.moriginalname} index 异常，需要人工处理。相关联的 index: ${index}，id: ${relationMenuId}，目录名: ${relationMenuName}`,
           })
         } else {
           this.logger.log(`# [failed] 章节插入错误，中止抓取 # 目录名：【${menuInfo.moriginalname}】, 第${index}章, 目录list来源: ${from} \n`)
@@ -489,8 +490,7 @@ export class GetBookController {
         index: 0
       }
     }
-    const mIds = await this.sqlerrorsService.getAllSqlerrorsByNovelId(id);
-    console.log(mIds)
+    const mIds = await this.sqlerrorsService.getAllPageLostByNovelId(id);
     this.reSpiderInfo.index++
     this.logger.start(`\n ### 【start】 开始抓取上次未抓取成功的章节内容，这是第 *** ${this.reSpiderInfo.index} *** 次抓取，有 ${mIds.length} 章需要重新抓取 ###`);
 
@@ -523,7 +523,6 @@ export class GetBookController {
     const menuInfos = await this.sqlmenusService.getMenusByIds(ids)
     // @TODO: 看是否有把  getMenus 换成用 menus 表里本身的 from 参数
     const res = await this.getMenus(from, 999999, JSON.stringify(menuInfos));
-    console.log(from, ids, menuInfos, res)
     const [_m, menusWithFrom] = res && Array.isArray(res) && res.length > 1 ? res : [[], {}]
     if (!Object.keys(menusWithFrom).length) {
       this.logger.end(`### 没有抓取到目录信息或者获取不到 menus 表里的数据 ### \n\n\n`);
@@ -574,6 +573,36 @@ export class GetBookController {
     return mIds.map(({ menuId }: { menuId: number }) => menuId)
   }
 
+  // 获取抓取到的index是重复的目录对应的书ID列表
+  @Get('getRepeatedMenuBooks')
+  async getRepeatedMenuBooks() {
+    const list = await this.sqlerrorsService.getRepeatedMenuBooks();
+    const ids = list.map(({ id }) => id)
+    const books = await this.sqlnovelsService.getBookByIds(ids)
+    books.length && list.forEach((item) => {
+      const fBook = books.filter((b) => b.id === item.id)
+      if (fBook.length) {
+        Object.assign(item, fBook[0])
+      }
+    })
+    return list
+  }
+
+  // 获取抓取到的index是重复的目录列表
+  @Get('getRepeatedMenuIds')
+  async getRepeatedMenuIds(@Query('id') id: number) {
+    const list = await this.sqlerrorsService.getRepeatedMenuIdsByNovelId(id);
+    const mIds = list.map(({ menuId }) => menuId)
+    const menus = await this.sqlmenusService.getMenusByIds(mIds)
+    menus.length && list.forEach((item) => {
+      const fMenu = menus.filter((b) => b.id === item.menuId)
+      if (fMenu.length) {
+        delete fMenu[0].id
+        Object.assign(item, fMenu[0])
+      }
+    })
+    return list
+  }
 
   @Post('view')
   async view(@Body('url') url: string) {

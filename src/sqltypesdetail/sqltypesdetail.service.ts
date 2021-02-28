@@ -34,4 +34,12 @@ export class SqltypesdetailService {
   async remove(id: number): Promise<void> {
     await this.sqltypesdetailRepository.delete(id);
   }
+
+  async removeByNovelId(novelId: number): Promise<any> {
+    return await this.sqltypesdetailRepository
+      .createQueryBuilder()
+      .delete()
+      .where("novelId = :novelId", { novelId })
+      .execute()
+  }
 }

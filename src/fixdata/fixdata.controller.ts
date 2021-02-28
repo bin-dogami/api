@@ -82,14 +82,10 @@ export class FixdataController {
       await this.sqlauthorsService.updateAuthor(author)
 
       // 删除 typesdetail 中的关联数据
-      const typesdetails = await this.sqltypesdetailService.getAllByNovelId(_id)
-      text = `typesdetail里 共${typesdetails.length}条数据要删除，`
+      await this.sqltypesdetailService.removeByNovelId(_id)
+      text = `删除 typesdetails 里的数据，`
       res += text
       console.log(text)
-      while (typesdetails.length) {
-        const { id } = typesdetails.shift()
-        await this.sqltypesdetailService.remove(id)
-      }
 
       // 删除推荐
       const recommend = await this.sqlrecommendsService.findById(_id)
@@ -102,25 +98,17 @@ export class FixdataController {
       }
 
       // 删除 error 表关联数据
-      const errors = await this.sqlerrorsService.getAllSqlerrorsByNovelId(_id)
-      text = `错误数据共${errors.length}条要删除，`
+      await this.sqlerrorsService.removeByNovelId(_id)
+      text = `删除errors表里数据，`
       res += text
       console.log(text)
-      while (errors.length) {
-        const { id } = errors.shift()
-        await this.sqlerrorsService.remove(id)
-      }
 
       // 删除 menus 表
-      const menus = await this.sqlmenusService.findAll(_id)
-      text = `共${menus.length}章要删除，`
+      await this.sqlmenusService.removeByNovelId(_id)
+      await this.sqlpagesService.removeByNovelId(_id)
+      text = `删除menus和pages表里数据`
       res += text
       console.log(text)
-      while (menus.length) {
-        const { id } = menus.shift()
-        await this.sqlmenusService.remove(id)
-        await this.sqlpagesService.remove(id)
-      }
 
       return res
     } else {
@@ -161,6 +149,23 @@ export class FixdataController {
     }
   }
 
+  @Post('modifyMenuIndex')
+  async modifyMenuIndex(@Body('id') id: number, @Body('value') value: number, @Body('errorId') errorId: number): Promise<string> {
+    const menuInfo = await this.sqlmenusService.findOne(+id)
+    if (menuInfo) {
+      menuInfo.index = +value
+      await this.sqlmenusService.save(menuInfo)
+    }
+    // @TODO: page 表中一些字段干掉，减轻表负担，用 menu 中字段就好
+    const pageInfo = await this.sqlpagesService.findOne(+id)
+    if (pageInfo) {
+      pageInfo.index = +value
+      await this.sqlpagesService.save(pageInfo)
+    }
+
+    return await this.sqlerrorsService.remove(+errorId) ? '' : '更改失败';
+  }
+
   @Get('getAuthorInfo')
   async getAuthorInfo(@Query('id') id: string): Promise<authors | authors[]> {
     if (isNumber(id)) {
@@ -168,11 +173,6 @@ export class FixdataController {
     }
     return await this.sqlauthorsService.findByAuthorName(id);
   }
-
-  // @Post('modifyAuthorInfo')
-  // async modifyAuthorInfo(@Body('id') id: number, @Body('field') field: number) {
-  //   const book = await this.sqlnovelsService.findById(+id, true);
-  // }
 
   @Get('getTumorTypes')
   async getTumorTypes(): Promise<any> {

@@ -38,6 +38,7 @@ class GetInfo {
     if (!selectorMenu || !selectorMenu.length) {
       return [];
     }
+    let canSpider = false
     let uselessIndex = 0;
     const menusWithFrom = {};
     let _failedMenus = failedMenus ? JSON.parse(failedMenus) : null;
@@ -64,7 +65,12 @@ class GetInfo {
         }
         return
       }
-      if (_index > 0 && _index <= hasSpideredIndex) {
+
+      // 本书不是第一次抓取（hasSpideredIndex > 0）时，得在 index 到达 hasSpideredIndex 处才开始抓取
+      if (hasSpideredIndex > 0 && _index <= hasSpideredIndex && !canSpider) {
+        if (_index == hasSpideredIndex) {
+          canSpider = true
+        }
         return
       }
 

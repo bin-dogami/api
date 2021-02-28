@@ -99,10 +99,9 @@ export class SqlmenusService {
     });
   }
 
-  // 暂时只一个地方用，只需要这两个字段，需要增加记得加个判断，不要给原接口返回过多字段了
-  async getMenusByIds(ids: number[]): Promise<menus[]> {
+  async getMenusByIds(ids: number[], getAllFields?: boolean): Promise<menus[]> {
     return await this.sqlmenusRepository.find({
-      select: ["id", "moriginalname"],
+      select: getAllFields ? undefined : ["id", "moriginalname"],
       where: { id: In(ids) },
       order: {
         id: "ASC"
@@ -192,11 +191,19 @@ export class SqlmenusService {
   // }
 
   // // @TODO: 仅用于 fixfrom，用后删掉吧
-  // async save(oMenus) {
-  //   await this.sqlmenusRepository.save(oMenus)
-  // }
+  async save(oMenus) {
+    await this.sqlmenusRepository.save(oMenus)
+  }
 
   async remove(id: number) {
     return await this.sqlmenusRepository.delete(id);
+  }
+
+  async removeByNovelId(novelId: number): Promise<any> {
+    return await this.sqlmenusRepository
+      .createQueryBuilder()
+      .delete()
+      .where("novelId = :novelId", { novelId })
+      .execute()
   }
 }

@@ -20,7 +20,19 @@ export class SqlpagesService {
     return await this.sqlpagesRepository.findOne(id);
   }
 
+  async save(oPages) {
+    await this.sqlpagesRepository.save(oPages)
+  }
+
   async remove(id: number): Promise<void> {
     await this.sqlpagesRepository.delete(id);
+  }
+
+  async removeByNovelId(novelId: number): Promise<any> {
+    return await this.sqlpagesRepository
+      .createQueryBuilder()
+      .delete()
+      .where("novelId = :novelId", { novelId })
+      .execute()
   }
 }
