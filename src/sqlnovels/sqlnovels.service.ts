@@ -133,4 +133,13 @@ export class SqlnovelsService {
   async getAllBooks(): Promise<novels[]> {
     return await this.sqlnovelsRepository.find();
   }
+
+  async getLastBooks(num?: number): Promise<novels[]> {
+    return await this.sqlnovelsRepository.find({
+      order: {
+        ctime: 'DESC'
+      },
+      take: num || 100
+    });
+  }
 }

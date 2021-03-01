@@ -48,12 +48,16 @@ export class SqlrecommendsService {
 
   // 更改id对应的书的推荐级为最高或取消最高(toZero === true 时取消)
   async udpateLevel(id: number, toZero?: boolean): Promise<any> {
-    const novel = await this.findById(id);
-    novel.level = toZero ? 0 : await this.findLastLevel() + 1;
-    return await this.SqlrecommendsRepository.save(novel);
+    const o = await this.findById(id);
+    o.level = toZero ? 0 : await this.findLastLevel() + 1;
+    return await this.SqlrecommendsRepository.save(o);
   }
 
-  async remove(id: number): Promise<void> {
-    await this.SqlrecommendsRepository.delete(id);
+  async remove(id: number): Promise<any> {
+    return await this.SqlrecommendsRepository.delete(id);
+  }
+
+  async save(o): Promise<any> {
+    return await this.SqlrecommendsRepository.save(o)
   }
 }

@@ -40,14 +40,25 @@ export class FixdataController {
     private readonly sqltypesdetailService: SqltypesdetailService,
   ) { }
 
-
+  @Get('getLastBookList')
+  async getLastBookList(): Promise<novels[]> {
+    return await this.sqlnovelsService.getLastBooks(100)
+  }
 
   @Get('getBookInfo')
-  async getBookInfo(@Query('id') id: string, @Query('noRealMenus') noRealMenus?: boolean): Promise<novels | string> {
+  async getBookInfo(@Query('id') id: string): Promise<any> {
     if (isNumber(id)) {
-      const novel = await this.sqlnovelsService.findById(+id, true);
-      if (novel && !noRealMenus) {
-        // @TODO: 获取实际总章节数，并提供修复按钮，不重要
+      const novel: any = await this.sqlnovelsService.findById(+id, true);
+      const recommend = await this.sqlrecommendsService.findById(+id)
+      if (novel) {
+        novel.isRecommend = !!recommend
+        const menusLen = await this.sqlmenusService.findCountByNovelId(+id);
+        // 如果数量不对，自动更新一下
+        if (menusLen != novel.menusLen) {
+          await this.sqlnovelsService.updateFields(+id, {
+            menusLen,
+          })
+        }
       }
       return novel
     } else {
@@ -115,6 +126,33 @@ export class FixdataController {
       return 'id 类型不对'
     }
   }
+  @Post('setRecommend')
+  async setRecommend(@Body('id') id: string, @Body('toRec') toRec: string) {
+    const novel = await this.sqlnovelsService.findById(+id, true);
+    if (!novel || !novel.id) {
+      return '找不到书本信息'
+    }
+    const { title, description, author, authorId, thumb } = novel
+    const oRec = await this.sqlrecommendsService.findById(+id)
+    if (!oRec || !oRec.index) {
+      if (toRec) {
+        const level = await this.sqlrecommendsService.findLastLevel()
+        return await this.sqlrecommendsService.create({
+          id: +id,
+          level: level + 1,
+          title,
+          description: description.length > 990 ? description.substr(0, 990) : description,
+          author,
+          authorId,
+          thumb,
+        }) ? '' : '设置失败';
+      } else {
+        return '找不到本书的推荐信息'
+      }
+    } else if (!toRec) {
+      return await this.sqlrecommendsService.remove(oRec.index) ? '' : '设置失败'
+    }
+  }
 
   @Post('modifyBookInfo')
   async modifyBookInfo(@Body('id') id: string, @Body('fieldName') fieldName: string, @Body('fieldValue') fieldValue: string) {
@@ -128,7 +166,7 @@ export class FixdataController {
         if (!newAuthor) {
           return 'authorId 不正确'
         }
-        bookInfo = await this.getBookInfo(id, true)
+        bookInfo = await this.getBookInfo(id)
         fileds.author = newAuthor.name
       }
       const res = await this.sqlnovelsService.updateFields(+id, fileds) || '';
