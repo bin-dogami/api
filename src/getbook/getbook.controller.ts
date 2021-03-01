@@ -370,7 +370,7 @@ export class GetBookController {
     }
     let currentMenuId = await this.sqlmenusService.findLastIdByNovelId(id)
     // 最小的 index
-    let leastIndex = await this.sqlmenusService.findLeastIndexByNovelId(id)
+    let leastIndex = await this.sqlmenusService.findLeastLessThan1000IndexByNovelId(id)
     let menusInsertFailedInfo = ''
     while (menus.length) {
       const currentMenuInfo = menus.shift();
@@ -406,11 +406,10 @@ export class GetBookController {
         if (menuInfo && menuInfo.id) {
           const relationMenuName = menuInfo.moriginalname
           const relationMenuId = menuInfo.id
-          // menuInfo.index 值超小（负好几K）说明是抓取的这个目录的 index 有错误，需要人生处理一下，所以这些把 index 改特别小以便把这个数据插入到数据库里
-          // random 是避免出现极其极端情况下的同一个 index 多次重复问题
-          // @TODO: http://www.paoshuzw.com/1/1017/ 分卷的时候需要再注意一下
-          // @TODO: 抓取目录的时候分析一下，如果是有分卷的直接中断并通知管理员；还是直接改数据库字段，使用卷；还是直接把重复章节在上一卷基础上累加上去？后面两个都不容易弄
-          let _index = -menuInfo.index * 100 - Math.round(Math.random() * 10000)
+          // @TODO: http://www.paoshuzw.com/1/1017/ 分卷的时候需要再注意一下; 抓取目录的时候分析一下，如果是有分卷的直接中断并通知管理员；还是直接改数据库字段，使用卷；还是直接把重复章节在上一卷基础上累加上去？后面两个都不容易弄
+          // 重复了的index，index 设置为 -1000 以下
+          let leastIndex = await this.sqlmenusService.findLeastLessThan1000IndexByNovelId(id)
+          const _index = leastIndex < -1000 ? leastIndex - 1 : -1001
           this.logger.log(`# 此目录的index异常，需要人工查看 # 目录名：【${title}】，与【${relationMenuName}(id: ${relationMenuId})】 重复。现在改下 index 再重新插入一下，新的 index 为 ${_index}`)
           // currentMenuId = getMenuId(currentMenuId, true)
           menuInfo = await this.sqlmenusService.create({

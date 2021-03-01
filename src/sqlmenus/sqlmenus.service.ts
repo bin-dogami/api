@@ -68,6 +68,20 @@ export class SqlmenusService {
     return menu ? menu.index : -1;
   }
 
+  // 获取小于1000的最小的 index，大于1000 的是 index 有问题的（重复的index会转化为-1000以下）
+  async findLeastLessThan1000IndexByNovelId(novelId: number): Promise<any> {
+    const menu = await this.sqlmenusRepository.findOne({
+      where: {
+        novelId,
+        index: LessThan(1000),
+      },
+      order: {
+        index: "ASC"
+      }
+    });
+    return menu ? menu.index : -1;
+  }
+
   // 获取最新一条menu
   async findLastByNovelId(novelId: number): Promise<any> {
     return await this.sqlmenusRepository.findOne({
@@ -87,7 +101,7 @@ export class SqlmenusService {
   // 获取书的目录，以分页的形式
   async getMenusByBookId(id: number, skip: number, size?: number, isDesc?: boolean): Promise<[menus[], number]> {
     return await this.sqlmenusRepository.findAndCount({
-      select: ["id", "mname", "index"],
+      select: ["id", "mname", "moriginalname", "index"],
       where: {
         novelId: id
       },
@@ -111,7 +125,7 @@ export class SqlmenusService {
 
   async getPrevMenus(id: number, novelId: number, take?: number, noEqual?: boolean): Promise<menus[]> {
     const prevMenus = await this.sqlmenusRepository.find({
-      select: ["id", "mname", "index"],
+      select: ["id", "mname", "moriginalname", "index"],
       where: {
         // 用个新奇的方式写
         novelId: Equal(novelId),
@@ -128,7 +142,7 @@ export class SqlmenusService {
 
   async getNextMenus(id: number, novelId: number, take?: number): Promise<menus[]> {
     return await this.sqlmenusRepository.find({
-      select: ["id", "mname", "index"],
+      select: ["id", "mname", "moriginalname", "index"],
       where: {
         novelId,
         id: MoreThan(id),

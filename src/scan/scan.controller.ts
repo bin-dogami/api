@@ -193,8 +193,9 @@ export class ScanController {
   @Get('getPageById')
   async getPageById(@Query('id') id: number, @Query('onlypage') onlypage: number): Promise<any> {
     let page: any = await this.sqlpagesService.findOne(+id)
+    const menu = await this.sqlmenusService.findOne(+id)
     if (!page || !page.id) {
-      page = await this.sqlmenusService.findOne(+id)
+      page = menu
       if (!page) {
         return []
       } else {
@@ -204,6 +205,8 @@ export class ScanController {
         this.logger.writeLog()
         page["noPage"] = true
       }
+    } else {
+      page['realName'] = menu['moriginalname']
     }
 
     if (page && page.id) {
