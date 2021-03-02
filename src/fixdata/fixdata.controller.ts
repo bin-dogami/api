@@ -251,13 +251,13 @@ export class FixdataController {
     return typeof tumor === 'string' ? tumor : (tumor ? '' : '添加失败');
   }
 
-  // @TODO: 用完后注释掉吧，修复一下未创建 sqlspider 之前的数据
-  @Post('initSpiderData')
-  async initSpiderData() {
-    const unCompleteSpiderBooks = await this.sqlnovelsService.getUnCompleteSpiderNovels()
-    while (unCompleteSpiderBooks.length) {
-      const { id } = unCompleteSpiderBooks.shift()
-      await this.sqlspiderService.create(id, ISpiderStatus.SPIDERED)
-    }
-  }
+  // // 用完后注释掉吧，修复一下未创建 sqlspider 之前的数据
+  // @Post('initSpiderData')
+  // async initSpiderData() {
+  //   const unCompleteSpiderBooks = await this.sqlnovelsService.getUnCompleteSpiderNovels()
+  //   while (unCompleteSpiderBooks.length) {
+  //     const { id } = unCompleteSpiderBooks.shift()
+  //     await this.sqlspiderService.create(id, ISpiderStatus.SPIDERED)
+  //   }
+  // }
 }

@@ -130,6 +130,10 @@ export class GetBookController {
   // mnum 为暂时只抓取几章，先记入数据库，再慢慢抓取
   @Post('spider')
   async spider(@Body('url') url: string, @Body('recommend') recommend: string, @Body('mnum') mnum: number) {
+    const isSpidering = await this.detectWhoIsSpidering()
+    if (isSpidering) {
+      return { '抓取失败': isSpidering }
+    }
     const _mnum = mnum ? +mnum : 0
     this.logger.start(`\n ### 【start】 开始抓取书信息 ###`);
     const bookInfo = await this.getBookService.getBookInfo(url);
@@ -307,7 +311,7 @@ export class GetBookController {
     if (SpideringNovels.length) {
       return `有${SpideringNovels.length}本书正在抓取中：${SpideringNovels.map(({ id }) => id).join(', ')}`
     } else {
-      return '没有书在抓取中'
+      return ''
     }
   }
 
