@@ -86,6 +86,17 @@ export class SqlnovelsService {
     })
   }
 
+  // 获取所有需要再次抓取的书（非全本并抓完的书）
+  async getUnCompleteSpiderNovels(): Promise<novels[]> {
+    return await this.sqlnovelsRepository.find({
+      select: ["id"],
+      where: { isSpiderComplete: false },
+      order: {
+        id: "ASC"
+      },
+    })
+  }
+
   async findLastId(): Promise<number> {
     const novel = await this.sqlnovelsRepository.findOne({
       order: {

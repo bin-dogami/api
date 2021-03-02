@@ -1,3 +1,4 @@
+import { sqlspider } from './../sqlspider/sqlspider.entity';
 import { sqlerrors } from './../sqlerrors/sqlerrors.entity';
 import { getHost } from '../utils/index'
 import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
@@ -11,6 +12,7 @@ import { SqltypesdetailService } from '../sqltypesdetail/sqltypesdetail.service'
 import { SqlauthorsService } from '../sqlauthors/sqlauthors.service';
 import { SqlerrorsService } from '../sqlerrors/sqlerrors.service';
 import { TumorTypes, SqltumorService } from '../sqltumor/sqltumor.service';
+import { ISpiderStatus, SqlspiderService, CreateSqlspider } from '../sqlspider/sqlspider.service';
 
 import { sqlnovels as novels } from '../sqlnovels/sqlnovels.entity';
 import { sqlauthors as authors } from '../sqlauthors/sqlauthors.entity';
@@ -36,6 +38,7 @@ export class FixdataController {
     private readonly sqlauthorsService: SqlauthorsService,
     private readonly sqlerrorsService: SqlerrorsService,
     private readonly sqltumorService: SqltumorService,
+    private readonly sqlspiderService: SqlspiderService,
     private readonly sqlrecommendsService: SqlrecommendsService,
     private readonly sqltypesdetailService: SqltypesdetailService,
   ) { }
@@ -117,7 +120,13 @@ export class FixdataController {
       // 删除 menus 表
       await this.sqlmenusService.removeByNovelId(_id)
       await this.sqlpagesService.removeByNovelId(_id)
-      text = `删除menus和pages表里数据`
+      text = `删除menus和pages表里数据，`
+      res += text
+      console.log(text)
+
+      // 删除 spider 表
+      await this.deleteSpiderData(_id)
+      text = `删除spider表里数据，`
       res += text
       console.log(text)
 
@@ -154,19 +163,28 @@ export class FixdataController {
     }
   }
 
+  async deleteSpiderData(id: number) {
+    return await this.sqlspiderService.remove(id)
+  }
+
   @Post('modifyBookInfo')
   async modifyBookInfo(@Body('id') id: string, @Body('fieldName') fieldName: string, @Body('fieldValue') fieldValue: string) {
     if (isNumber(id)) {
       const _fieldValue: any = ['isComplete', 'isSpiderComplete'].includes(fieldName) ? Boolean(fieldValue) : fieldValue
       const fileds = { [fieldName]: _fieldValue }
       let newAuthor = null
-      let bookInfo = null
-      if (fieldName === 'authorId') {
+      const bookInfo = await this.getBookInfo(id)
+      if (fieldName === 'isSpiderComplete') {
+        if (_fieldValue) {
+          await this.deleteSpiderData(+id)
+        } else {
+          await this.sqlspiderService.create(+id)
+        }
+      } else if (fieldName === 'authorId') {
         newAuthor = await this.getAuthorInfo(fieldValue)
         if (!newAuthor) {
           return 'authorId 不正确'
         }
-        bookInfo = await this.getBookInfo(id)
         fileds.author = newAuthor.name
       }
       const res = await this.sqlnovelsService.updateFields(+id, fileds) || '';
@@ -231,5 +249,15 @@ export class FixdataController {
   async addTumor(@Body('type') type: string, @Body('host') host: string, @Body('text') text: string): Promise<string> {
     const tumor = await this.sqltumorService.create({ type, host: getHost(host), text })
     return typeof tumor === 'string' ? tumor : (tumor ? '' : '添加失败');
+  }
+
+  // @TODO: 用完后注释掉吧，修复一下未创建 sqlspider 之前的数据
+  @Post('initSpiderData')
+  async initSpiderData() {
+    const unCompleteSpiderBooks = await this.sqlnovelsService.getUnCompleteSpiderNovels()
+    while (unCompleteSpiderBooks.length) {
+      const { id } = unCompleteSpiderBooks.shift()
+      await this.sqlspiderService.create(id, ISpiderStatus.SPIDERED)
+    }
   }
 }

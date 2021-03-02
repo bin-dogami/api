@@ -15,6 +15,8 @@ $ npm run start:prod
 https://docs.nestjs.com/support
 
 ## 开发
+### findOne 结果
+findOne 如果找不到数据返回的是undefined
 ### 打印出查询语句
 https://typeorm.biunav.com/zh/select-query-builder.html#%E8%8E%B7%E5%8F%96%E7%94%9F%E6%88%90%E7%9A%84sql%E6%9F%A5%E8%AF%A2%E8%AF%AD%E5%8F%A5
 ```

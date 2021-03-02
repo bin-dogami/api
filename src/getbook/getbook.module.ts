@@ -10,9 +10,10 @@ import { SqltypesdetailModule } from '../sqltypesdetail/sqltypesdetail.module';
 import { SqlauthorsModule } from '../sqlauthors/sqlauthors.module';
 import { SqlerrorsModule } from '../sqlerrors/sqlerrors.module';
 import { SqltumorModule } from '../sqltumor/sqltumor.module';
+import { SqlspiderModule } from '../sqlspider/sqlspider.module';
 
 @Module({
-  imports: [SqlnovelsModule, SqltypesModule, SqlmenusModule, SqlpagesModule, SqlrecommendsModule, SqltypesdetailModule, SqlauthorsModule, SqlerrorsModule, SqltumorModule],
+  imports: [SqlnovelsModule, SqltypesModule, SqlmenusModule, SqlpagesModule, SqlrecommendsModule, SqltypesdetailModule, SqlauthorsModule, SqlerrorsModule, SqltumorModule, SqlspiderModule],
   providers: [GetBookService],
   controllers: [GetBookController]
 })
