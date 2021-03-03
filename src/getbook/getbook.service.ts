@@ -52,7 +52,7 @@ export class GetBookService {
       let i = 5
       while (i-- > 0) {
         console.log(`上一次抓取目录list失败，第${6 - i}次尝试抓取`)
-        const o = await this.delayDo('_getMenu', url)
+        const o = await this.delayDo('_getMenu', url, lastIndex, failedMenus)
         if (o && o.length) {
           return o
         }

@@ -559,7 +559,7 @@ export class GetBookController {
 
   @Post('getMenus')
   async getMenus(@Body('url') url: string, lastIndex?: number, faildIndex?: string) {
-    return await this.getBookService.getMenus(url, lastIndex, faildIndex);
+    return await this.getBookService.getMenus(url, lastIndex, faildIndex || '');
   }
 
   async insertPageFailed(menuId, novelId, index, from, moriginalname, error) {
