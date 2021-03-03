@@ -309,7 +309,7 @@ export class GetBookController {
   async detectWhoIsSpidering() {
     const SpideringNovels = await this.sqlspiderService.findAllByStatus(ISpiderStatus.SPIDERING)
     if (SpideringNovels.length) {
-      return `有${SpideringNovels.length}本书正在抓取中：${SpideringNovels.map(({ id }) => id).join(', ')}`
+      return `有${SpideringNovels.length}本书正在抓取中：(#${SpideringNovels[0].id}#)${SpideringNovels.map(({ id }) => id).join(', ')}`
     } else {
       return ''
     }
@@ -320,7 +320,7 @@ export class GetBookController {
   async spiderAll() {
     const SpideringNovels = await this.sqlspiderService.findAllByStatus(ISpiderStatus.SPIDERING)
     if (SpideringNovels.length) {
-      return `有${SpideringNovels.length}本书正在抓取中：${SpideringNovels.map(({ id }) => id).join(', ')}`
+      return `有${SpideringNovels.length}本书正在抓取中：(#${SpideringNovels[0].id}#)${SpideringNovels.map(({ id }) => id).join(', ')}`
     }
     // 先把已抓取完的统一改为待抓取状态再一个一个抓取
     try {
