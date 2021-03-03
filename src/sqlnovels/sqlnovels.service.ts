@@ -48,7 +48,7 @@ export class SqlnovelsService {
   // 搜索
   async getBookByTitleWithLike(name: string): Promise<novels[]> {
     return await this.sqlnovelsRepository.find({
-      select: ["id", "title", "author", "authorId"],
+      select: ["id", "title", "author", "authorId", 'description', 'thumb'],
       where: {
         title: Like(`%${name}%`)
       },

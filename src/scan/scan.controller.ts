@@ -49,10 +49,10 @@ export class ScanController {
   ) { }
 
   // 查询具体书
-  @Get('getBookBySearch')
-  async getBookBySearch(@Query('name') name: string, @Query('id') id: number): Promise<novels> {
-    return await this.sqlnovelsService.getBookByTitleId(name, +id)
-  }
+  // @Get('getBookBySearch')
+  // async getBookBySearch(@Query('name') name: string, @Query('id') id: number): Promise<novels> {
+  //   return await this.sqlnovelsService.getBookByTitleId(name, +id)
+  // }
 
   // 阅读历史
   @Get('getBooksLastPageByIds')
