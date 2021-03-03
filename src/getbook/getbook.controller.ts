@@ -322,6 +322,11 @@ export class GetBookController {
     if (SpideringNovels.length) {
       return `有${SpideringNovels.length}本书正在抓取中：(#${SpideringNovels[0].id}#)${SpideringNovels.map(({ id }) => id).join(', ')}`
     }
+    const firstSpiderNovelId = await this.sqlspiderService.getNextUnspider(0)
+    // 有待抓取的先把待抓取的抓完，没有了再一个一个抓取
+    if (firstSpiderNovelId) {
+      return await this.spiderNext(0)
+    }
     // 先把已抓取完的统一改为待抓取状态再一个一个抓取
     try {
       await this.sqlspiderService.setSpideredToUnSpider()
