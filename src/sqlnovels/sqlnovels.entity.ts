@@ -6,8 +6,13 @@ export class sqlnovels {
   @PrimaryColumn()
   id: number;
 
+  // 前端展示的 title
   @Column({ length: 128 })
   title: string;
+
+  // 抓取的title
+  @Column({ length: 128 })
+  otitle: string;
 
   @Column({ length: 1000 })
   description: string;
@@ -37,6 +42,10 @@ export class sqlnovels {
   // 历史抓取来源，去除
   @Column('simple-array')
   from: string[];
+
+  // 卷数，没啥意义，有空再加吧
+  // @Column({ default: 0 })
+  // volumeLen: number;
 
   // 章节数
   @Column({ default: 0 })

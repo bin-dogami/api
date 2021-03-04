@@ -13,6 +13,7 @@ import { SqlauthorsService } from '../sqlauthors/sqlauthors.service';
 import { SqlerrorsService } from '../sqlerrors/sqlerrors.service';
 import { TumorTypes, SqltumorService } from '../sqltumor/sqltumor.service';
 import { ISpiderStatus, SqlspiderService, CreateSqlspider } from '../sqlspider/sqlspider.service';
+const dayjs = require('dayjs')
 
 import { sqlnovels as novels } from '../sqlnovels/sqlnovels.entity';
 import { sqlauthors as authors } from '../sqlauthors/sqlauthors.entity';
@@ -79,19 +80,21 @@ export class FixdataController {
       const _novel = await this.sqlnovelsService.findById(_id)
       let res = ''
       let text = ''
+
+      this.logger.start(`### 【start】 开始删除书信息（时间：${dayjs().format('YYYY-MM-DD HH:mm:ss')}） ###`, this.logger.createDeleteBookLogFile())
+      // this.logger.writeLog()
       if (_novel && _novel.id) {
         res = '书本表数据删除失败，'
-        console.log(res)
       } else {
         res = `书本表数据(id: ${_id})删除成功，`
-        console.log(res)
       }
+      this.logger.log(`# ${res} #`)
 
       // 删除 author 表中关联数据
       const author = await this.sqlauthorsService.findOne(novel.authorId)
       text = author.novelIds.includes(_id) ? `开始删除 author 表中对应的书id，` : 'author 表里并没有书id(哈?)，'
       res += text
-      console.log(text)
+      this.logger.log(`# ${text} #`)
       author.novelIds = author.novelIds.filter((id) => id != _id)
       await this.sqlauthorsService.updateAuthor(author)
 
@@ -99,14 +102,15 @@ export class FixdataController {
       await this.sqltypesdetailService.removeByNovelId(_id)
       text = `删除 typesdetails 里的数据，`
       res += text
-      console.log(text)
+      this.logger.log(`# ${text} #`)
+
 
       // 删除推荐
       const recommend = await this.sqlrecommendsService.findById(_id)
       if (recommend && recommend.index) {
         text = `本书为删除推荐数据，`
         res += text
-        console.log(text)
+        this.logger.log(`# ${text} #`)
 
         await this.sqlrecommendsService.remove(recommend.index)
       }
@@ -115,20 +119,20 @@ export class FixdataController {
       await this.sqlerrorsService.removeByNovelId(_id)
       text = `删除errors表里数据，`
       res += text
-      console.log(text)
+      this.logger.log(`# ${text} #`)
 
       // 删除 menus 表
       await this.sqlmenusService.removeByNovelId(_id)
       await this.sqlpagesService.removeByNovelId(_id)
       text = `删除menus和pages表里数据，`
       res += text
-      console.log(text)
+      this.logger.log(`# ${text} #`)
 
       // 删除 spider 表
       await this.deleteSpiderData(_id)
       text = `删除spider表里数据，`
       res += text
-      console.log(text)
+      this.logger.end(`### 【end】删除书本信息完成 ${text} ### \n\n\n`);
 
       return res
     } else {

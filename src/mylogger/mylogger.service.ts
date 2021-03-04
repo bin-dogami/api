@@ -5,6 +5,7 @@ const path = require('path')
 const logFilePath = './logs'
 // 章节缺失错误日志文件名
 const PageLose = '章节缺失错误'
+const DeleteBook = '删除书本信息记录'
 
 // @TODO: 确定 nginx 里会不会再写一遍 log 信息
 @Injectable()
@@ -13,9 +14,12 @@ export class Mylogger extends Logger {
   private filePath = '';
 
   createPageLoseErrorLogFile() {
-    return this.createErrorLogFile(PageLose)
+    return this.createogFile(PageLose)
   }
-  createErrorLogFile(name = 'errors') {
+  createDeleteBookLogFile() {
+    return this.createogFile(DeleteBook)
+  }
+  createogFile(name = 'errors') {
     const logPath = path.resolve(logFilePath);
     if (!fs.existsSync(logPath)) {
       fs.mkdirSync(logPath);

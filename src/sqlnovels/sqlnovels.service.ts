@@ -29,15 +29,6 @@ export class SqlnovelsService {
     })
   }
 
-  // 搜索
-  async getBookByTitleId(title: string, id: number): Promise<novels> {
-    // 第一页数据缓存一小时
-    return await this.sqlnovelsRepository.findOne({
-      select: ["id", "title", "author", "authorId", "description", "thumb"],
-      where: id ? { title, id } : { title }
-    })
-  }
-
   async getBookByIds(novelIds: number[]): Promise<novels[]> {
     return await this.sqlnovelsRepository.find({
       select: ["id", "title", "author", "authorId", "description", "thumb"],
@@ -115,10 +106,10 @@ export class SqlnovelsService {
     );
   }
 
-  async findByTitle(title: string, author: string): Promise<novels> {
+  async findByTitle(otitle: string, author: string): Promise<novels> {
     return await this.sqlnovelsRepository.findOne(
       {
-        title,
+        otitle,
         author,
       }
     );

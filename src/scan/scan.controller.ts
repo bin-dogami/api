@@ -48,12 +48,6 @@ export class ScanController {
     private readonly sqltypesdetailService: SqltypesdetailService,
   ) { }
 
-  // 查询具体书
-  // @Get('getBookBySearch')
-  // async getBookBySearch(@Query('name') name: string, @Query('id') id: number): Promise<novels> {
-  //   return await this.sqlnovelsService.getBookByTitleId(name, +id)
-  // }
-
   // 阅读历史
   @Get('getBooksLastPageByIds')
   async getBooksLastPageByIds(@Query('ids') ids: any[]): Promise<menus[]> {
@@ -199,8 +193,7 @@ export class ScanController {
       if (!page) {
         return []
       } else {
-        // 也写入 sqlerrors 表，index > 0 才行 @TODO: index <= 0 直接删掉目录？考虑 getIndexFromTitle 不太准了
-        page.index > 0 && await this.insertPageFailed(page, '章节缺失: 来自用户浏览时服务器自动提报')
+        await this.insertPageFailed(page, '章节缺失: 来自用户浏览时服务器自动提报')
         this.logger.start(`{novelId: ${page.novelId}, id: ${page.id} }`, this.logger.createPageLoseErrorLogFile())
         this.logger.writeLog()
         page["noPage"] = true

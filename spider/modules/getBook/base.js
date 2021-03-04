@@ -1,4 +1,4 @@
-const { getIndexFromTitle } = require("../../utils/index");
+const { menusAnalysis } = require("../../utils/index");
 
 // 笔趣网
 class GetInfo {
@@ -30,14 +30,22 @@ class GetInfo {
     return o;
   }
 
-  getMenus ($, hasSpideredIndex, failedMenus) {
+  getMenus ($, lastMenuInfo) {
     if (!this.selectorMenu) {
       return [];
     }
+
+    return menusAnalysis($(this.selectorMenu), $, JSON.parse(lastMenuInfo))
+
     const selectorMenu = $(this.selectorMenu);
     if (!selectorMenu || !selectorMenu.length) {
       return [];
     }
+
+
+
+
+
     let canSpider = false
     let uselessIndex = 0;
     const menusWithFrom = {};

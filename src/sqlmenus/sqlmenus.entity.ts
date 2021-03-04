@@ -1,7 +1,8 @@
 import { Entity, Column, PrimaryColumn, Timestamp, OneToOne, JoinColumn, Index, Generated } from 'typeorm';
 
 @Entity()
-@Index(["novelId", "index"], { unique: true })
+// index 可以重复，重复的记一下就行了，这样重复的 index 和没有 index 的也不用费劲去弄 负值了
+// @Index(["novelId", "index"], { unique: true })
 export class sqlmenus {
   @PrimaryColumn()
   id: number;

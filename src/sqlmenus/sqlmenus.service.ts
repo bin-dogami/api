@@ -46,17 +46,6 @@ export class SqlmenusService {
     return menus
   }
 
-  // 获取最新 index，id 不一定随着 index 变大而变大，因为有可能前面的某个 id 失败了，然后重新抓取了一次，那这个数据就可能 index 不大，但 id 是最大的
-  async findLastIndexByNovelId(novelId: number): Promise<any> {
-    const menu = await this.sqlmenusRepository.findOne({
-      where: { novelId },
-      order: {
-        index: "DESC"
-      }
-    });
-    return menu ? menu.index : -1;
-  }
-
   // 获取最小的 index
   async findLeastIndexByNovelId(novelId: number): Promise<any> {
     const menu = await this.sqlmenusRepository.findOne({
@@ -92,6 +81,25 @@ export class SqlmenusService {
     });
   }
 
+  // 获取最新的 menu
+  async findLastIdMenuByNovelId(novelId: number): Promise<menus> {
+    return await this.sqlmenusRepository.findOne({
+      where: { novelId },
+      order: {
+        id: "DESC"
+      }
+    });
+  }
+
+  async findLastIndexMenuByNovelId(novelId: number): Promise<menus> {
+    return await this.sqlmenusRepository.findOne({
+      where: { novelId },
+      order: {
+        index: "DESC"
+      }
+    });
+  }
+
   // 获取最新一条目录的id
   async findLastIdByNovelId(novelId: number): Promise<any> {
     const menu = await this.findLastByNovelId(novelId);
@@ -115,7 +123,7 @@ export class SqlmenusService {
 
   async getMenusByIds(ids: number[], getAllFields?: boolean): Promise<menus[]> {
     return await this.sqlmenusRepository.find({
-      select: getAllFields ? undefined : ["id", "moriginalname"],
+      select: getAllFields ? undefined : ["id", "index", "mname", "moriginalname", "from"],
       where: { id: In(ids) },
       order: {
         id: "ASC"
