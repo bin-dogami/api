@@ -219,7 +219,6 @@ const menusAnalysis = ($domMenus, $, lastMenuInfo = null) => {
     }
   }
 
-
   if (lastMenuInfo && !findLastSpiderMenu) {
     return `异常,找不到上一次抓取的最后一章: ${lastOrigTitle}`
   }

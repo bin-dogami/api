@@ -106,10 +106,19 @@ export class SqlnovelsService {
     );
   }
 
-  async findByTitle(otitle: string, author: string): Promise<novels> {
+  async findByOriginalTitle(otitle: string, author: string): Promise<novels> {
     return await this.sqlnovelsRepository.findOne(
       {
         otitle,
+        author,
+      }
+    );
+  }
+
+  async findByTitle(title: string, author: string): Promise<novels> {
+    return await this.sqlnovelsRepository.findOne(
+      {
+        title,
         author,
       }
     );

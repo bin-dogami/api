@@ -154,7 +154,12 @@ export class GetBookController {
     });
 
     // 查询书信息
-    const novel = await this.sqlnovelsService.findByTitle(title, author);
+    let novel = await this.sqlnovelsService.findByOriginalTitle(title, author);
+    // @TODO: 修复一下老的数据, 用完删掉吧 select title, otitle from sqlnovels;
+    if (!novel) {
+      novel = await this.sqlnovelsService.findByTitle(title, author);
+      novel && await this.sqlnovelsService.updateFields(novel.id, { otitle: novel.title });
+    }
     if (novel) {
       if (recommend) {
         await this.setRecommend(novel)
