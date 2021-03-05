@@ -27,6 +27,7 @@ const getValidUrl = (host: string, url: string, from: string) => {
 @Controller('getbook')
 export class GetBookController {
   private readonly logger = new Mylogger(GetBookController.name);
+  justSpiderOne = false;
   reSpiderInfo = null;
 
   constructor(
@@ -130,6 +131,7 @@ export class GetBookController {
   // mnum 为暂时只抓取几章，先记入数据库，再慢慢抓取
   @Post('spider')
   async spider(@Body('url') url: string, @Body('recommend') recommend: string, @Body('mnum') mnum: number) {
+    this.justSpiderOne = true
     const isSpidering = await this.detectWhoIsSpidering()
     if (isSpidering) {
       return { '抓取失败': isSpidering }
@@ -278,6 +280,10 @@ export class GetBookController {
 
   // 抓取第一本/下一本书
   async spiderNext(id: number) {
+    if (this.justSpiderOne) {
+      return
+    }
+
     const SpideringNovels = await this.sqlspiderService.findAllByStatus(ISpiderStatus.SPIDERING)
     if (SpideringNovels.length) {
       return `有${SpideringNovels.length}本书正在抓取中：${SpideringNovels.slice(0, 10).map(({ id }) => id).join(', ')}`
@@ -324,6 +330,7 @@ export class GetBookController {
   // 统一抓取所有需要再次抓取的书
   @Post('spiderAll')
   async spiderAll() {
+    this.justSpiderOne = false
     const SpideringNovels = await this.sqlspiderService.findAllByStatus(ISpiderStatus.SPIDERING)
     if (SpideringNovels.length) {
       return `有${SpideringNovels.length}本书正在抓取中：(#${SpideringNovels[0].id}#)${SpideringNovels.map(({ id }) => id).join(', ')}`
