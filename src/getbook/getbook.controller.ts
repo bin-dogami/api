@@ -28,6 +28,7 @@ const getValidUrl = (host: string, url: string, from: string) => {
 export class GetBookController {
   private readonly logger = new Mylogger(GetBookController.name);
   justSpiderOne = false;
+  // 重新抓取的次数限制
   reSpiderInfo = null;
 
   constructor(
@@ -308,7 +309,7 @@ export class GetBookController {
     this.logger.start(`\n ### 【start】 开始抓取书信息 ###`);
     const { title, author } = novel;
     const from = novel.from[novel.from.length - 1]
-    const filePath = this.logger.log(`# 获取书信息成功 # 书名: ${title}；作者: ${author}；来源: ${from}； `, {
+    const filePath = this.logger.log(`# 获取书信息成功 # 书名: ${title}；作者: ${author}；来源: ${from}； id: ${novel.id}`, {
       bookname: title
     });
 
@@ -356,14 +357,15 @@ export class GetBookController {
     if (lastMenuInfo) {
       lastMenuInfo.maxIndex = lastIndexMenu.index
     }
-    const text = lastMenuInfo ? `上一次抓取的最后的目录id为${lastMenuInfo.id}；index为${lastMenuInfo.maxIndex}；moriginalname为${lastMenuInfo.moriginalname
-      }` : '这是本书第一次抓取'
+    const text = lastMenuInfo ? `上一次抓取的最后的目录id为${lastMenuInfo.id}；index为${lastMenuInfo.maxIndex}；moriginalname为${lastMenuInfo.moriginalname}` : '这是本书第一次抓取'
     this.logger.log(`### ${text} ###`);
     const menus = await this.getMenus(args.from, lastMenuInfo);
 
     if (!Array.isArray(menus)) {
       const err = menus || ''
       this.logger.end(`###[failed] 获取目录失败 ${err} ###`)
+      await this.setSpiderComplete(args.id, this.justSpiderOne)
+      await this.cannotFindLastMenu(lastMenuInfo.id, args.id, lastMenuInfo.index, args.from, lastMenuInfo.moriginalname, lastMenuInfo.maxIndex)
       return {
         '错误': `获取目录失败 ${err}`
       }
@@ -379,6 +381,16 @@ export class GetBookController {
       host: host
     })
     await this.insertMenuAndPages(args);
+  }
+
+  async cannotFindLastMenu(menuId, novelId, index, from, moriginalname, maxIndex) {
+    await this.sqlerrorsService.create({
+      menuId,
+      novelId,
+      menuIndex: index,
+      type: IErrors.CANNOT_FIND_LAST_MENU,
+      info: `上一次抓取的最后的目录找不到了，最后目录名：${moriginalname}，index: ${index} (当前最大的index：${maxIndex}), 目录list: ${from}`,
+    })
   }
 
   // 一次性插入多个目录及对应的章节内容

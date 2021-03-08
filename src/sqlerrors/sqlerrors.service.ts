@@ -7,6 +7,7 @@ import { CreateSqlerrors } from "./create-sqlerrors.dto";
 export enum IErrors {
   MENU_INSERT_FAILED = 'menu_insert_failed',
   MENU_INDEX_ABNORMAL = 'menu_insert_abnormal',
+  CANNOT_FIND_LAST_MENU = 'cannot_find_last_menu',
   PAGE_LOST = 'page_lost',
 }
 export const ErrorTypes = {
@@ -14,6 +15,7 @@ export const ErrorTypes = {
   [IErrors.MENU_INSERT_FAILED]: '目录插入失败',
   // 抓取到的目录的 index 重复问题（原网站有这个问题），需要人工修复
   [IErrors.MENU_INDEX_ABNORMAL]: '目录index异常',
+  [IErrors.CANNOT_FIND_LAST_MENU]: '找不到上一次抓取的最后章节',
   [IErrors.PAGE_LOST]: 'page缺失'
 }
 
