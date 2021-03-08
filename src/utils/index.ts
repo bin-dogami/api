@@ -52,3 +52,7 @@ export const downloadImage = async (path: string, url: string, id: number) => {
   fs.writeFileSync(filePath, await download(url));
   return filePath;
 }
+
+export const unique = (arr: number[]) => {
+  return Array.from(new Set(arr));
+}

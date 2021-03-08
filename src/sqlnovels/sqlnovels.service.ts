@@ -145,10 +145,14 @@ export class SqlnovelsService {
     return await this.sqlnovelsRepository.find();
   }
 
-  async getLastBooks(num?: number): Promise<novels[]> {
+  // {1: '未完降序', 2: '未完升序', 3: '完本降序', 4: '完本升序'}
+  async getLastBooks(order?: string, num?: number): Promise<novels[]> {
     return await this.sqlnovelsRepository.find({
+      where: {
+        isComplete: ['3', '4'].includes(order)
+      },
       order: {
-        ctime: 'DESC'
+        ctime: ['2', '4'].includes(order) ? 'ASC' : 'DESC'
       },
       take: num || 100
     });

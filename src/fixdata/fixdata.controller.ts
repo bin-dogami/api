@@ -1,6 +1,6 @@
 import { sqlspider } from './../sqlspider/sqlspider.entity';
 import { sqlerrors } from './../sqlerrors/sqlerrors.entity';
-import { getHost } from '../utils/index'
+import { getHost, unique } from '../utils/index'
 import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { FixdataService } from './fixdata.service';
 import { SqlnovelsService } from '../sqlnovels/sqlnovels.service';
@@ -45,8 +45,14 @@ export class FixdataController {
   ) { }
 
   @Get('getLastBookList')
-  async getLastBookList(): Promise<novels[]> {
-    return await this.sqlnovelsService.getLastBooks(100)
+  async getLastBookList(@Query('order') order: string): Promise<novels[]> {
+    return await this.sqlnovelsService.getLastBooks(order, 100)
+  }
+
+  // 模糊查询
+  @Get('getBookByName')
+  async getBookByName(@Query('name') name: string): Promise<novels[]> {
+    return await this.sqlnovelsService.getBookByTitleWithLike(name)
   }
 
   @Get('getBookInfo')
@@ -66,7 +72,7 @@ export class FixdataController {
       }
       return novel
     } else {
-      return 'id 类型不对'
+      return this.getBookByName(id)
     }
   }
 
@@ -92,11 +98,13 @@ export class FixdataController {
 
       // 删除 author 表中关联数据
       const author = await this.sqlauthorsService.findOne(novel.authorId)
-      text = author.novelIds.includes(_id) ? `开始删除 author 表中对应的书id，` : 'author 表里并没有书id(哈?)，'
+      text = author && author.novelIds.includes(_id) ? `开始删除 author 表中对应的书id，` : 'author 表里并没有书id(哈?)，'
       res += text
       this.logger.log(`# ${text} #`)
-      author.novelIds = author.novelIds.filter((id) => id != _id)
-      await this.sqlauthorsService.updateAuthor(author)
+      if (author) {
+        author.novelIds = author.novelIds.filter((id) => id != _id)
+        await this.sqlauthorsService.updateAuthor(author)
+      }
 
       // 删除 typesdetail 中的关联数据
       await this.sqltypesdetailService.removeByNovelId(_id)
@@ -234,6 +242,96 @@ export class FixdataController {
     return await this.sqlauthorsService.findByAuthorName(id);
   }
 
+  // 获取目录信息
+  @Get('getMenuInfo')
+  async getMenuInfo(@Query('id') id: string): Promise<any> {
+    if (isNumber(id)) {
+      const menu: any = await this.sqlmenusService.findOne(+id);
+      if (!menu) {
+        return '获取不到目录信息'
+      }
+      const page: any = await this.sqlpagesService.findOne(+id);
+      menu.page = page
+      menu.content = page ? page.content.substr(0, 50) : ''
+      menu.wordsnum = page ? page.wordsnum : 0
+      return menu
+    } else {
+      return 'id 类型不对'
+    }
+  }
+
+  @Post('modifyMenuInfo')
+  async modifyMenuInfo(@Body('id') id: string, @Body('fieldName') fieldName: string, @Body('fieldValue') fieldValue: string) {
+    if (isNumber(id)) {
+      const fileds = { [fieldName]: fieldValue }
+      const menu = await this.sqlmenusService.findOne(+id);
+      const page = await this.sqlpagesService.findOne(+id);
+      await this.sqlmenusService.save({ ...menu, ...fileds });
+      await this.sqlpagesService.save({ ...page, ...fileds });
+      return ''
+    } else {
+      return 'bookId 类型不对'
+    }
+  }
+
+  // 删除目录信息
+  @Post('deleteMenu')
+  async deleteMenu(@Body('id') id: string): Promise<any> {
+    if (isNumber(id)) {
+      const menu = await this.sqlmenusService.findOne(+id);
+      try {
+        await this.sqlpagesService.remove(+id);
+      } catch (error) {
+        //
+      }
+
+      if (menu) {
+        await this.sqlmenusService.remove(+id);
+
+        // 更新书中目录数
+        const menusLen = await this.sqlmenusService.findCountByNovelId(menu.novelId);
+        await this.sqlnovelsService.updateFields(menu.novelId, {
+          menusLen,
+        })
+
+        // 删除所有 error 中 目录相关的
+        await this.sqlerrorsService.removeByMenuId(+id)
+      }
+      return ''
+    } else {
+      return 'bookId 类型不对'
+    }
+  }
+
+  // 删除大于等于目录id 的所有目录
+  @Post('batchDeleteGtMenu')
+  async batchDeleteGtMenu(@Body('id') id: string): Promise<any> {
+    if (isNumber(id)) {
+      const menu = await this.sqlmenusService.findOne(+id);
+      const page = await this.sqlpagesService.findOne(+id);
+
+      if (page) {
+        await this.sqlpagesService.batchDeleteGtPages(+id, page.novelId);
+      }
+
+      if (menu) {
+        await this.sqlmenusService.batchDeleteGtMenus(+id, menu.novelId);
+
+        // 更新书中目录数
+        const menusLen = await this.sqlmenusService.findCountByNovelId(menu.novelId);
+        await this.sqlnovelsService.updateFields(menu.novelId, {
+          menusLen,
+        })
+
+        // 删除所有 error 中 目录相关的
+        await this.sqlerrorsService.batchDeleteGtMenus(+id, page.novelId)
+      }
+      return ''
+    } else {
+      return 'bookId 类型不对'
+    }
+  }
+
   @Get('getTumorTypes')
   async getTumorTypes(): Promise<any> {
     return TumorTypes
@@ -264,4 +362,28 @@ export class FixdataController {
   //     await this.sqlspiderService.create(id, ISpiderStatus.SPIDERED)
   //   }
   // }
+
+  // 上一次抓取的最后的目录这次抓取不到了
+  @Get('getLostLastMenus')
+  async getLostLastMenus() {
+    const list = await this.sqlerrorsService.getLostLastMenus();
+    const novelIds = list.map(({ novelId }) => novelId)
+    const books = await this.sqlnovelsService.getBookByIds(unique(novelIds))
+    books.length && list.forEach((item) => {
+      const fBook = books.filter((b) => b.id === item.novelId)
+      if (fBook.length) {
+        Object.assign(item, {
+          title: fBook[0].title
+        })
+      }
+    })
+    return list
+  }
+
+  // 上一次抓取的最后的目录这次抓取不到了，这条数据删除
+  @Post('deleteLastMenuLostError')
+  async deleteLastMenuLostError(@Body('id') id: number): Promise<string> {
+    return await this.sqlerrorsService.remove(+id) ? '' : '删除失败';
+  }
+
 }

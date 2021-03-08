@@ -35,4 +35,14 @@ export class SqlpagesService {
       .where("novelId = :novelId", { novelId })
       .execute()
   }
+
+  // 删除大于等于目录id的数据
+  async batchDeleteGtPages(id: number, novelId: number): Promise<any> {
+    return await this.sqlpagesRepository
+      .createQueryBuilder()
+      .delete()
+      .where("novelId = :novelId", { novelId })
+      .andWhere('id >= :id', { id })
+      .execute()
+  }
 }

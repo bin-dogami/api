@@ -12,7 +12,7 @@ export class sqlpages {
   @Column()
   novelId: number;
 
-  // 来源
+  // 来源 @TODO: 没必要有
   @Column({ default: '' })
   from: string;
 
@@ -23,7 +23,7 @@ export class sqlpages {
   @Column("text")
   content: string;
 
-  // 卷，有就有
+  // 卷，有就有， @TODO: 没必要有
   @Column({ length: 32, default: '' })
   volume: string;
 

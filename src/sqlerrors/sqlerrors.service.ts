@@ -91,6 +91,7 @@ export class SqlerrorsService {
     })
   }
 
+  // 抓取失败的目录的pagelist
   async getFailedPageList(): Promise<sqlerrors[]> {
     return await this.sqlerrorsRepository
       .createQueryBuilder()
@@ -98,6 +99,15 @@ export class SqlerrorsService {
       .addSelect("count(*)", "count")
       .where("`type` = :type", { type: IErrors.PAGE_LOST })
       .groupBy("novelId")
+      .execute()
+  }
+
+  // 上一次抓取的最后的目录这次抓取不到了
+  async getLostLastMenus(): Promise<sqlerrors[]> {
+    return await this.sqlerrorsRepository
+      .createQueryBuilder()
+      .select("*")
+      .where("`type` = :type", { type: IErrors.CANNOT_FIND_LAST_MENU })
       .execute()
   }
 
@@ -124,11 +134,31 @@ export class SqlerrorsService {
     return await this.sqlerrorsRepository.delete(id);
   }
 
+  // 删除书id相关的信息
   async removeByNovelId(novelId: number): Promise<any> {
     return await this.sqlerrorsRepository
       .createQueryBuilder()
       .delete()
       .where("novelId = :novelId", { novelId })
+      .execute()
+  }
+
+  // 删除目录id相关的信息
+  async removeByMenuId(menuId: number): Promise<any> {
+    return await this.sqlerrorsRepository
+      .createQueryBuilder()
+      .delete()
+      .where("menuId = :menuId", { menuId })
+      .execute()
+  }
+
+  // 删除大于等于目录id的数据
+  async batchDeleteGtMenus(menuId: number, novelId: number): Promise<any> {
+    return await this.sqlerrorsRepository
+      .createQueryBuilder()
+      .delete()
+      .where("novelId = :novelId", { novelId })
+      .andWhere('menuId >= :menuId', { menuId })
       .execute()
   }
 }
