@@ -11,7 +11,7 @@ async function bootstrap() {
   });
   app.useLogger(new Mylogger());
   // 允许跨域
-  app.enableCors();
+  process.env.NODE_ENV === 'development' && app.enableCors();
   // 处理response数据
   app.useGlobalInterceptors(new TransformInterceptor());
   app.useGlobalFilters(new HttpExceptionFilter());
