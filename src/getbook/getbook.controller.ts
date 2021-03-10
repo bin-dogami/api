@@ -14,7 +14,7 @@ import { ISpiderStatus, SqlspiderService, CreateSqlspider } from '../sqlspider/s
 import { Mylogger } from '../mylogger/mylogger.service';
 const dayjs = require('dayjs')
 
-const ImagePath = '../web-scan/public/'
+const ImagePath = '../web-static/'
 
 const getValidUrl = (host: string, url: string, from: string) => {
   // url 带域名
@@ -640,6 +640,7 @@ export class GetBookController {
   }
 
   // 重新抓取书的失败page
+  // @TODO: 从 failedPages 重新抓取时加一个参数吧，这时应该判断是否有在抓取中的，同时 `因抓取状态不是抓取中，取消重新抓取` 这个判断应该去掉。
   @Get('reGetPages')
   async reGetPages(@Query('id') id: number) {
     if (!this.reSpiderInfo) {
