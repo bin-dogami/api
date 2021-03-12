@@ -644,17 +644,25 @@ export class GetBookController {
   }
 
   // 重新抓取书的失败page
-  // @TODO: 从 failedPages 重新抓取时加一个参数吧，这时应该判断是否有在抓取中的，同时 `因抓取状态不是抓取中，取消重新抓取` 这个判断应该去掉。
+  // 在后台 failedPages 页面重新抓取的 isSingleReget 为 '1'
   @Get('reGetPages')
-  async reGetPages(@Query('id') id: number) {
+  async reGetPages(@Query('id') id: number, @Query('isSingleReget') isSingleReget?: number) {
     if (!this.reSpiderInfo) {
       this.reSpiderInfo = {
         id,
         index: 0
       }
     }
-    if (!(await this.sqlspiderService.isSpidering(id))) {
-      return '因抓取状态不是抓取中，取消重新抓取'
+    // 是否只
+    if (isSingleReget) {
+      const SpideringNovels = await this.sqlspiderService.findAllByStatus(ISpiderStatus.SPIDERING)
+      if (SpideringNovels.length) {
+        return `有${SpideringNovels.length}本书正在抓取中：${SpideringNovels.slice(0, 10).map(({ id }) => id).join(', ')}`
+      }
+    } else {
+      if (!(await this.sqlspiderService.isSpidering(id))) {
+        return '因抓取状态不是抓取中，取消重新抓取'
+      }
     }
     const mIds = await this.sqlerrorsService.getAllPageLostByNovelId(id);
     this.reSpiderInfo.index++
