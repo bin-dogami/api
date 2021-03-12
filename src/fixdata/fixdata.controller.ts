@@ -88,7 +88,6 @@ export class FixdataController {
       let text = ''
 
       this.logger.start(`### 【start】 开始删除书信息（时间：${dayjs().format('YYYY-MM-DD HH:mm:ss')}） ###`, this.logger.createDeleteBookLogFile())
-      // this.logger.writeLog()
       if (_novel && _novel.id) {
         res = '书本表数据删除失败，'
       } else {

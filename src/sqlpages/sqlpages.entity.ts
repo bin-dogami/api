@@ -5,6 +5,10 @@ export class sqlpages {
   @PrimaryColumn()
   id: number;
 
+  // content内容装不下时，做分页处理， nextId 为下一分页的 id，新创建了分页page 并不会创建新的menu，还是对应原来的
+  @Column({ default: 0 })
+  nextId: number;
+
   @Column()
   index: number;
 

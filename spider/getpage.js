@@ -2,7 +2,8 @@ var crawler = require("./modules/crawler/index");
 var { bqw } = require("./modules/getPage/index");
 
 if (process.argv.length > 2) {
-  crawler(process.argv[2], function f ($) {
+  const url = process.argv[2].replace('paoshuzw.com', 'xbiquge.la')
+  crawler(url, function f ($) {
     process.send(bqw.getContent($));
   }, function f (error) {
     process.send(false, error);

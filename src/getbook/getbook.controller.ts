@@ -67,58 +67,6 @@ export class GetBookController {
     this.logger.log(`# 本书设置为推荐 end #`);
   }
 
-  // 2021-02-28，已用完！！！修复 menus 表中的 from，错误的from 是 novels 表中的from，应改为 pages 中的from
-  // 用完先注释掉吧
-  // @Get('fixfrom')
-  // async fixfrom() {
-  //   const allNovels = await this.sqlnovelsService.getAllBooks()
-  //   let index = allNovels.length - 1
-  //   while (index >= 0) {
-  //     const novel = allNovels[index]
-  //     const from = novel.from[0]
-  //     const res = await this.getMenus(from, 0, '');
-  //     const menusInfos: any = await this.sqlmenusService.getMenuByFrom(+novel.id, from)
-  //     console.log(`id: ${novel.id}, title: #${novel.title}#, from: #${from}#，需要修改的目录数： ${menusInfos.length}， index：${index} `)
-  //     let fixedNum = 0
-  //     if (res && Array.isArray(res)) {
-  //       const [menus] = res
-  //       if (menus.length) {
-  //         console.log(`menus.length: ${menus.length}, last menu: ${menus[menus.length - 1].title}|${menus[menus.length - 1].url}|${menus[menus.length - 1].index}`)
-  //       }
-  //       if (menusInfos.length) {
-  //         menusInfos.map(async (menu: any) => {
-  //           let hasFixed = false
-  //           while (menus.length) {
-  //             const currentMenuInfo = menus.shift();
-  //             const { url, title } = currentMenuInfo
-  //             const host = getHostFromUrl(from);
-  //             const _url = getValidUrl(host, url, from)
-  //             if (menu.moriginalname === title) {
-  //               fixedNum++
-  //               hasFixed = true
-  //               menu.from = _url
-  //               // await this.sqlmenusService.save(menu)
-  //               break;
-  //             }
-  //           }
-  //           if (!hasFixed) {
-  //             console.log(`第 ${menu.index} 章 #${menu.moriginalname}# 修复失败， #${from}#`)
-  //             if (menu.index <= 0) {
-  //               await this.sqlmenusService.remove(menu.id)
-  //               await this.sqlpagesService.remove(menu.id)
-  //               const errors = await this.sqlerrorsService.getPageLostErrors({ novelId: novel.id, menuId: menu.id })
-  //               if (errors.length) {
-  //                 await this.sqlerrorsService.remove(errors[0].id)
-  //               }
-  //             }
-  //           }
-  //         })
-  //       }
-  //     }
-  //     index--
-  //   }
-  // }
-
   @Post('spiderBooksNewMenus')
   async spiderBooksNewMenus() {
     const allNovels = await this.sqlnovelsService.getAllBooks()
@@ -158,11 +106,6 @@ export class GetBookController {
 
     // 查询书信息
     let novel = await this.sqlnovelsService.findByOriginalTitle(title, author);
-    // @TODO: 修复一下老的数据, 用完删掉吧 select title, otitle from sqlnovels;
-    if (!novel) {
-      novel = await this.sqlnovelsService.findByTitle(title, author);
-      novel && await this.sqlnovelsService.updateFields(novel.id, { otitle: novel.title });
-    }
     if (novel) {
       if (recommend) {
         await this.setRecommend(novel)
@@ -548,13 +491,12 @@ export class GetBookController {
         return false
       }
 
-      this.logger.log(`# 第${index} 章开始插入page #`);
       const tumorList = await this.sqltumorService.findList(getHost(_url));
-      const content = this.dealContent(list, tumorList)
+      const contentList: string[] = await this.dealContent(list, tumorList)
       if (res && !menus.length) {
-        res.lastPage = `第${index} 章: 【${moriginalname} 】 <br />${content}`;
+        res.lastPage = `第${index} 章: 【${moriginalname} 】 <br />${contentList[0]}`;
       }
-      if (!content.trim().length) {
+      if (!contentList[0].trim().length) {
         this.logger.log(`# [failed] 插入章节内容失败，抓到的内容为空或错误 # 目录名：【${moriginalname}】, 是第${index}章, 错误信息：一个字也没抓到 \n`)
         if (res) {
           index > 0 && res.failedIndex.push(index)
@@ -562,16 +504,28 @@ export class GetBookController {
         }
         return false
       }
-      await this.sqlpagesService.create({
-        id: mId,
-        index,
-        novelId: id,
-        mname,
-        content: content,
-        wordsnum: content.length,
-        from: _url,
-      });
-      this.logger.log(`# 插入章节内容成功 # 目录名：【${moriginalname}】, 是第${index}章, 字数：${content.length}；id: ${mId} \n`)
+      let i = 0
+      let nextId = mId
+      while (contentList.length) {
+        const content = contentList.shift()
+        i++
+        const page = i > 1 ? `第${i}页` : ''
+        this.logger.log(`# 第${index} 章${page}开始插入page，此章节共 ${content.length} 个字 #`);
+        const pageId = i === 1 ? mId : nextId
+        nextId = contentList.length ? await this.getNextPageId(pageId) : 0
+        await this.sqlpagesService.create({
+          id: pageId,
+          nextId,
+          index,
+          novelId: id,
+          mname,
+          content: content,
+          wordsnum: content.length,
+          from: _url,
+        });
+        const mIdText = i === 1 ? '' : `目录id: ${mId}`
+        this.logger.log(`# 插入章节内容成功 # 目录名：【${moriginalname}】, 是第${index}章${page}, 字数：${content.length}；id: ${pageId}；${mIdText} \n`)
+      }
       res && res.successLen++
       return true
     } catch (err) {
@@ -581,6 +535,16 @@ export class GetBookController {
         await this.insertPageFailed(mId, id, index, _url, moriginalname, `章节内容插入表中失败: ${err}`)
       }
       return false
+    }
+  }
+
+  // page content 一次放不下的分多页，id 为当前 id+1，如果id 被占用了就再+1，以此类推
+  async getNextPageId(id: number) {
+    const nextId = id + 1
+    if (await this.sqlpagesService.findOne(nextId)) {
+      return await this.getNextPageId(nextId)
+    } else {
+      return nextId
     }
   }
 
@@ -614,20 +578,60 @@ export class GetBookController {
     })
   }
 
-  dealContent(list: string[], tumorList: any[]) {
+  // 把字数过多的章节拆分成段
+  async splitContent(list: string[], tumorList: any[], max: number) {
+    const cList = []
+    let arr = []
+    let len = 0
+    const fn = async (arr: any[], cList: any[]) => {
+      const contentList = await this.dealContent(arr, tumorList)
+      if (contentList.length && contentList[0]) {
+        cList.push(contentList[0])
+      }
+    }
+    while (1) {
+      if (!list.length) {
+        await fn(arr, cList)
+        break;
+      }
+      const item = list.shift()
+      // 7 为 <p></p>
+      if (item.length + 7 + len < max) {
+        arr.push(item)
+        len += item.length + 7
+      } else {
+        // 最后一个应该再减掉，不然就超了
+        list.unshift(item)
+        arr.pop()
+        await fn(arr, cList)
+        arr = []
+        len = 0
+      }
+    }
+
+    return cList
+  }
+
+  async dealContent(list: string[], tumorList: any[]) {
     if (!list || !list.length) {
-      return ''
+      return ['']
     }
 
     const splitStr = '$&$#@@@#$&$'
     const content = list.join(splitStr)
     // 直接替换 的排前面，避免 直接替换 的内容部分里含其他类型的
     const _tumorList = tumorList.sort(({ type }) => type === ITumor.JUST_REPLACE ? -1 : 1)
-    const _content = formula(content, _tumorList)
-    return _content.split(splitStr).map((str) => {
+    let _content = formula(content, _tumorList)
+    _content = _content.split(splitStr).map((str) => {
       const _str = str.trim()
       return _str.length ? `<p>${_str}</p>` : false
     }).filter((str) => !!str).join('')
+    // TEXT 能存 65535 / 4（utf8mb4类型每一个字符占4个字节） 个汉字
+    // 字数超出 text 限制时多分几次存储
+    if (_content.length > 16000) {
+      return await this.splitContent(list, tumorList, 16000)
+    }
+    return [_content]
   }
 
   async setSpiderComplete(id: number, noReset?: boolean) {

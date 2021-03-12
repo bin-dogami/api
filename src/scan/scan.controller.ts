@@ -183,12 +183,25 @@ export class ScanController {
     })
   }
 
+  // 获取完整内容，有nextId 就持续遍历再合到一个 content 上
+  async getWholeContent(page: any, content: string) {
+    if (!page.nextId) {
+      return content
+    }
+
+    const nextPage: any = await this.sqlpagesService.findOne(page.nextId)
+    if (nextPage) {
+      return await this.getWholeContent(nextPage, content + nextPage.content)
+    }
+    return content
+  }
+
   // page 页数据获取
   @Get('getPageById')
   async getPageById(@Query('id') id: number, @Query('onlypage') onlypage: number): Promise<any> {
     let page: any = await this.sqlpagesService.findOne(+id)
     const menu = await this.sqlmenusService.findOne(+id)
-    if (!page || !page.id) {
+    if (!page) {
       page = menu
       if (!page) {
         return []
@@ -200,11 +213,12 @@ export class ScanController {
       }
     } else {
       page['realName'] = menu['moriginalname']
+      page['content'] = await this.getWholeContent(page, page['content'])
     }
 
     if (page && page.id) {
       const novel: novels = await this.sqlnovelsService.findById(page.novelId, true)
-      if (novel && novel.title) {
+      if (novel) {
         page['title'] = novel.title
         page['typename'] = novel.typename
         page['author'] = novel.author
@@ -212,11 +226,10 @@ export class ScanController {
         novel['viewnum'] = novel['viewnum'] + 1
         this.sqlnovelsService.saveNovel(novel)
       } else {
-        page['title'] = ''
+        return []
       }
       const menus = onlypage ? [] : await this.sqlmenusService.getPrevNextMenus(page.id, page.novelId)
       const recommendBooks = onlypage ? [] : await this.getRecommendBooks()
-
       return [page, menus, this.filterRecommendBooks(recommendBooks, novel.id)]
     }
 
