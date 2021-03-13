@@ -216,7 +216,7 @@ export class ScanController {
       page['content'] = await this.getWholeContent(page, page['content'])
     }
 
-    if (page && page.id) {
+    if (page) {
       const novel: novels = await this.sqlnovelsService.findById(page.novelId, true)
       if (novel) {
         page['title'] = novel.title

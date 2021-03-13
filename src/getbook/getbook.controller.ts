@@ -737,7 +737,7 @@ export class GetBookController {
     if (menuInfos.length > successIds.length) {
       this.reGetPages(id)
     } else {
-      await this.setSpiderComplete(id)
+      !isSingleReget && await this.setSpiderComplete(id)
     }
 
     return successText

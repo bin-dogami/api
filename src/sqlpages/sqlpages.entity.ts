@@ -24,7 +24,7 @@ export class sqlpages {
   @Column({ length: 128 })
   mname: string;
 
-  @Column("text")
+  @Column({ type: "text", charset: 'utf8mb4' })
   content: string;
 
   // 卷，有就有， @TODO: 没必要有
