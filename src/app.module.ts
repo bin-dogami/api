@@ -16,7 +16,8 @@ import { ScanModule } from './scan/scan.module';
       username: 'root',
       password: 'novels$1024%123^LaoWang&2021',
       database: 'novels',
-      // entities: [User],
+      // utf8mb4 支持emuji 表情，utf8 插入表情会报错
+      charset: 'utf8mb4_unicode_ci',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       // autoLoadEntities: true,
       synchronize: true,
