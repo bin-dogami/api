@@ -110,10 +110,11 @@ export class GetBookController {
       if (recommend) {
         await this.setRecommend(novel)
       }
-      if (novel.isSpiderComplete) {
-        this.logger.end(`### 【end】已经是全本且抓完了 ### id: ${novel.id}； \n\n `);
-        return { '已经是全本了': '都抓完了还抓啥啊' }
-      }
+      // @TODO: 因为 utf8mb4 字符集的问题需要重新抓取所有数据，先注释了
+      // if (novel.isSpiderComplete) {
+      //   this.logger.end(`### 【end】已经是全本且抓完了 ### id: ${novel.id}； \n\n `);
+      //   return { '已经是全本了': '都抓完了还抓啥啊' }
+      // }
 
       const spider = await this.sqlspiderService.getById(novel.id)
       if (spider) {
