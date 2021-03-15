@@ -126,4 +126,8 @@ export class SqlspiderService {
   async remove(id: number): Promise<any> {
     return await this.sqlspiderRepository.delete(id)
   }
+
+  async getAll(): Promise<sqlspider[]> {
+    return await this.sqlspiderRepository.find();
+  }
 }

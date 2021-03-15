@@ -67,15 +67,15 @@ export class GetBookController {
     this.logger.log(`# 本书设置为推荐 end #`);
   }
 
-  @Post('spiderBooksNewMenus')
-  async spiderBooksNewMenus() {
-    const allNovels = await this.sqlnovelsService.getAllBooks()
-    // @TODO: 使用map 可能导致同步失效，必须找个合适的办法，建个表或者弄个全局的办法
-    allNovels.map(async (novel: any) => {
-      const { from } = novel
-      await this.spider(from, '', 0)
-    })
-  }
+  // @Post('spiderBooksNewMenus')
+  // async spiderBooksNewMenus() {
+  //   const allNovels = await this.sqlnovelsService.getAllBooks()
+  //   // @TODO: 使用map 可能导致同步失效，必须找个合适的办法，建个表或者弄个全局的办法
+  //   allNovels.map(async (novel: any) => {
+  //     const { from } = novel
+  //     await this.spider(from, '', 0)
+  //   })
+  // }
 
   // mnum 为暂时只抓取几章，先记入数据库，再慢慢抓取
   @Post('spider')
@@ -87,6 +87,7 @@ export class GetBookController {
     }
     const _mnum = mnum ? +mnum : 0
     this.logger.start(`\n ### 【start】 开始抓取书信息 ###`);
+    console.log(url)
     const bookInfo = await this.getBookService.getBookInfo(url);
     if (!bookInfo || bookInfo.err) {
       const err = bookInfo.err ? `(${bookInfo.err})` : ''
@@ -272,9 +273,26 @@ export class GetBookController {
     }
   }
 
+  // @TODO: (数据跑完了把全本的改回去) 上次把数据弄没了，全本的书都需要再重新抓取一下，但全本的书不在spider 表中，需要加一下
+  async setCompleteCanSpider() {
+    const allNovels = await this.sqlnovelsService.getAllBooks()
+    const allSpiderNovels = await this.sqlspiderService.getAll()
+    const spiderIds = allSpiderNovels.map(({ id }: { id: number }) => id)
+    if (spiderIds.length < allNovels.length) {
+      while (allNovels.length) {
+        const { id } = allNovels.shift()
+        if (!spiderIds.includes(id)) {
+          await this.sqlspiderService.create(id, ISpiderStatus.UNSPIDER)
+        }
+      }
+    }
+  }
+
   // 统一抓取所有需要再次抓取的书
   @Post('spiderAll')
   async spiderAll() {
+    await this.setCompleteCanSpider()
+
     this.justSpiderOne = false
     const SpideringNovels = await this.sqlspiderService.findAllByStatus(ISpiderStatus.SPIDERING)
     if (SpideringNovels.length) {
