@@ -87,6 +87,7 @@ export class GetBookController {
     }
     const _mnum = mnum ? +mnum : 0
     this.logger.start(`\n ### 【start】 开始抓取书信息 ###`);
+    console.log(url)
     const bookInfo = await this.getBookService.getBookInfo(url);
     if (!bookInfo || bookInfo.err) {
       const err = bookInfo.err ? `(${bookInfo.err})` : ''
@@ -272,7 +273,7 @@ export class GetBookController {
     }
   }
 
-  // @TODO: 上次把数据弄没了，全本的书都需要再重新抓取一下，但全本的书不在spider 表中，需要加一下
+  // @TODO: (数据跑完了把全本的改回去) 上次把数据弄没了，全本的书都需要再重新抓取一下，但全本的书不在spider 表中，需要加一下
   async setCompleteCanSpider() {
     const allNovels = await this.sqlnovelsService.getAllBooks()
     const allSpiderNovels = await this.sqlspiderService.getAll()

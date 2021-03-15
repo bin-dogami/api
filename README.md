@@ -15,6 +15,7 @@ $ npm run start:prod
 https://docs.nestjs.com/support
 
 ## 开发
+crawler 抓取：https://github.com/bda-research/node-crawler#options-reference
 ### findOne 结果
 findOne 如果找不到数据返回的是undefined
 ### 打印出查询语句
