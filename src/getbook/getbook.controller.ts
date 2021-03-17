@@ -92,9 +92,7 @@ export class GetBookController {
     if (isSpidering) {
       return { '抓取失败': isSpidering }
     }
-    // @TODO: 这个先写死测试
     const _mnum = mnum ? +mnum : 0
-    // const _mnum = 74
     this.logger.start(`\n ### 【start】 开始抓取书信息 ###`);
     const bookInfo = await this.getBookService.getBookInfo(url);
     if (!bookInfo || bookInfo.err) {
@@ -323,6 +321,14 @@ export class GetBookController {
 
   // 抓取并插入目录
   async insertMenus(args: any) {
+    if (args.isSpiderComplete) {
+      // @TODO: 再跑一两遍数据，这个最好注释了吧，不需要再这删掉 spider 数据(上次因为误掉了所有目录数据所以全本的也要再跑一遍数据)
+      await this.sqlspiderService.remove(args.id)
+      this.logger.end(`### 【end】已经是全本且抓完了 ### id: ${args.id}； \n\n `)
+      await this.spiderNext(args.id)
+      return { '已经是全本了': '都抓完了还抓啥啊' }
+    }
+
     let lastMenus: any = await this.sqlmenusService.findLastMenusByNovelId(args.id, 3)
     let lastMenu = null
     if (lastMenus.length) {
