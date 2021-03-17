@@ -73,7 +73,7 @@ const menusAnalysis = (m, $, len, lastMenuInfo = null) => {
     return null
   }
 
-  console.log(lastMenuInfo, typeof lastMenuInfo, m)
+  // console.log(lastMenuInfo, typeof lastMenuInfo, m)
 
   let lastOrigTitle = ''
   let lastmname = ''
@@ -172,7 +172,7 @@ const menusAnalysis = (m, $, len, lastMenuInfo = null) => {
     }
   }
 
-  console.log(len, _menus)
+  // console.log(len, _menus)
 
   if (lastMenuInfo && !findLastSpiderMenu) {
     return `异常,找不到上一次抓取的最后一章: ${lastOrigTitle}`
