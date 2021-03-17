@@ -233,6 +233,7 @@ export class GetBookController {
 
   // 抓取第一本/下一本书
   async spiderNext(id: number) {
+    console.log('抓取下一本书，id: ' + id, this.justSpiderOne)
     if (this.justSpiderOne) {
       return
     }
@@ -325,8 +326,7 @@ export class GetBookController {
       // @TODO: 再跑一两遍数据，这个最好注释了吧，不需要再这删掉 spider 数据(上次因为误掉了所有目录数据所以全本的也要再跑一遍数据)
       await this.sqlspiderService.remove(args.id)
       this.logger.end(`### 【end】已经是全本且抓完了 ### id: ${args.id}； \n\n `)
-      this.spiderNext(args.id)
-      return { '已经是全本了': '都抓完了还抓啥啊' }
+      return await this.spiderNext(args.id)
     }
 
     let lastMenus: any = await this.sqlmenusService.findLastMenusByNovelId(args.id, 3)
@@ -349,10 +349,7 @@ export class GetBookController {
           }
         } else {  // @TODO: 最后三个 index 都为 0的没法继续抓取了，要么删掉书重新抓取整书，要么再写匹配的抓取组件
           this.logger.end(`### 上次抓取的最后三章的index 都为0，没法定位到上次抓取位置。如果这是个巧合，删掉最后几章再抓取；如果不是巧合，可以考虑删除书再重新抓（要不就写匹配的抓取组件吧） ###`);
-          this.spiderNext(args.id)
-          return {
-            '错误': `上次抓取的最后三章的index 都为0，没法定位到上次抓取位置。如果这是个巧合，删掉最后几章再抓取；如果不是巧合，可以考虑删除书再重新抓（要不就写匹配的抓取组件吧）`
-          }
+          return await this.spiderNext(args.id)
         }
       }
     }
@@ -366,10 +363,7 @@ export class GetBookController {
       this.logger.end(`###[failed] 获取目录失败 ${err} ###`)
       await this.setSpiderComplete(args.id, this.justSpiderOne)
       lastMenu && await this.cannotFindLastMenu(lastMenu.id, args.id, lastMenu.index, args.from, lastMenu.moriginalname)
-      this.spiderNext(args.id)
-      return {
-        '错误': `获取目录失败 ${err}`
-      }
+      return await this.spiderNext(args.id)
     }
 
     // args.menus = args.mnum > 0 ? menus.slice(0, args.mnum) : menus;
