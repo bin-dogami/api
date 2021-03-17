@@ -120,7 +120,7 @@ export class GetBookController {
       if (novel.isSpiderComplete) {
         // @TODO: 再跑一两遍数据，这个最好注释了吧，不需要再这删掉 spider 数据(上次因为误掉了所有目录数据所以全本的也要再跑一遍数据)
         await this.sqlspiderService.remove(novel.id)
-        this.logger.end(`### 【end】已经是全本且抓完了 ### id: ${novel.id}； \n\n `);
+        this.logger.end(`### 【end】本书已经全部抓完了 ### id: ${novel.id}； \n\n `);
         return { '已经是全本了': '都抓完了还抓啥啊' }
       }
 
@@ -233,19 +233,21 @@ export class GetBookController {
 
   // 抓取第一本/下一本书
   async spiderNext(id: number) {
-    console.log('抓取下一本书，id: ' + id, this.justSpiderOne)
     if (this.justSpiderOne) {
       return
     }
 
     const SpideringNovels = await this.sqlspiderService.findAllByStatus(ISpiderStatus.SPIDERING)
     if (SpideringNovels.length) {
-      return `有${SpideringNovels.length}本书正在抓取中：${SpideringNovels.slice(0, 10).map(({ id }) => id).join(', ')}`
+      const text = `有${SpideringNovels.length}本书正在抓取中：${SpideringNovels.slice(0, 10).map(({ id }) => id).join(', ')}`
+      this.logger.end(`### 【end】${text} ### \n`);
+      return text
     }
 
     const firstSpiderNovelId = await this.sqlspiderService.getNextUnspider(id)
     const novel = await this.sqlnovelsService.findById(firstSpiderNovelId, true)
     if (!novel || !Array.isArray(novel.from) || !novel.from.length) {
+      this.logger.end(`### 【end】找不到要抓取的书 ### \n`);
       return '找不到要抓取的书'
     }
 
@@ -325,8 +327,13 @@ export class GetBookController {
     if (args.isSpiderComplete) {
       // @TODO: 再跑一两遍数据，这个最好注释了吧，不需要再这删掉 spider 数据(上次因为误掉了所有目录数据所以全本的也要再跑一遍数据)
       await this.sqlspiderService.remove(args.id)
-      this.logger.end(`### 【end】已经是全本且抓完了 ### id: ${args.id}； \n\n `)
-      return await this.spiderNext(args.id)
+      this.logger.end(`### 【end】本书已经全部抓完了 ### id: ${args.id}； \n\n `)
+      if (this.justSpiderOne) {
+        return {
+          '错误': `本书已经全部抓完了`
+        }
+      }
+      return await this.setSpiderComplete(args.id)
     }
 
     let lastMenus: any = await this.sqlmenusService.findLastMenusByNovelId(args.id, 3)
@@ -348,8 +355,14 @@ export class GetBookController {
             await this.deleteMenusGtId(lastMenu.id, args.id)
           }
         } else {  // @TODO: 最后三个 index 都为 0的没法继续抓取了，要么删掉书重新抓取整书，要么再写匹配的抓取组件
-          this.logger.end(`### 上次抓取的最后三章的index 都为0，没法定位到上次抓取位置。如果这是个巧合，删掉最后几章再抓取；如果不是巧合，可以考虑删除书再重新抓（要不就写匹配的抓取组件吧） ###`);
-          return await this.spiderNext(args.id)
+          const text = `上次抓取的最后三章的index 都为0，没法定位到上次抓取位置。如果这是个巧合，删掉最后几章再抓取；如果不是巧合，可以考虑删除书再重新抓（要不就写匹配的抓取组件吧）`
+          this.logger.end(`### ${text} ###`);
+          if (this.justSpiderOne) {
+            return {
+              '错误': `${text}`
+            }
+          }
+          return await this.setSpiderComplete(args.id)
         }
       }
     }
@@ -361,9 +374,13 @@ export class GetBookController {
     if (!Array.isArray(menus)) {
       const err = menus || ''
       this.logger.end(`###[failed] 获取目录失败 ${err} ###`)
-      await this.setSpiderComplete(args.id, this.justSpiderOne)
       lastMenu && await this.cannotFindLastMenu(lastMenu.id, args.id, lastMenu.index, args.from, lastMenu.moriginalname)
-      return await this.spiderNext(args.id)
+      if (this.justSpiderOne) {
+        return {
+          '错误': `获取目录失败 ${err}`
+        }
+      }
+      return await this.setSpiderComplete(args.id, this.justSpiderOne)
     }
 
     // args.menus = args.mnum > 0 ? menus.slice(0, args.mnum) : menus;
