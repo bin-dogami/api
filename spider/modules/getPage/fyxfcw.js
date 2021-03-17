@@ -7,7 +7,6 @@ class Bqw extends GetInfo {
   }
 
   getContent ($) {
-    var _this = this;
     var node = $(this.contentSelector);
     if (!node.length) {
       return [];

@@ -1,8 +1,7 @@
 // 笔趣网
 class GetInfo {
-  constructor(hosts, forbidWords, titleSelector, contentSelector) {
+  constructor(hosts, titleSelector, contentSelector) {
     this.hosts = hosts || [];
-    this.forbidWords = forbidWords || [];
     this.titleSelector = titleSelector || 'h1';
     this.contentSelector = contentSelector;
   }
@@ -16,7 +15,6 @@ class GetInfo {
   }
 
   getContent ($) {
-    var _this = this;
     var node = $(this.contentSelector);
     if (!node.length) {
       return [];
@@ -31,9 +29,6 @@ class GetInfo {
       if (!text) {
         return;
       }
-      _this.forbidWords.forEach((item) => {
-        text = text.replace(item, '');
-      })
       text && content.push(text);
     });
     return content;

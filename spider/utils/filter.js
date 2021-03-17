@@ -67,36 +67,34 @@ function getMenus ($domMenus, $, len) {
 // 返回 null，需要重新再抓取一次目录；返回 string，有异常，反馈给后台
 // lastMenuInfo ： 分别获取 id 最大的一个和 index 最大的一个，如果它们相等就是 lastMenuInfo；如果不相等， id 大的是 lastMenuInfo，然后把另一个的 index 赋给 lastMenuInfo，就叫 lastMenuInfo.maxIndex
 // 无卷的 index 以抓取到的目录名里值为准，分卷（不一定有卷字）的在上一卷的最后一个 index 基础上加上目录名中的值
-const menusAnalysis = ($domMenus, $, len, lastMenuInfo = null) => {
-  const menus = getMenus($domMenus, $, len)
+const menusAnalysis = (m, $, len, lastMenuInfo = null) => {
+  const menus = Array.isArray(m) ? m : getMenus(m, $)
   if (!menus.length) {
     return null
   }
 
+  console.log(lastMenuInfo, typeof lastMenuInfo, m)
+
   let lastOrigTitle = ''
   let lastmname = ''
   let lastIndex = -1
-  // lastMenuInfo 是上一个 id 最大的，但不一定是 index 最大的，所以要再获取一次 index 最大的然后赋给 lastMenuInfo 的 maxIndex
-  let lastMaxIndex = -1
   if (lastMenuInfo) {
     lastOrigTitle = lastMenuInfo.moriginalname
     lastmname = lastMenuInfo.mname
     lastIndex = lastMenuInfo.index
-    lastMaxIndex = lastMenuInfo.maxIndex || lastMenuInfo.index || -1
   }
 
   // 从头or尾开始遍历，true 为从头开始
   const orderFromStart = lastIndex < 20
-  let index = orderFromStart ? 0 : menus.length - 1
+  // let index = orderFromStart ? 0 : menus.length - 1
   let findLastSpiderMenu = false
   const _menus = []
   while (menus.length) {
-    orderFromStart ? index++ : index--
+    // orderFromStart ? index++ : index--
     // 新抓取的书从第一章开始遍历，旧书从最后一章开始遍历
     const { url, title } = menus[orderFromStart ? 'shift' : 'pop']()
 
     if (lastMenuInfo) {
-
       // 从 头 开始抓取的只有在找到上一次抓取的目录后才开始抓取
       if (orderFromStart && findLastSpiderMenu) {
         addMenu(_menus, title, url, true)
@@ -134,7 +132,7 @@ const menusAnalysis = ($domMenus, $, len, lastMenuInfo = null) => {
     // 第一次出现异常的地方
     let needResetIndex = 0
     // 遍历一次，如果 index 有一个走着走着突然就变小了，然后又变大(必须确定后面是累加的，避免‘第三章错误修正说明’这样的误导)就可以确定是 needResetIndex 为 true
-    let lastMax = lastMaxIndex
+    let lastMax = lastIndex
     for (const i in _menus) {
       const { index } = _menus[i]
       if (index <= 0) {
@@ -159,7 +157,7 @@ const menusAnalysis = ($domMenus, $, len, lastMenuInfo = null) => {
     }
 
     // 从异常部分开始累加 index
-    let lastIndex = lastMax
+    lastIndex = lastMax
     if (needReset >= 3) {
       _menus.forEach((item, pos) => {
         if (pos < needResetIndex) {
@@ -174,14 +172,14 @@ const menusAnalysis = ($domMenus, $, len, lastMenuInfo = null) => {
     }
   }
 
-  // console.log(_menus)
+  console.log(len, _menus)
 
   if (lastMenuInfo && !findLastSpiderMenu) {
     return `异常,找不到上一次抓取的最后一章: ${lastOrigTitle}`
   }
 
 
-  return _menus
+  return len > 0 ? _menus.slice(0, len) : _menus
 }
 
 function addMenu (_menus, title, url, orderFromStart) {
@@ -337,5 +335,6 @@ function cHNumToArabicNum (text) {
 }
 
 module.exports = {
-  menusAnalysis
+  menusAnalysis,
+  getMenus
 }

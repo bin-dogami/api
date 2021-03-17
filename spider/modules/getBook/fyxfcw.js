@@ -1,5 +1,6 @@
 // 笔趣阁 https://www.fyxfcw.com/
 var GetInfo = require("./base");
+const { menusAnalysis, getMenus } = require("../../utils/filter");
 
 const types = ['修真', '玄幻', '科幻', '穿越', '都市', '网游', '其他']
 class Bqw extends GetInfo {
@@ -41,17 +42,23 @@ class Bqw extends GetInfo {
     return selector.attr('src');
   }
 
-  getMenus ($, len, lastMenuInfo) {
-    if (!this.selectorMenu) {
-      return [];
-    }
+  getNextPageUrl = ($) => {
+    return $('.right a').attr('href')
+  }
 
-    return menusAnalysis($(this.selectorMenu), $, len, JSON.parse(lastMenuInfo))
+  // 获取一页的目录
+  getPageMenus ($) {
+    return getMenus($('.section-list').eq(1).find('a'), $)
+  }
+
+  // menus
+  getAllMenus (aMenus, lastMenuInfo) {
+    return menusAnalysis(aMenus, {}, 0, JSON.parse(lastMenuInfo))
   }
 }
 
 const selectors = {
-  title: ($) => $("h1"),
+  title: ($) => $(".top h1"),
   author: ($) => $(".top p").eq(0),
   description: ($) => $(".m-desc"),
   type: ($) => $(".top p").eq(1),
@@ -59,6 +66,6 @@ const selectors = {
   thumb: ".imgbox img",
 }
 
-const selectorMenu = ".section-list:eq(1) a";
+const selectorMenu = "";
 
 module.exports = new Bqw(selectors, selectorMenu);

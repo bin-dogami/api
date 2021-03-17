@@ -81,16 +81,19 @@ export class SqlmenusService {
     });
   }
 
-  // 获取最新的 menu
-  async findLastIdMenuByNovelId(novelId: number): Promise<menus> {
-    return await this.sqlmenusRepository.findOne({
+  // 获取最后take条目录
+  async findLastMenusByNovelId(novelId: number, _take?: number): Promise<menus[]> {
+    const take = _take || 1
+    return await this.sqlmenusRepository.find({
       where: { novelId },
       order: {
         id: "DESC"
-      }
+      },
+      take
     });
   }
 
+  // 弃
   async findLastIndexMenuByNovelId(novelId: number): Promise<menus> {
     return await this.sqlmenusRepository.findOne({
       where: { novelId },
@@ -229,12 +232,13 @@ export class SqlmenusService {
   }
 
   // 删除大于等于目录id的数据
-  async batchDeleteGtMenus(id: number, novelId: number): Promise<any> {
+  async batchDeleteGtMenus(id: number, novelId: number, notEq?: boolean): Promise<any> {
+    const gtId = notEq ? 'id > :id' : 'id >= :id'
     return await this.sqlmenusRepository
       .createQueryBuilder()
       .delete()
       .where("novelId = :novelId", { novelId })
-      .andWhere('id >= :id', { id })
+      .andWhere(gtId, { id })
       .execute()
   }
 }

@@ -35,9 +35,9 @@ export class GetBookService {
     }
   }
 
-  _getMenu(url: string, lastMenuInfo?: any) {
+  _getMenu(url: string, len: number, lastMenus?: any) {
     return new Promise((resolve, reject) => {
-      const child = child_process.fork('./spider/getmenu.js', [url, lastMenuInfo ? JSON.stringify(lastMenuInfo) : ""]);
+      const child = child_process.fork('./spider/getmenu.js', [url, len || '', JSON.stringify(lastMenus || null)]);
       child.on('message', function (v, error) {
         if (error) {
           reject(error);
@@ -47,12 +47,12 @@ export class GetBookService {
     })
   }
 
-  async getMenus(url: string, lastMenuInfo?: any): Promise<any> {
+  async getMenus(url: string, len: number, lastMenus?: any): Promise<any> {
     const fn = async () => {
       let i = 5
       while (i-- > 0) {
         console.log(`上一次抓取目录list失败，第${6 - i}次尝试抓取`)
-        const o = await this.delayDo('_getMenu', url, lastMenuInfo)
+        const o = await this.delayDo('_getMenu', url, len, lastMenus)
         if (o) {
           return o
         }
@@ -63,7 +63,7 @@ export class GetBookService {
       }
     }
     try {
-      const o: any = await this._getMenu(url, lastMenuInfo);
+      const o: any = await this._getMenu(url, len, lastMenus);
       if (o) {
         return o;
       }

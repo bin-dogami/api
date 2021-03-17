@@ -1,10 +1,10 @@
 var crawler = require("./modules/crawler/index");
-var { bqw } = require("./modules/getPage/index");
+var { getSpider } = require("./utils/index");
 
 if (process.argv.length > 2) {
-  const url = process.argv[2].replace('paoshuzw.com', 'xbiquge.la')
+  const [url, spider] = getSpider(process.argv[2], true)
   crawler(url, function f ($) {
-    process.send(bqw.getContent($));
+    process.send(spider.getContent($));
   }, function f (error) {
     process.send(false, error);
   });
