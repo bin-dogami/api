@@ -343,6 +343,7 @@ export class GetBookController {
           }
         } else {  // @TODO: 最后三个 index 都为 0的没法继续抓取了，要么删掉书重新抓取整书，要么再写匹配的抓取组件
           this.logger.end(`### 上次抓取的最后三章的index 都为0，没法定位到上次抓取位置。如果这是个巧合，删掉最后几章再抓取；如果不是巧合，可以考虑删除书再重新抓（要不就写匹配的抓取组件吧） ###`);
+          await this.spiderNext(args.id)
           return {
             '错误': `上次抓取的最后三章的index 都为0，没法定位到上次抓取位置。如果这是个巧合，删掉最后几章再抓取；如果不是巧合，可以考虑删除书再重新抓（要不就写匹配的抓取组件吧）`
           }
@@ -359,6 +360,7 @@ export class GetBookController {
       this.logger.end(`###[failed] 获取目录失败 ${err} ###`)
       await this.setSpiderComplete(args.id, this.justSpiderOne)
       lastMenu && await this.cannotFindLastMenu(lastMenu.id, args.id, lastMenu.index, args.from, lastMenu.moriginalname)
+      await this.spiderNext(args.id)
       return {
         '错误': `获取目录失败 ${err}`
       }
