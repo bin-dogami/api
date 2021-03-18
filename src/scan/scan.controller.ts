@@ -54,8 +54,7 @@ export class ScanController {
     let _ids = ids.length > 50 ? ids.slice(0, 50) : ids
     _ids = _ids.map((item) => JSON.parse(item))
     const nIds = _ids.map(({ id }) => id)
-    // findLastMenuByNovelIds 会因为 sql_mode=only_full_group_by 报错，mac 上配置没搞定，但 生产环境里搞定了
-    const list = process.env.NODE_ENV === 'development' ? [] : await this.sqlmenusService.findLastMenuByNovelIds(nIds)
+    const list = await this.sqlmenusService.findLastMenuByNovelIds(nIds)
     return list.filter(({ id, novelId }) => {
       for (const item of _ids) {
         if (item.id === novelId) {

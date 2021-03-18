@@ -31,9 +31,9 @@ export class SqlmenusService {
       .createQueryBuilder("menus")
       // 这里只能先查出最大的id和novelId，再查对应的 mname，必须两层嵌套查询
       .select("max(id)", "_id")
-      .addSelect("novelId")
-      .addSelect("mname")
-      .addSelect("`index`")
+      // .addSelect("novelId")
+      // .addSelect("mname")
+      // .addSelect("`index`")
       .where("novelId IN (:...novelIds)", { novelIds })
       .groupBy("novelId")
       .execute()
@@ -126,7 +126,7 @@ export class SqlmenusService {
 
   async getMenusByIds(ids: number[], getAllFields?: boolean): Promise<menus[]> {
     return await this.sqlmenusRepository.find({
-      select: getAllFields ? undefined : ["id", "index", "mname", "moriginalname", "from"],
+      select: getAllFields ? undefined : ["id", "novelId", "index", "mname", "moriginalname", "from"],
       where: { id: In(ids) },
       order: {
         id: "ASC"
