@@ -226,13 +226,14 @@ export class GetBookController {
   }
 
   // 更改抓取中的书状态为已抓取完
-  @Post('setAllStopSpidering')
-  async setAllStopSpidering() {
+  @Post('setCurrentSpideringStop')
+  async setCurrentSpideringStop() {
     return await this.sqlspiderService.stopAllSpidering()
   }
 
   // 抓取第一本/下一本书
   async spiderNext(id: number) {
+    // 从主页进行的只抓取本书的
     if (this.justSpiderOne) {
       return
     }
@@ -247,8 +248,8 @@ export class GetBookController {
     const firstSpiderNovelId = await this.sqlspiderService.getNextUnspider(id)
     const novel = await this.sqlnovelsService.findById(firstSpiderNovelId, true)
     if (!novel || !Array.isArray(novel.from) || !novel.from.length) {
-      this.logger.end(`### 【end】找不到要抓取的书 ### \n`);
-      return '找不到要抓取的书'
+      this.logger.end(`### 【end】找不到要抓取的书，id: ${firstSpiderNovelId} ### \n`);
+      return `找不到要抓取的书，id: ${firstSpiderNovelId}`
     }
 
     // 更新抓取状态为抓取中
@@ -261,7 +262,7 @@ export class GetBookController {
     }
 
     // 抓书开始
-    this.logger.start(`\n ### 【start】 开始抓取书信息 ###`);
+    this.logger.start(`\n\n\n\n ### 【start】 开始抓取书信息 ###`);
     const { title, author } = novel;
     const from = novel.from[novel.from.length - 1]
     const filePath = this.logger.log(`# 获取书信息成功 # 书名: ${title}；作者: ${author}；来源: ${from}； id: ${novel.id}`, {
@@ -283,26 +284,9 @@ export class GetBookController {
     }
   }
 
-  // @TODO: (数据跑完了把全本的改回去) 上次把数据弄没了，全本的书都需要再重新抓取一下，但全本的书不在spider 表中，需要加一下
-  // async setCompleteCanSpider() {
-  // const allNovels = await this.sqlnovelsService.getAllBooks()
-  // const allSpiderNovels = await this.sqlspiderService.getAll()
-  // const spiderIds = allSpiderNovels.map(({ id }: { id: number }) => id)
-  // if (spiderIds.length < allNovels.length) {
-  //   while (allNovels.length) {
-  //     const { id } = allNovels.shift()
-  //     if (!spiderIds.includes(id)) {
-  //       await this.sqlspiderService.create(id, ISpiderStatus.UNSPIDER)
-  //     }
-  //   }
-  // }
-  // }
-
   // 统一抓取所有需要再次抓取的书
   @Post('spiderAll')
   async spiderAll() {
-    // await this.setCompleteCanSpider()
-
     this.justSpiderOne = false
     const SpideringNovels = await this.sqlspiderService.findAllByStatus(ISpiderStatus.SPIDERING)
     if (SpideringNovels.length) {
@@ -409,7 +393,7 @@ export class GetBookController {
   // 一次性插入多个目录及对应的章节内容
   @Post('insertMenuAndPages')
   async insertMenuAndPages(@Body() args: any) {
-    const { id, title, menus, from, filePath } = args;
+    const { id, title, menus, from, filePath, mnum } = args;
     const host = getHostFromUrl(from);
     this.logger.start(` ### 【start】开始插入目录及page ###`, filePath);
     this.logger.log(`书名: ${title} `);
@@ -423,15 +407,11 @@ export class GetBookController {
       lastPage: '获取或插入page失败'
     }
     let currentMenuId = await this.sqlmenusService.findLastIdByNovelId(id)
-    // 最小的 index
-    // let leastIndex = await this.sqlmenusService.findLeastLessThan1000IndexByNovelId(id)
     let menusInsertFailedInfo = ''
     let hasInsertedNum = 0
     while (menus.length) {
       const currentMenuInfo = menus.shift();
       const { url, index, title, mname, moriginalname } = currentMenuInfo
-      // let _index = currentMenuInfo.index
-
       // 每抓取5次内容检查一下是否在抓取状态，如果被取消了抓取就中止
       if (hasInsertedNum > 5) {
         if (await this.sqlspiderService.isSpidering(id)) {
@@ -446,13 +426,6 @@ export class GetBookController {
       hasInsertedNum++
 
       let ErrorType = 0
-      // 可能是 第901、902、903章 了却因果 这样的，需要写入数据库，章节错误
-      // if (Array.isArray(_index)) {
-      //   _index = _index[0]
-      //   ErrorType = IMenuErrors.MULTI_MENUS_IN_ONE_PAGE
-      // }
-      // index 小于0 的往最小index后面减
-      // const index = _index <= 0 && leastIndex < 0 ? _index + leastIndex : _index
       let menuInfo: any;
       const host = getHostFromUrl(from);
       const _url = getValidUrl(host, url, from)
@@ -471,32 +444,6 @@ export class GetBookController {
         });
         this.logger.log(`# 插入目录成功 # 目录名：【${moriginalname} 】 是第${index} 章；id: ${menuInfo.id} `)
       } catch (err) {
-        // menuInfo = await this.sqlmenusService.findMenuByNovelIdAndIndex(id, index);
-        // if (menuInfo && menuInfo.id) {
-        // const relationMenuName = menuInfo.moriginalname
-        // const relationMenuId = menuInfo.id
-        // 重复了的index，index 设置为 -1000 以下
-        // let leastIndex = await this.sqlmenusService.findLeastLessThan1000IndexByNovelId(id)
-        // const _index = leastIndex < -1000 ? leastIndex - 1 : -1001
-        // this.logger.log(`# 此目录的index异常，需要人工查看 # 目录名：【${title} 】，与【${relationMenuName} (id: ${relationMenuId}) 】 重复。现在改下 index 再重新插入一下，新的 index 为 ${_index} `)
-        // currentMenuId = getMenuId(currentMenuId, true)
-        // menuInfo = await this.sqlmenusService.create({
-        //   id: currentMenuId,
-        //   novelId: id,
-        //   mname: getValidTitle(title),
-        //   moriginalname: title,
-        //   index: _index,
-        //   ErrorType,
-        //   from: _url,
-        // });
-        // await this.sqlerrorsService.create({
-        //   menuId: currentMenuId,
-        //   novelId: id,
-        //   menuIndex: _index,
-        //   type: IErrors.MENU_INDEX_ABNORMAL,
-        //   info: `${menuInfo.moriginalname} index 异常，需要人工处理。相关联的 index: ${index} ，id: ${relationMenuId} ，目录名: ${relationMenuName} `,
-        // })
-        // } else {
         this.logger.log(`#[failed] 章节插入错误，中止抓取 # 目录名：【${moriginalname} 】, 第${index} 章, 目录list来源: ${from} \n`)
         index > 0 && res.failedIndex.push(index)
         menusInsertFailedInfo = '[章节插入错误！！！！！！！ 看上一条错误信息]'
@@ -507,11 +454,6 @@ export class GetBookController {
           type: IErrors.MENU_INSERT_FAILED,
           info: `第${index} 章(${menuInfo.moriginalname}) 插入目录失败, 目录list来源: ${from} `,
         })
-
-        // 抓取异常，记录数据
-        // await this.sqlspiderService.setFailedSpider(id, `章节插入错误，中止抓取 # 目录名：【${menuInfo.moriginalname} 】, 第${index} 章, 目录list来源: ${from} `)
-        // break;
-        // }
       }
       if (!menuInfo || !menuInfo.id) {
         this.logger.log(`# [failed] 目录插入失败导致page内容无法插入:  # 目录名：【${moriginalname}】, 是第${index}章 \n`)
@@ -538,7 +480,7 @@ export class GetBookController {
     this.logger.end(`### 【end】完成目录及page插入，插入成功 ${res.successLen} 条，${failedInfo} 。 ### \n\n\n`);
 
     // 抓取章节
-    this.reGetPages(id)
+    this.reGetPages(id, 0, mnum === 5)
     return res
   }
 
@@ -703,26 +645,34 @@ export class GetBookController {
     return [_content]
   }
 
-  async setSpiderComplete(id: number, noReset?: boolean) {
+  async setSpiderComplete(id: number, noReset?: boolean, justSpider5Page?: boolean) {
     if (!noReset) {
       this.reSpiderInfo = null
     }
-    // 设置抓取完成并进行下一个的抓取
-    await this.sqlspiderService.completeSpider(id)
+    // 通过主页设置的只抓取5个的方式抓取的，设置spider状态回0，以便之后再集体重新抓取
+    if (justSpider5Page) {
+      const spider = await this.sqlspiderService.getById(id)
+      spider.status = ISpiderStatus.UNSPIDER
+      await this.sqlspiderService.update(spider)
+    } else {
+      // 设置抓取完成并进行下一个的抓取
+      await this.sqlspiderService.completeSpider(id)
+    }
     await this.spiderNext(id)
   }
 
   // 重新抓取书的失败page
   // 在后台 failedPages 页面重新抓取的 isSingleReget 为 '1'
+  // 从 spider 过来的只抓取了5章的（这种情况是先把书添加进来之后再集中抓取）抓完了设置抓取状态为 0，以便下次不用更改状态就能接着抓取
   @Get('reGetPages')
-  async reGetPages(@Query('id') id: number, @Query('isSingleReget') isSingleReget?: number) {
+  async reGetPages(@Query('id') id: number, @Query('isSingleReget') isSingleReget?: number, justSpider5Page?: boolean) {
     if (!this.reSpiderInfo) {
       this.reSpiderInfo = {
         id,
         index: 0
       }
     }
-    // 是否只
+    // 是否只重新抓取本书
     if (isSingleReget) {
       const SpideringNovels = await this.sqlspiderService.findAllByStatus(ISpiderStatus.SPIDERING)
       if (SpideringNovels.length) {
@@ -741,21 +691,21 @@ export class GetBookController {
     if (this.reSpiderInfo.index > 10) {
       this.logger.end(`### [end] 已经抓取 *** 10 *** 次了，还没有抓取完，休息一下，还有 ${mIds.length} 章需要重新抓取  ### \n\n\n`);
       // 每一个 return 都需要重置一下 this.reSpiderInfo
-      await this.setSpiderComplete(id)
+      await this.setSpiderComplete(id, false, justSpider5Page)
       return ''
     }
 
     if (!mIds.length) {
       this.logger.end(`### [end] 没有目录需要重新抓取 ### \n\n\n`);
       // 每一个 return 都需要重置一下 this.reSpiderInfo
-      await this.setSpiderComplete(id)
+      await this.setSpiderComplete(id, false, justSpider5Page)
       return '没有目录需要重新抓取'
     }
     const book = await this.sqlnovelsService.findById(id, true)
     if (!book) {
       this.logger.end(`### [end] 数据库里查不到此书 ### \n\n\n`);
       // 每一个 return 都需要重置一下 this.reSpiderInfo
-      await this.setSpiderComplete(id)
+      await this.setSpiderComplete(id, false, justSpider5Page)
       return '数据库里查不到此书'
     }
     const from = book.from[book.from.length - 1]
@@ -766,7 +716,7 @@ export class GetBookController {
     const menuInfos = await this.sqlmenusService.getMenusByIds(ids)
     if (!menuInfos.length) {
       this.logger.end(`### 获取不到目录信息，可能目录刚被删除了 ### \n\n\n`);
-      await this.setSpiderComplete(id)
+      await this.setSpiderComplete(id, false, justSpider5Page)
       return '获取不到目录信息，可能目录刚被删除了'
     }
     this.logger.log(` ### 修复开始, 总共要修复 *** ${mIds.length} 章 ***，ids为：${ids} ###`, filePath);
@@ -803,7 +753,7 @@ export class GetBookController {
     if (menuInfos.length > successIds.length) {
       this.reGetPages(id)
     } else {
-      !isSingleReget && await this.setSpiderComplete(id)
+      !isSingleReget && await this.setSpiderComplete(id, false, justSpider5Page)
     }
 
     return successText

@@ -31,9 +31,9 @@ export class SqlmenusService {
       .createQueryBuilder("menus")
       // 这里只能先查出最大的id和novelId，再查对应的 mname，必须两层嵌套查询
       .select("max(id)", "_id")
-      // .addSelect("novelId")
-      // .addSelect("mname")
-      // .addSelect("`index`")
+      .addSelect("novelId")
+      .addSelect("mname")
+      .addSelect("`index`")
       .where("novelId IN (:...novelIds)", { novelIds })
       .groupBy("novelId")
       .execute()

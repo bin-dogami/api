@@ -91,6 +91,15 @@ export class SqlspiderService {
     await this.update(spider)
   }
 
+  // // 更改当前在抓取中的状态为抓取完
+  // async stopCurrentSpidering() {
+  //   return await this.sqlspiderRepository.createQueryBuilder("spiders")
+  //     .update()
+  //     .set({ status: ISpiderStatus.SPIDERED })
+  //     .where("status = :status", { status: ISpiderStatus.SPIDERING })
+  //     .execute()
+  // }
+
   // 更改抓取中的书状态为已抓取完
   async stopAllSpidering() {
     return await this.sqlspiderRepository.createQueryBuilder("spiders")

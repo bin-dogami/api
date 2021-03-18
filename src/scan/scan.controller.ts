@@ -51,10 +51,11 @@ export class ScanController {
   // 阅读历史
   @Get('getBooksLastPageByIds')
   async getBooksLastPageByIds(@Query('ids') ids: any[]): Promise<menus[]> {
-    let _ids = ids.length > 20 ? ids.slice(0, 20) : ids
+    let _ids = ids.length > 50 ? ids.slice(0, 50) : ids
     _ids = _ids.map((item) => JSON.parse(item))
     const nIds = _ids.map(({ id }) => id)
-    const list = await this.sqlmenusService.findLastMenuByNovelIds(nIds)
+    // findLastMenuByNovelIds 会因为 sql_mode=only_full_group_by 报错，mac 上配置没搞定，但 生产环境里搞定了
+    const list = process.env.NODE_ENV === 'development' ? [] : await this.sqlmenusService.findLastMenuByNovelIds(nIds)
     return list.filter(({ id, novelId }) => {
       for (const item of _ids) {
         if (item.id === novelId) {
@@ -148,10 +149,11 @@ export class ScanController {
 
   // 获取书信息，缓存一下
   @Get('getBookById')
-  async getBookById(@Query('id') id: number, @Query('skip') skip?: number): Promise<[novels, menus[], menus[], number, any[]]> {
+  async getBookById(@Query('id') id: number, @Query('skip') skip?: number, @Query('desc') desc?: number): Promise<[novels, menus[], menus[], number, any[]]> {
+    const _desc = +desc
     const novel = await this.sqlnovelsService.findById(+id, true)
-    const [menus, total] = await this.getMenusByBookId(id, +skip, 100, 0)
-    const [DescMenus] = total > 40 ? await this.getMenusByBookId(id, 0, 5, 1) : [[]]
+    const [menus, total] = await this.getMenusByBookId(id, +skip, 100, _desc)
+    const [DescMenus] = !_desc && total > 40 ? await this.getMenusByBookId(id, 0, 5, 1) : [[]]
     const recommendBooks = await this.getRecommendBooks()
     return [novel, menus, DescMenus, total, this.filterRecommendBooks(recommendBooks, id)]
   }
