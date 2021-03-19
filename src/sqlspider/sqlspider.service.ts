@@ -15,7 +15,7 @@ export enum ISpiderStatus {
 }
 
 // @TODO: 建一个页面查看所有抓取状态及数据
-export const TumorTypes = {
+export const SpiderStatus = {
   [ISpiderStatus.UNSPIDER]: '待抓取',
   [ISpiderStatus.SPIDERING]: '抓取中',
   [ISpiderStatus.SPIDERED]: '抓取完成',
@@ -55,18 +55,21 @@ export class SqlspiderService {
     return spider && spider.status === ISpiderStatus.SPIDERING
   }
 
-  async findAllByStatus(status: number): Promise<any[]> {
+  async findAllByStatus(status: number, take?: number): Promise<any[]> {
+    const params: any = status === -1 ? {} : { where: { status } }
+    if (take) {
+      params.take = take > 100 ? 100 : take
+    }
     return await this.sqlspiderRepository.find({
-      where: {
-        status
-      },
       order: {
+        status: 'ASC',
         updatetime: 'ASC'
       },
+      ...params,
     });
   }
 
-  // 获取下一个待抓取书id，id 可以为0，为0 就是第一条
+  // @TODO: 这块改了，确认下不影响 getbook 里的接口。 获取下一个待抓取书id，id 可以为0，为0 就是第一条
   async getNextUnspider(id: number): Promise<number> {
     const spider = await this.sqlspiderRepository.findOne({
       select: ["id"],

@@ -12,7 +12,7 @@ import { SqltypesdetailService } from '../sqltypesdetail/sqltypesdetail.service'
 import { SqlauthorsService } from '../sqlauthors/sqlauthors.service';
 import { SqlerrorsService } from '../sqlerrors/sqlerrors.service';
 import { TumorTypes, SqltumorService } from '../sqltumor/sqltumor.service';
-import { ISpiderStatus, SqlspiderService, CreateSqlspider } from '../sqlspider/sqlspider.service';
+import { ISpiderStatus, SqlspiderService, SpiderStatus } from '../sqlspider/sqlspider.service';
 const dayjs = require('dayjs')
 
 import { sqlnovels as novels } from '../sqlnovels/sqlnovels.entity';
@@ -373,6 +373,53 @@ export class FixdataController {
   @Post('deleteLastMenuLostError')
   async deleteLastMenuLostError(@Body('id') id: number): Promise<string> {
     return await this.sqlerrorsService.remove(+id) ? '' : '删除失败';
+  }
+
+  // 抓取状态
+  @Get('getSpiderStatus')
+  async getSpiderStatus(): Promise<any[]> {
+    return Object.keys(SpiderStatus).map((value) => {
+      return {
+        value,
+        label: SpiderStatus[value]
+      }
+    })
+  }
+
+  // 抓取状态List
+  @Get('getSpiderList')
+  async getSpiderList(@Query('status') status: string): Promise<any[]> {
+    const _status = +status
+    const spiders = await this.sqlspiderService.findAllByStatus(_status, 100)
+    const ids = spiders.map(({ id }: { id: number }) => id)
+    const novels = await this.sqlnovelsService.getBookByIds(ids)
+    const _novels = {}
+    novels.forEach((item) => {
+      _novels[item.id] = item
+    })
+    spiders.forEach((item) => {
+      if (item.id in _novels) {
+        item.title = _novels[item.id].title
+        item.statusText = SpiderStatus[item.status] || 'status 值错误'
+      }
+    })
+    return spiders
+  }
+
+  // 更改抓取状态
+  @Post('changeSpiderStatus')
+  async changeSpiderStatus(@Body('id') id: string, @Body('status') status: string): Promise<string> {
+    const spider = await this.sqlspiderService.getById(+id)
+    if (!spider) {
+      return '找不到这条数据了'
+    }
+
+    if (status in SpiderStatus) {
+      spider.status = +status
+      return await this.sqlspiderService.update(spider) && ''
+    } else {
+      return 'status 类型不对'
+    }
   }
 
 }
