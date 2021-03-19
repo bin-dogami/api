@@ -46,6 +46,14 @@ export class SqlmenusService {
     return menus
   }
 
+  async getTotal(): Promise<number> {
+    const data = await this.sqlmenusRepository
+      .createQueryBuilder("menus")
+      .select("count(*)", "total")
+      .execute()
+    return data.length && data[0] ? data[0].total : 0
+  }
+
   // 获取最小的 index
   async findLeastIndexByNovelId(novelId: number): Promise<any> {
     const menu = await this.sqlmenusRepository.findOne({

@@ -216,6 +216,24 @@ export class FixdataController {
     }
   }
 
+  // 设置书本为全本并且抓取完了
+  @Post('setBookSpiderComplete')
+  async setBookSpiderComplete(@Body('id') id: string): Promise<string> {
+    const novel = await this.sqlnovelsService.findById(+id, true)
+    if (!novel) {
+      return '找不到这本书了'
+    }
+
+    if (novel.isComplete && novel.isSpiderComplete) {
+      return '这本书已经是完本且已经抓完了，不用再设置了'
+    }
+
+    return await this.sqlnovelsService.updateFields(+id, {
+      isComplete: true,
+      isSpiderComplete: true,
+    }) && ''
+  }
+
   @Post('modifyMenuIndex')
   async modifyMenuIndex(@Body('id') id: number, @Body('value') value: number, @Body('errorId') errorId: number): Promise<string> {
     const menuInfo = await this.sqlmenusService.findOne(+id)
@@ -420,6 +438,21 @@ export class FixdataController {
     } else {
       return 'status 类型不对'
     }
+  }
+
+  // 查看总共有多少本书了
+  @Get('viewTotalBooks')
+  async viewTotalBooks(): Promise<string> {
+    const total = await this.sqlnovelsService.getTotal()
+    console.log(total)
+    return `共${total}本书`
+  }
+
+  // 查看总共有多少个目录了
+  @Get('viewTotalMenus')
+  async viewTotalMenus(): Promise<string> {
+    const total = await this.sqlmenusService.getTotal()
+    return `共${total}个目录`
   }
 
 }

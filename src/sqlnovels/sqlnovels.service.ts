@@ -106,6 +106,14 @@ export class SqlnovelsService {
     );
   }
 
+  async getTotal(): Promise<number> {
+    const data = await this.sqlnovelsRepository
+      .createQueryBuilder("novels")
+      .select("count(*)", "total")
+      .execute()
+    return data.length && data[0] ? data[0].total : 0
+  }
+
   async findByOriginalTitle(otitle: string, author: string): Promise<novels> {
     return await this.sqlnovelsRepository.findOne(
       {
