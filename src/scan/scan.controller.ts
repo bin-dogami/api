@@ -202,17 +202,19 @@ export class ScanController {
   async getPageById(@Query('id') id: number, @Query('onlypage') onlypage: number): Promise<any> {
     let page: any = await this.sqlpagesService.findOne(+id)
     const menu = await this.sqlmenusService.findOne(+id)
+    if (!menu) {
+      return []
+    }
     if (!page) {
       page = menu
-      if (!page) {
-        return []
-      } else {
-        await this.insertPageFailed(page, '章节缺失: 来自用户浏览时服务器自动提报')
-        this.logger.start(`{novelId: ${page.novelId}, id: ${page.id} }`, this.logger.createPageLoseErrorLogFile())
-        this.logger.writeLog()
-        page["noPage"] = true
-      }
+      await this.insertPageFailed(page, '章节缺失: 来自用户浏览时服务器自动提报')
+      this.logger.start(`{novelId: ${page.novelId}, id: ${page.id} }`, this.logger.createPageLoseErrorLogFile())
+      this.logger.writeLog()
+      page["noPage"] = true
     } else {
+      page['index'] = menu['index']
+      page['mname'] = menu['mname']
+      page['volume'] = menu['volume']
       page['realName'] = menu['moriginalname']
       page['content'] = await this.getWholeContent(page, page['content'])
     }

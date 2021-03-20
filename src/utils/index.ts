@@ -1,6 +1,8 @@
 const fs = require('fs');
 const download = require('download');
 
+export const toClearTakeValue = 100000
+
 const getRandom = (min: number, max: number) => {
   return Math.floor(Math.random() * (max - min)) + min
 }

@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Equal, LessThan, LessThanOrEqual, MoreThan, In } from 'typeorm';
 import { sqlmenus as menus } from './sqlmenus.entity';
 import { CreateSqlmenus } from "./create-sqlmenus.dto";
-import { getFirstMenuId } from '../utils/index'
+import { getFirstMenuId, toClearTakeValue } from '../utils/index'
 
 export enum IMenuErrors {
   MULTI_MENUS_IN_ONE_PAGE = 1,
@@ -118,9 +118,9 @@ export class SqlmenusService {
   }
 
   // 获取书的目录，以分页的形式
-  async getMenusByBookId(id: number, skip: number, size?: number, isDesc?: boolean): Promise<[menus[], number]> {
+  async getMenusByBookId(id: number, skip: number, size?: number, isDesc?: boolean, getAllFields?: boolean): Promise<[menus[], number]> {
     return await this.sqlmenusRepository.findAndCount({
-      select: ["id", "mname", "moriginalname", "index"],
+      select: getAllFields ? undefined : ["id", "mname", "moriginalname", "index"],
       where: {
         novelId: id
       },
@@ -159,9 +159,9 @@ export class SqlmenusService {
     return prevMenus.reverse()
   }
 
-  async getNextMenus(id: number, novelId: number, take?: number): Promise<menus[]> {
+  async getNextMenus(id: number, novelId: number, take?: number, getAllFields?: boolean): Promise<menus[]> {
     return await this.sqlmenusRepository.find({
-      select: ["id", "mname", "moriginalname", "index"],
+      select: getAllFields ? undefined : ["id", "mname", "moriginalname", "index"],
       where: {
         novelId,
         id: MoreThan(id),
@@ -169,7 +169,7 @@ export class SqlmenusService {
       order: {
         id: "ASC"
       },
-      take: take || 50
+      take: take === toClearTakeValue ? undefined : (take || 50)
     })
   }
 
@@ -208,20 +208,6 @@ export class SqlmenusService {
       where: { novelId }
     });
   }
-
-  // // @TODO: 仅用于 fixfrom，用后删掉吧
-  // async getMenuByMoriginalname(novelId: number, moriginalname: string): Promise<any> {
-  //   return await this.sqlmenusRepository.findOne({
-  //     where: { novelId, moriginalname },
-  //   });
-  // }
-
-  // // @TODO: 仅用于 fixfrom，用后删掉吧
-  // async getMenuByFrom(novelId: number, from: string): Promise<any> {
-  //   return await this.sqlmenusRepository.find({
-  //     where: { novelId, from },
-  //   });
-  // }
 
   async save(oMenus) {
     return await this.sqlmenusRepository.save(oMenus)

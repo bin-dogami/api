@@ -328,7 +328,6 @@ export class GetBookController {
         this.logger.log(`### 上次抓取到的目录不足3章，先全删了再重新抓取 ###`);
         await this.deleteMenusGtId('0', args.id)
       } else {
-        // console.log(lastMenus)
         const filterMenu = lastMenus.filter((item: any) => item.index > 0)
         if (filterMenu.length) {
           lastMenu = filterMenu[0]
@@ -339,6 +338,7 @@ export class GetBookController {
             await this.deleteMenusGtId(lastMenu.id, args.id)
           }
         } else {  // @TODO: 最后三个 index 都为 0的没法继续抓取了，要么删掉书重新抓取整书，要么再写匹配的抓取组件
+          // @TODO: 这个记到 error 表里吧
           const text = `上次抓取的最后三章的index 都为0，没法定位到上次抓取位置。如果这是个巧合，删掉最后几章再抓取；如果不是巧合，可以考虑删除书再重新抓（要不就写匹配的抓取组件吧）`
           this.logger.end(`### ${text} ###`);
           if (this.justSpiderOne) {
@@ -528,12 +528,9 @@ export class GetBookController {
         await this.sqlpagesService.create({
           id: pageId,
           nextId,
-          index,
           novelId: id,
-          mname,
           content: content,
           wordsnum: content.length,
-          from: _url,
         });
         const mIdText = i === 1 ? '' : `目录id: ${mId}`
         this.logger.log(`# 插入章节内容成功 # 目录名：【${moriginalname}】, 是第${index}章${page}, 字数：${content.length}；id: ${pageId}；${mIdText} \n`)

@@ -1,6 +1,6 @@
 import { sqlspider } from './../sqlspider/sqlspider.entity';
 import { sqlerrors } from './../sqlerrors/sqlerrors.entity';
-import { getHost, unique } from '../utils/index'
+import { getHost, unique, toClearTakeValue } from '../utils/index'
 import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { FixdataService } from './fixdata.service';
 import { SqlnovelsService } from '../sqlnovels/sqlnovels.service';
@@ -241,12 +241,6 @@ export class FixdataController {
       menuInfo.index = +value
       await this.sqlmenusService.save(menuInfo)
     }
-    // @TODO: page 表中一些字段干掉，减轻表负担，用 menu 中字段就好
-    const pageInfo = await this.sqlpagesService.findOne(+id)
-    if (pageInfo) {
-      pageInfo.index = +value
-      await this.sqlpagesService.save(pageInfo)
-    }
 
     return await this.sqlerrorsService.remove(+errorId) ? '' : '更改失败';
   }
@@ -282,9 +276,9 @@ export class FixdataController {
     if (isNumber(id)) {
       const fileds = { [fieldName]: fieldValue }
       const menu = await this.sqlmenusService.findOne(+id);
-      const page = await this.sqlpagesService.findOne(+id);
       await this.sqlmenusService.save({ ...menu, ...fileds });
-      await this.sqlpagesService.save({ ...page, ...fileds });
+      // const page = await this.sqlpagesService.findOne(+id);
+      // await this.sqlpagesService.save({ ...page, ...fileds });
       return ''
     } else {
       return 'bookId 类型不对'
@@ -444,7 +438,6 @@ export class FixdataController {
   @Get('viewTotalBooks')
   async viewTotalBooks(): Promise<string> {
     const total = await this.sqlnovelsService.getTotal()
-    console.log(total)
     return `共${total}本书`
   }
 
@@ -455,4 +448,36 @@ export class FixdataController {
     return `共${total}个目录`
   }
 
+  @Get('getMenuList')
+  async getMenuList(@Query('id') id: string, @Query('skip') skip: string, @Query('size') size: string, @Query('desc') desc: string): Promise<any[]> {
+    return await this.sqlmenusService.getMenusByBookId(+id, +skip, +size, Boolean(+desc), true)
+  }
+
+  // 更改抓取状态
+  @Post('batchModifyIndexs')
+  async batchModifyIndexs(@Body('mId') mId: string, @Body('nId') nId: string): Promise<string> {
+    if (isNumber(mId) && isNumber(nId)) {
+      const menu = await this.sqlmenusService.findOne(+mId)
+      if (!menu) {
+        return `找不到${mId}对应的目录，`
+      } else if (menu.index <= 0) {
+        return `目录index 必须大于0`
+      } else {
+        let index = menu.index
+        const menuList = await this.sqlmenusService.getNextMenus(+mId, +nId, toClearTakeValue, true)
+        while (menuList.length) {
+          const menu = menuList.shift()
+          if (menu.index <= 0) {
+            continue
+          }
+          index++
+          menu.index = index
+          await this.sqlmenusService.save(menu)
+        }
+        return ''
+      }
+    } else {
+      return '目录id或书id不对'
+    }
+  }
 }

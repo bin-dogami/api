@@ -9,27 +9,27 @@ export class sqlpages {
   @Column({ default: 0 })
   nextId: number;
 
-  @Column()
-  index: number;
+  // @Column()
+  // index: number;
 
   //  关联 novels 表
   @Column()
   novelId: number;
 
   // 来源 @TODO: 没必要有
-  @Column({ default: '' })
-  from: string;
+  // @Column({ default: '' })
+  // from: string;
 
   // 目录名
-  @Column({ length: 128 })
-  mname: string;
+  // @Column({ length: 128 })
+  // mname: string;
 
   @Column({ type: "text", charset: 'utf8mb4' })
   content: string;
 
   // 卷，有就有， @TODO: 没必要有
-  @Column({ length: 32, default: '' })
-  volume: string;
+  // @Column({ length: 32, default: '' })
+  // volume: string;
 
   // 字数
   @Column()
