@@ -349,8 +349,8 @@ export class FixdataController {
   }
 
   @Get('getTumorList')
-  async getTumorList(@Query('host') host: string): Promise<any[]> {
-    return await this.sqltumorService.findList(host.trim());
+  async getTumorList(@Query('host') host: string, @Query('useFix') useFix: string): Promise<any[]> {
+    return await this.sqltumorService.findList(Boolean(+useFix), host.trim());
   }
 
   @Post('deleteTumor')
@@ -358,16 +358,42 @@ export class FixdataController {
     return await this.sqltumorService.remove(+id) ? '' : '删除失败';
   }
 
+  // 修正一本书中所有章节内容，替换掉不需要的词/语句
+  @Post('fixPagesContent')
+  async fixPagesContent(@Body('id') id: string, @Body('text') text: string): Promise<any> {
+    const pages = await this.sqlpagesService.findAll(+id)
+    if (!pages || !pages.length) {
+      return '找不到目录'
+    }
+    while (pages.length) {
+      const page = pages.shift()
+      page.content = page.content.replace(text, '')
+      try {
+        // @TODO: 加个结束的记录？再次更新 content 的时候判断一下
+        // @TODO: 写一个方法，能探查所有内容都被替换干净了，有点麻烦
+        await this.sqlpagesService.save(page)
+      } catch (error) {
+        //
+      }
+    }
+    return ''
+  }
+
   @Post('addTumor')
-  async addTumor(@Body('type') type: string, @Body('host') host: string, @Body('text') text: string): Promise<string> {
-    const tumor = await this.sqltumorService.create({ type, host: getHost(host), text })
+  async addTumor(@Body('type') type: string, @Body('host') host: string, @Body('text') text: string, @Body('useFix') useFix: string): Promise<string> {
+    const tumor = await this.sqltumorService.create({
+      type,
+      text,
+      useFix: Boolean(+useFix),
+      host: getHost(host)
+    })
     return typeof tumor === 'string' ? tumor : (tumor ? '' : '添加失败');
   }
 
   // 上一次抓取的最后的目录这次抓取不到了
-  @Get('getLostLastMenus')
-  async getLostLastMenus() {
-    const list = await this.sqlerrorsService.getLostLastMenus();
+  @Get('getErrorsByType')
+  async getErrorsByType(@Query('type') type: string) {
+    const list = await this.sqlerrorsService.getErrorsByType(type);
     const novelIds = list.map(({ novelId }) => novelId)
     const books = await this.sqlnovelsService.getBookByIds(unique(novelIds))
     books.length && list.forEach((item) => {
@@ -381,9 +407,9 @@ export class FixdataController {
     return list
   }
 
-  // 上一次抓取的最后的目录这次抓取不到了，这条数据删除
-  @Post('deleteLastMenuLostError')
-  async deleteLastMenuLostError(@Body('id') id: number): Promise<string> {
+  // 删除errors表里数据
+  @Post('deleteErrorData')
+  async deleteErrorData(@Body('id') id: number): Promise<string> {
     return await this.sqlerrorsService.remove(+id) ? '' : '删除失败';
   }
 
@@ -479,5 +505,44 @@ export class FixdataController {
     } else {
       return '目录id或书id不对'
     }
+  }
+
+  @Get('detectBookIndexAbnormal')
+  async detectBookIndexAbnormal(@Query('id') id: string): Promise<string | any[]> {
+    let menus = await this.sqlmenusService.findAll(+id)
+    let res = ''
+    let i = 0
+    let abnormals = []
+    // 查询有 index 的目录数
+    let indexCount = 0
+    // 不需要排序
+    // menus = menus.sort((item1: any, item2: any) => {
+    //   return item1.index - item2.index;
+    // })
+    menus.forEach(({ id, index, mname }, key) => {
+      if (index <= 0) {
+        return
+      }
+      indexCount++
+
+      i++
+      if (i !== index) {
+        const lastMenu = key > 0 ? menus[key - 1] : null
+        abnormals.push({
+          id,
+          index,
+          mname,
+          lastId: lastMenu ? lastMenu.id : '',
+          lastIndex: lastMenu ? lastMenu.index : '',
+          lastMname: lastMenu ? lastMenu.mname : '',
+        })
+        // 重置一下index，更精确定位问题 index
+        i = index
+      }
+    })
+    if (indexCount === 0) {
+      return '这本书一个有index 的目录都没有'
+    }
+    return abnormals.length ? abnormals : res
   }
 }

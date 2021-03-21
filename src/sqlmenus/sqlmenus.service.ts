@@ -179,19 +179,12 @@ export class SqlmenusService {
     return [...prevMenus, ...nextMenus]
   }
 
-  // async findAll(novelId: number): Promise<menus[]> {
-  //   return this.sqlmenusRepository.find({
-  //     where: { novelId }
-  //   });
-  // }
-
   async findOne(id: number): Promise<menus> {
     return await this.sqlmenusRepository.findOne(id);
   }
 
   async findAll(novelId: number): Promise<menus[]> {
     return await this.sqlmenusRepository.find({
-      select: ["id"],
       where: { novelId }
     });
   }

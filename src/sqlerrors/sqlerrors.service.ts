@@ -6,8 +6,10 @@ import { CreateSqlerrors } from "./create-sqlerrors.dto";
 
 export enum IErrors {
   MENU_INSERT_FAILED = 'menu_insert_failed',
+  // @TODO: 这个应该是废弃了，有空删掉
   MENU_INDEX_ABNORMAL = 'menu_insert_abnormal',
   CANNOT_FIND_LAST_MENU = 'cannot_find_last_menu',
+  LAST3_MENUS_INDEX_EQ0 = 'last_3menus_index_eq0',
   PAGE_LOST = 'page_lost',
 }
 export const ErrorTypes = {
@@ -16,6 +18,7 @@ export const ErrorTypes = {
   // 抓取到的目录的 index 重复问题（原网站有这个问题），需要人工修复
   [IErrors.MENU_INDEX_ABNORMAL]: '目录index异常',
   [IErrors.CANNOT_FIND_LAST_MENU]: '找不到上一次抓取的最后章节',
+  [IErrors.LAST3_MENUS_INDEX_EQ0]: '上一次抓取的最后3章index都是0',
   [IErrors.PAGE_LOST]: 'page缺失'
 }
 
@@ -39,13 +42,25 @@ export class SqlerrorsService {
       if (res.length) {
         return
       }
-    } else if (oError.type === IErrors.MENU_INSERT_FAILED) {
+    } else if (oError.type === IErrors.CANNOT_FIND_LAST_MENU) {
       const res = await this.getMenuFailedErrors(oError)
+      if (res.length) {
+        return
+      }
+    } else if (oError.type === IErrors.LAST3_MENUS_INDEX_EQ0) {
+      const res = await this.getLast3IndexEq0Errors(oError)
       if (res.length) {
         return
       }
     }
     return await this.sqlerrorsRepository.save(oError);
+  }
+
+  async getLast3IndexEq0Errors(oError: any): Promise<any[]> {
+    const { novelId } = oError
+    return await this.sqlerrorsRepository.find({
+      where: { novelId, type: IErrors.LAST3_MENUS_INDEX_EQ0 },
+    })
   }
 
   async getMenuInsertFailedErrors(oError: any): Promise<any[]> {
@@ -63,9 +78,9 @@ export class SqlerrorsService {
   }
 
   async getMenuFailedErrors(oError: any): Promise<any[]> {
-    const { novelId, info } = oError
+    const { novelId, menuId } = oError
     return await this.sqlerrorsRepository.find({
-      where: { novelId, info, type: IErrors.MENU_INSERT_FAILED },
+      where: { novelId, menuId, type: IErrors.CANNOT_FIND_LAST_MENU },
     })
   }
 
@@ -103,11 +118,11 @@ export class SqlerrorsService {
   }
 
   // 上一次抓取的最后的目录这次抓取不到了
-  async getLostLastMenus(): Promise<sqlerrors[]> {
+  async getErrorsByType(type: string): Promise<sqlerrors[]> {
     return await this.sqlerrorsRepository
       .createQueryBuilder()
       .select("*")
-      .where("`type` = :type", { type: IErrors.CANNOT_FIND_LAST_MENU })
+      .where("`type` = :type", { type })
       .execute()
   }
 

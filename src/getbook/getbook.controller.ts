@@ -325,7 +325,7 @@ export class GetBookController {
     if (lastMenus.length) {
       // 之前才抓取了不到 3章的全删掉吧，重新抓取
       if (lastMenus.length < 3) {
-        this.logger.log(`### 上次抓取到的目录不足3章，先全删了再重新抓取 ###`);
+        this.logger.log(`### 上次抓取到的目录不足3章，先全删了再重新抓取 ###`)
         await this.deleteMenusGtId('0', args.id)
       } else {
         const filterMenu = lastMenus.filter((item: any) => item.index > 0)
@@ -337,11 +337,19 @@ export class GetBookController {
             this.logger.log(`### 上次抓取到的目录最后一章 index == 0，先删了再重新抓取 ###`);
             await this.deleteMenusGtId(lastMenu.id, args.id)
           }
-        } else {  // @TODO: 最后三个 index 都为 0的没法继续抓取了，要么删掉书重新抓取整书，要么再写匹配的抓取组件
-          // @TODO: 这个记到 error 表里吧
+        } else {
           const text = `上次抓取的最后三章的index 都为0，没法定位到上次抓取位置。如果这是个巧合，删掉最后几章再抓取；如果不是巧合，可以考虑删除书再重新抓（要不就写匹配的抓取组件吧）`
           this.logger.end(`### ${text} ###`);
+          const lastMenu = lastMenus[0]
+          await this.sqlerrorsService.create({
+            menuId: lastMenu.id,
+            novelId: args.id,
+            menuIndex: lastMenu.index,
+            type: IErrors.LAST3_MENUS_INDEX_EQ0,
+            info: `上次抓取的最后三章的index 都为0，没法定位到上次抓取位置，最后目录名：${lastMenu.moriginalname}，index: ${lastMenu.index}, 目录list: ${args.from}`,
+          })
           if (this.justSpiderOne) {
+            await this.sqlspiderService.setFailedSpider(args.id, '上次抓取的最后三章的index 都为0，没法定位到上次抓取位置')
             return {
               '错误': `${text}`
             }
@@ -375,7 +383,8 @@ export class GetBookController {
     await this.sqltumorService.create({
       type: aHost.length > 2 ? ITumor.ARRAY_REPLACE : ITumor.JUST_REPLACE,
       text: aHost.length > 2 ? `${aHost[0]}, ${aHost[aHost.length - 1]} ` : host,
-      host: host
+      host: host,
+      useFix: false,
     })
     await this.insertMenuAndPages(args);
   }
@@ -503,7 +512,7 @@ export class GetBookController {
         return false
       }
 
-      const tumorList = await this.sqltumorService.findList(getHost(_url));
+      const tumorList = await this.sqltumorService.findList(false, getHost(_url));
       const contentList: string[] = await this.dealContent(list, tumorList)
       if (res && !menus.length) {
         res.lastPage = `第${index} 章: 【${moriginalname} 】 <br />${contentList[0]}`;

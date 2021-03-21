@@ -125,8 +125,8 @@ export class SqltumorService {
     })
   }
 
-  async findList(host: string): Promise<any[]> {
-    const where = host ? { where: { host } } : {}
+  async findList(useFix: boolean, host?: string): Promise<any[]> {
+    const where = host ? { where: { host, useFix } } : { where: { useFix } }
     return await this.sqltumorRepository.find({
       ...where,
       order: {

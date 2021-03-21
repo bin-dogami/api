@@ -17,4 +17,8 @@ export class sqltumor {
   @Index()
   @Column()
   host: string;
+
+  @Index()
+  @Column({ default: false })
+  useFix: boolean;
 }

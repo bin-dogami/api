@@ -20,6 +20,12 @@ export class SqlpagesService {
     return await this.sqlpagesRepository.findOne(id);
   }
 
+  async findAll(novelId: number): Promise<pages[]> {
+    return await this.sqlpagesRepository.find({
+      where: { novelId }
+    });
+  }
+
   async save(oPages) {
     await this.sqlpagesRepository.save(oPages)
   }

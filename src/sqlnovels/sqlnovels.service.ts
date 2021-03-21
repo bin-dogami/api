@@ -160,7 +160,7 @@ export class SqlnovelsService {
         isComplete: ['3', '4'].includes(order)
       },
       order: {
-        ctime: ['2', '4'].includes(order) ? 'ASC' : 'DESC'
+        id: ['2', '4'].includes(order) ? 'ASC' : 'DESC'
       },
       take: num || 100
     });
