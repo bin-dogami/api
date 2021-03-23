@@ -78,9 +78,9 @@ export class SqlerrorsService {
   }
 
   async getMenuFailedErrors(oError: any): Promise<any[]> {
-    const { novelId, menuId } = oError
+    const { menuId } = oError
     return await this.sqlerrorsRepository.find({
-      where: { novelId, menuId, type: IErrors.CANNOT_FIND_LAST_MENU },
+      where: { menuId, type: IErrors.CANNOT_FIND_LAST_MENU },
     })
   }
 
