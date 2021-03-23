@@ -44,9 +44,26 @@ export class FixdataController {
     private readonly sqltypesdetailService: SqltypesdetailService,
   ) { }
 
-  @Get('getLastBookList')
-  async getLastBookList(@Query('order') order: string): Promise<novels[]> {
-    return await this.sqlnovelsService.getLastBooks(order, 100)
+  @Get('getBookList')
+  async getBookList(@Query('skip') skip: string, @Query('size') size: string, @Query('desc') desc: string, @Query('complete') complete: string, @Query('completeSpider') completeSpider: string): Promise<[novels[], number]> {
+    const _skip = +skip
+    const _size = +size
+    const params: any = { where: {} }
+    if (+complete > 1) {
+      params.where.isComplete = complete === '2'
+    }
+
+    if (+completeSpider > 1) {
+      params.where.isSpiderComplete = completeSpider === '2'
+    }
+    return await this.sqlnovelsService.getBooksByParams({
+      ...params,
+      order: {
+        id: desc === '1' ? "DESC" : "ASC",
+      },
+      skip: _skip,
+      take: _size ? Math.min(100, _size) : 10,
+    })
   }
 
   // 模糊查询

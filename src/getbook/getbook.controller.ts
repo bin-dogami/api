@@ -30,6 +30,7 @@ export class GetBookController {
   justSpiderOne = false;
   // 重新抓取的次数限制
   reSpiderInfo = null;
+  tumorUseFixList = null;
 
   constructor(
     private readonly getBookService: GetBookService,
@@ -527,8 +528,20 @@ export class GetBookController {
       }
       let i = 0
       let nextId = mId
+
+      // @TODO: 先用修复的清理内容的文本简单地再次替换一下，之后再优化吧
+      if (this.tumorUseFixList === null) {
+        this.tumorUseFixList = await this.sqltumorService.findList(true);
+      }
+
       while (contentList.length) {
-        const content = contentList.shift()
+        let content = contentList.shift()
+
+        // @TODO: 先用修复的清理内容的文本简单地再次替换一下，之后再优化吧
+        Array.isArray(this.tumorUseFixList) && this.tumorUseFixList.forEach(({ text }: { text: string }) => {
+          content = content.replace(text, '')
+        })
+
         i++
         const page = i > 1 ? `第${i}页` : ''
         this.logger.log(`# 第${index} 章${page}开始插入page，此章节共 ${content.length} 个字 #`);

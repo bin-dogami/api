@@ -23,7 +23,8 @@ export class SqlnovelsService {
       select: ["id", "title", "author", "authorId", "description", "thumb"],
       where: { typeid },
       order: {
-        viewnum: "DESC"
+        // @TODO: 首页书 先以书 id 倒序吧
+        id: "DESC"
       },
       take: size || 6
     })
@@ -58,6 +59,7 @@ export class SqlnovelsService {
       select: ["id", "title", "author", "authorId", "description", "thumb"],
       ...where,
       order: {
+        id: "DESC",
         viewnum: "DESC"
       },
       skip,
@@ -70,6 +72,7 @@ export class SqlnovelsService {
       select: ["id", "title", "author", "authorId", "description", "thumb"],
       where: { isComplete: true },
       order: {
+        id: "DESC",
         viewnum: "DESC"
       },
       skip,
@@ -153,16 +156,9 @@ export class SqlnovelsService {
     return await this.sqlnovelsRepository.find();
   }
 
-  // {1: '未完降序', 2: '未完升序', 3: '完本降序', 4: '完本升序'}
-  async getLastBooks(order?: string, num?: number): Promise<novels[]> {
-    return await this.sqlnovelsRepository.find({
-      where: {
-        isComplete: ['3', '4'].includes(order)
-      },
-      order: {
-        id: ['2', '4'].includes(order) ? 'ASC' : 'DESC'
-      },
-      take: num || 100
+  async getBooksByParams(params: any): Promise<[novels[], number]> {
+    return await this.sqlnovelsRepository.findAndCount({
+      ...params
     });
   }
 }
