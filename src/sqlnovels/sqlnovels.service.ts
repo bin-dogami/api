@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, In } from 'typeorm';
+import { Repository, Like, In, LessThan } from 'typeorm';
 import { sqlnovels as novels } from './sqlnovels.entity';
 import { CreateSqlnovels } from "./create-sqlnovels.dto";
 import { getFirstNovelId } from '../utils/index'
@@ -154,6 +154,17 @@ export class SqlnovelsService {
 
   async getAllBooks(): Promise<novels[]> {
     return await this.sqlnovelsRepository.find();
+  }
+
+  async getBooksWhereLtId(id: number): Promise<[novels[], number]> {
+    return await this.getBooksByParams({
+      where: {
+        id: LessThan(id)
+      },
+      order: {
+        id: 'ASC'
+      }
+    })
   }
 
   async getBooksByParams(params: any): Promise<[novels[], number]> {

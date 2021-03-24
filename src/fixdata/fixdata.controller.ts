@@ -29,6 +29,7 @@ const isNumber = (num: any) => {
 @Controller('fixdata')
 export class FixdataController {
   private readonly logger = new Mylogger(FixdataController.name);
+  clearingAllBooksContents = false;
 
   constructor(
     private readonly fixdataService: FixdataService,
@@ -394,6 +395,38 @@ export class FixdataController {
       }
     }
     return ''
+  }
+
+  // @TODO: 一次性清理所有的书的章节内容，用完就注释掉吧
+  @Get('clearAllBooks')
+  async clearAllBooks(): Promise<string> {
+    if (this.clearingAllBooksContents) {
+      return '已经在替换了'
+    }
+    this.clearingAllBooksContents = true
+    const [books, count] = await this.sqlnovelsService.getBooksWhereLtId(43495)   // 43495
+    while (books.length) {
+      const { id, title } = books.shift()
+      const pages = await this.sqlpagesService.findAll(+id)
+      if (!pages || !pages.length) {
+        continue
+      }
+      console.log(`------------------------   ${id}(${title})正在开始清理所有章节内容，共${pages.length}章   -------------------------`)
+      const tumorList = await this.getTumorList('', '1')
+      while (pages.length) {
+        const page = pages.shift()
+        tumorList.forEach(({ text }) => {
+          page.content = page.content.replace(text, '')
+        })
+        try {
+          await this.sqlpagesService.save(page)
+        } catch (error) {
+          //
+        }
+      }
+    }
+    this.clearingAllBooksContents = false
+    return '没有id小于 43495 的书需要替换'
   }
 
   @Post('addTumor')

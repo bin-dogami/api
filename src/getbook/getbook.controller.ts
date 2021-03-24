@@ -365,7 +365,7 @@ export class GetBookController {
     const menus = await this.getMenus(args.from, args.mnum, lastMenu);
     // console.log(menus)
     if (!Array.isArray(menus)) {
-      const err = menus || ''
+      const err = menus ? menus.err : ''
       this.logger.end(`###[failed] 获取目录失败 ${err} ###`)
       lastMenu && await this.cannotFindLastMenu(lastMenu.id, args.id, lastMenu.index, args.from, lastMenu.moriginalname)
       if (this.justSpiderOne) {
