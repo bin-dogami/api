@@ -91,6 +91,16 @@ export class SqlnovelsService {
     })
   }
 
+  // 根据一段日期之间的列表
+  async getBooksByCreateDate(sDate: string, eDate: string): Promise<novels[]> {
+    return await this.sqlnovelsRepository
+      .createQueryBuilder("novels")
+      .select("id")
+      .where("ctime >= :sDate", { sDate })
+      .andWhere("ctime < :eDate", { eDate })
+      .execute()
+  }
+
   async findLastId(): Promise<number> {
     const novel = await this.sqlnovelsRepository.findOne({
       order: {

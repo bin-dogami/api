@@ -19,6 +19,10 @@ import { sqlnovels as novels } from '../sqlnovels/sqlnovels.entity';
 import { sqlauthors as authors } from '../sqlauthors/sqlauthors.entity';
 import { Mylogger } from '../mylogger/mylogger.service';
 
+// https://github.com/request/request#promises--asyncawait
+// https://github.com/request/request-promise
+var rp = require('request-promise');
+
 const isNumber = (num: any) => {
   if (typeof num === 'number') {
     return true
@@ -594,5 +598,51 @@ export class FixdataController {
       return '这本书一个有index 的目录都没有'
     }
     return abnormals.length ? abnormals : res
+  }
+
+  //  根据一段日期之间的目录id列表
+  @Get('getMenusByCreateDate')
+  async getMenusByCreateDate(@Query('sDate') sDate: string, @Query('eDate') eDate: string): Promise<number[]> {
+    const menus = await this.sqlmenusService.getMenusByCreateDate(sDate, eDate)
+    return Array.isArray(menus) ? menus.map(({ id }: { id: number }) => id) : []
+  }
+
+  // 根据一段日期之间的书id列表
+  @Get('getBooksByCreateDate')
+  async getBooksByCreateDate(@Query('sDate') sDate: string, @Query('eDate') eDate: string): Promise<number[]> {
+    const menus = await this.sqlnovelsService.getBooksByCreateDate(sDate, eDate)
+    return Array.isArray(menus) ? menus.map(({ id }: { id: number }) => id) : []
+  }
+
+  // 提交百度收录
+  @Post('curlBaiduSeo')
+  async curlBaiduSeo(@Body('links') links: string): Promise<any> {
+    if (links.length) {
+      // https://ziyuan.baidu.com/linksubmit/index?site=http://m.zjjdxr.com/
+      const res = await rp({
+        url: 'http://data.zz.baidu.com/urls?site=https://m.zjjdxr.com&token=pyoHHEdGLmensoRP',
+        method: "POST",
+        // json: true,
+        headers: {
+          "content-type": "text/plain",
+        },
+        body: links
+      })
+      if (!res) {
+        return '提交API接口返回值出错了'
+      }
+      // @TODO: 写入 log里记录一下提交记录吧
+      const { success, remain, not_valid, not_same_site, error, message } = JSON.parse(res)
+      let text = JSON.stringify(res)
+      if (success !== undefined) {
+        let more = not_valid ? `不合法的url: ${not_valid.join(', ')}` : ''
+        text = `提交收录成功，剩余收录数: ${remain}, ${more}`
+      } else if (error !== undefined) {
+        text = `提交收录失败(${error})，错误信息: ${message}`
+      }
+      console.log(text)
+      return text
+    }
+    return 'links 不能为空'
   }
 }

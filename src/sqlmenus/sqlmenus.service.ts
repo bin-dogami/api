@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Equal, LessThan, LessThanOrEqual, MoreThan, In } from 'typeorm';
+import { Repository, Equal, LessThan, LessThanOrEqual, MoreThan, In, Between } from 'typeorm';
 import { sqlmenus as menus } from './sqlmenus.entity';
 import { CreateSqlmenus } from "./create-sqlmenus.dto";
 import { getFirstMenuId, toClearTakeValue } from '../utils/index'
@@ -177,6 +177,19 @@ export class SqlmenusService {
     const prevMenus = await this.getPrevMenus(id, novelId, 25)
     const nextMenus = await this.getNextMenus(id, novelId, 25)
     return [...prevMenus, ...nextMenus]
+  }
+
+  // 根据一段日期之间的目录列表
+  async getMenusByCreateDate(sDate: string, eDate: string): Promise<menus[]> {
+    return await this.sqlmenusRepository
+      .createQueryBuilder("menus")
+      .select("id")
+      .where("ctime >= :sDate", { sDate })
+      .andWhere("ctime < :eDate", { eDate })
+      .orderBy("id", 'DESC')
+      .limit(4000)
+      .execute()
+    // .getSql()
   }
 
   async findOne(id: number): Promise<menus> {
