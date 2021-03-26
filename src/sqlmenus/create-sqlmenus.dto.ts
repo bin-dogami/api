@@ -5,6 +5,7 @@ export class CreateSqlmenus {
   moriginalname: string;
   index: number;
   from: string;
+  isOnline: boolean;
   ErrorType?: number;
   volume?: string;
 }

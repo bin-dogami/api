@@ -27,6 +27,11 @@ export class sqlmenus {
   @Column()
   novelId: number;
 
+  // 创建目录时设置为false, 先不上线，等确认没啥问题了再上;  同时，也是方便把这一批新抓取的目录提交百度收录（方便查询）
+  @Index()
+  @Column({ default: true })
+  isOnline: boolean;
+
   // 卷，有就有
   @Column({ length: 16, default: '' })
   volume: string;

@@ -21,28 +21,39 @@ export class SqlnovelsService {
   async getIndexBooksByType(typeid: number, size?: number): Promise<novels[]> {
     return await this.sqlnovelsRepository.find({
       select: ["id", "title", "author", "authorId", "description", "thumb"],
-      where: { typeid },
+      where: { typeid, isOnline: true },
       order: {
         // @TODO: 首页书 先以书 id 倒序吧
-        id: "DESC"
+        id: "DESC",
       },
       take: size || 6
     })
   }
 
-  async getBookByIds(novelIds: number[]): Promise<novels[]> {
+  async getBookByIds(novelIds: number[], getOnline?: number): Promise<novels[]> {
+    // getOnline 为0或不传时，不分上线不上线，为1时，只查上线的，为2时，只查不上线的
+    const online: any = {}
+    if (getOnline > 0) {
+      online.isOnline = getOnline === 1
+    }
     return await this.sqlnovelsRepository.find({
       select: ["id", "title", "author", "authorId", "description", "thumb"],
-      where: { id: In(novelIds) },
+      where: { id: In(novelIds), ...online },
     })
   }
 
   // 搜索
-  async getBookByTitleWithLike(name: string): Promise<novels[]> {
+  async getBookByTitleWithLike(name: string, getOnline?: number): Promise<novels[]> {
+    // getOnline 为0或不传时，不分上线不上线，为1时，只查上线的，为2时，只查不上线的
+    const online: any = {}
+    if (getOnline > 0) {
+      online.isOnline = getOnline === 1
+    }
     return await this.sqlnovelsRepository.find({
       select: ["id", "title", "author", "authorId", 'description', 'thumb'],
       where: {
-        title: Like(`%${name}%`)
+        title: Like(`%${name}%`),
+        ...online
       },
       order: {
         viewnum: "DESC"
@@ -52,12 +63,13 @@ export class SqlnovelsService {
   }
 
   async getBooksByType(typeid: number, skip: number, size?: number): Promise<novels[]> {
-    const where = typeid === 0 ? {} : {
-      where: { typeid }
-    }
+    const w1 = typeid === 0 ? {} : { typeid }
     return await this.sqlnovelsRepository.find({
       select: ["id", "title", "author", "authorId", "description", "thumb"],
-      ...where,
+      where: {
+        isOnline: true,
+        ...w1
+      },
       order: {
         id: "DESC",
         viewnum: "DESC"
@@ -70,7 +82,7 @@ export class SqlnovelsService {
   async getBooksByCompleted(skip: number, size?: number): Promise<novels[]> {
     return await this.sqlnovelsRepository.find({
       select: ["id", "title", "author", "authorId", "description", "thumb"],
-      where: { isComplete: true },
+      where: { isComplete: true, isOnline: true },
       order: {
         id: "DESC",
         viewnum: "DESC"
@@ -80,7 +92,7 @@ export class SqlnovelsService {
     })
   }
 
-  // 获取所有需要再次抓取的书（非全本并抓完的书）
+  // @TODO: 后台里处理一下这种情况， 获取所有需要再次抓取的书（非全本并抓完的书）
   async getUnCompleteSpiderNovels(): Promise<novels[]> {
     return await this.sqlnovelsRepository.find({
       select: ["id"],
@@ -91,13 +103,19 @@ export class SqlnovelsService {
     })
   }
 
-  // 根据一段日期之间的列表
+  // 获取一段日期之间的列表
   async getBooksByCreateDate(sDate: string, eDate: string): Promise<novels[]> {
     return await this.sqlnovelsRepository
       .createQueryBuilder("novels")
       .select("id")
+      .addSelect("title")
+      .addSelect("updatetime")
+      .addSelect("isOnline")
+      .addSelect("menusLen")
+      .addSelect("isComplete")
       .where("ctime >= :sDate", { sDate })
       .andWhere("ctime < :eDate", { eDate })
+      .orderBy("id", 'DESC')
       .execute()
   }
 
@@ -181,5 +199,23 @@ export class SqlnovelsService {
     return await this.sqlnovelsRepository.findAndCount({
       ...params
     });
+  }
+
+  // 批量设置书本线上可访问
+  async batchSetBooksOnline(ids: number[]): Promise<any> {
+    return await this.sqlnovelsRepository.createQueryBuilder()
+      .update()
+      .set({ isOnline: true })
+      .where("id IN (:...ids)", { ids })
+      .execute()
+  }
+
+  // 设置所有未上线的书本上线
+  async setAllBooksOnline(): Promise<any> {
+    return await this.sqlnovelsRepository.createQueryBuilder()
+      .update()
+      .set({ isOnline: true })
+      .where("isOnline = :online", { online: false })
+      .execute()
   }
 }

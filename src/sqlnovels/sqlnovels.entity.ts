@@ -51,6 +51,11 @@ export class sqlnovels {
   @Column({ default: 0 })
   menusLen: number;
 
+  // 创建一本书时，初始化是false, 先不上线，等抓完了且确定没啥问题了再上;  同时，也是方便把这一批新抓取的书提交百度收录（方便查询）
+  @Index()
+  @Column({ default: true })
+  isOnline: boolean;
+
   // 是否全本，即写完了
   @Index()
   @Column({ default: false })

@@ -195,6 +195,8 @@ export class GetBookController {
       from: [from],
       tags: [],
       thumb: newThumbPath.replace(ImagePath, ''),
+      // 新添加的书先不上，等确定没问题了再上（顺便也提交百度收录）
+      isOnline: false
     }
     // 写入书信息
     this.logger.log(`# 开始写入书信息 #`);
@@ -416,7 +418,7 @@ export class GetBookController {
       failedIndex: [],
       lastPage: '获取或插入page失败'
     }
-    let currentMenuId = await this.sqlmenusService.findLastIdByNovelId(id)
+    let currentMenuId = await this.sqlmenusService.findLastMenuId()
     let menusInsertFailedInfo = ''
     let hasInsertedNum = 0
     while (menus.length) {
@@ -451,6 +453,8 @@ export class GetBookController {
           // @TODO: 建一个后台页面专门手动查看处理问题吧
           ErrorType,
           from: _url,
+          // 新创建的目录先不上，等确定没问题了再上（顺便也提交百度收录）
+          isOnline: false
         });
         this.logger.log(`# 插入目录成功 # 目录名：【${moriginalname} 】 是第${index} 章；id: ${menuInfo.id} `)
       } catch (err) {

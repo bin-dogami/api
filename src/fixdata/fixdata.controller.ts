@@ -530,7 +530,7 @@ export class FixdataController {
 
   @Get('getMenuList')
   async getMenuList(@Query('id') id: string, @Query('skip') skip: string, @Query('size') size: string, @Query('desc') desc: string): Promise<any[]> {
-    return await this.sqlmenusService.getMenusByBookId(+id, +skip, +size, Boolean(+desc), true)
+    return await this.sqlmenusService.getMenusByBookId(+id, +skip, +size, Boolean(+desc), true, 0)
   }
 
   // 更改抓取状态
@@ -544,7 +544,7 @@ export class FixdataController {
         return `目录index 必须大于0`
       } else {
         let index = menu.index
-        const menuList = await this.sqlmenusService.getNextMenus(+mId, +nId, toClearTakeValue, true)
+        const menuList = await this.sqlmenusService.getNextMenus(+mId, +nId, toClearTakeValue, true, 0)
         while (menuList.length) {
           const menu = menuList.shift()
           if (menu.index <= 0) {
@@ -602,21 +602,26 @@ export class FixdataController {
 
   //  根据一段日期之间的目录id列表
   @Get('getMenusByCreateDate')
-  async getMenusByCreateDate(@Query('sDate') sDate: string, @Query('eDate') eDate: string): Promise<number[]> {
-    const menus = await this.sqlmenusService.getMenusByCreateDate(sDate, eDate)
-    return Array.isArray(menus) ? menus.map(({ id }: { id: number }) => id) : []
+  async getMenusByCreateDate(@Query('sDate') sDate: string, @Query('eDate') eDate: string): Promise<any[]> {
+    return await this.sqlmenusService.getMenusByCreateDate(sDate, eDate)
   }
 
   // 根据一段日期之间的书id列表
   @Get('getBooksByCreateDate')
-  async getBooksByCreateDate(@Query('sDate') sDate: string, @Query('eDate') eDate: string): Promise<number[]> {
-    const menus = await this.sqlnovelsService.getBooksByCreateDate(sDate, eDate)
-    return Array.isArray(menus) ? menus.map(({ id }: { id: number }) => id) : []
+  async getBooksByCreateDate(@Query('sDate') sDate: string, @Query('eDate') eDate: string): Promise<novels[]> {
+    return await this.sqlnovelsService.getBooksByCreateDate(sDate, eDate)
   }
 
   // 提交百度收录
   @Post('curlBaiduSeo')
-  async curlBaiduSeo(@Body('links') links: string): Promise<any> {
+  async curlBaiduSeo(@Body('links') links: string, @Body('dev') dev: string): Promise<any> {
+    if (+dev) {
+      return {
+        success: true,
+        msg: '测试成功(开发环境不能提交，因为数据是不对的)'
+      }
+    }
+
     if (links.length) {
       // https://ziyuan.baidu.com/linksubmit/index?site=http://m.zjjdxr.com/
       const res = await rp({
@@ -629,7 +634,10 @@ export class FixdataController {
         body: links
       })
       if (!res) {
-        return '提交API接口返回值出错了'
+        return {
+          success: false,
+          msg: '提交API接口返回值出错了'
+        }
       }
       // @TODO: 写入 log里记录一下提交记录吧
       const { success, remain, not_valid, not_same_site, error, message } = JSON.parse(res)
@@ -640,9 +648,41 @@ export class FixdataController {
       } else if (error !== undefined) {
         text = `提交收录失败(${error})，错误信息: ${message}`
       }
-      console.log(text)
-      return text
+      return {
+        success: !!success,
+        msg: text
+      }
     }
-    return 'links 不能为空'
+    return {
+      success: false,
+      msg: 'links 不能为空'
+    }
+  }
+
+  //  根据一段日期之间的目录id列表
+  @Get('getLastTakeMenusByNovels')
+  async getLastTakeMenusByNovels(@Query('ids') ids: number[], @Query('take') take?: string): Promise<number[]> {
+    let menus = []
+    while (ids.length) {
+      const id = ids.shift()
+      if (!+id) {
+        continue
+      }
+      const lastMenus = await this.sqlmenusService.findLastMenusByNovelId(+id, +take || 50)
+      Array.isArray(lastMenus) && (menus = [...menus, ...lastMenus.map(({ id }: { id: number }) => id)])
+    }
+    return menus
+  }
+
+  // 设置所有未上线的目录上线
+  @Post('setAllMnusOnline')
+  async setAllMnusOnline(): Promise<any> {
+    return await this.sqlmenusService.setAllMenusOnline()
+  }
+
+  // 设置所有未上线的书本上线
+  @Post('setAllBooksOnline')
+  async setAllBooksOnline(): Promise<any> {
+    return await this.sqlnovelsService.setAllBooksOnline()
   }
 }

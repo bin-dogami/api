@@ -68,7 +68,7 @@ export class ScanController {
   // 模糊查询
   @Get('getBookByName')
   async getBookByName(@Query('name') name: string): Promise<novels[]> {
-    return await this.sqlnovelsService.getBookByTitleWithLike(name)
+    return await this.sqlnovelsService.getBookByTitleWithLike(name, 1)
   }
 
   // 分类页
@@ -160,16 +160,17 @@ export class ScanController {
   // skip： 从第几个开始，不是从第几页开始
   @Get('getMenusByBookId')
   async getMenusByBookId(@Query('id') id: number, @Query('skip') skip: number, @Query('size') size?: number, @Query('desc') desc?: string | number): Promise<[menus[], number]> {
-    return await this.sqlmenusService.getMenusByBookId(+id, +skip, +size, Boolean(+desc));
+    return await this.sqlmenusService.getMenusByBookId(+id, +skip, +size, Boolean(+desc), false, 1);
   }
 
   // 获取当前目录前面的目录或者后面的目录
   @Get('getPrevNextMenus')
   async getPrevNextMenus(@Query('id') id: number, @Query('novelId') novelId: number, @Query('isPrev') isPrev?: string | number): Promise<menus[]> {
     if (+isPrev) {
-      return await this.sqlmenusService.getPrevMenus(+id, +novelId, 50, true);
+      // getPrevMenus 和 getNextMenus 的第四个参数还不一样
+      return await this.sqlmenusService.getPrevMenus(+id, +novelId, 50, false);
     } else {
-      return await this.sqlmenusService.getNextMenus(+id, +novelId);
+      return await this.sqlmenusService.getNextMenus(+id, +novelId, 50, false, 1);
     }
   }
 
@@ -247,7 +248,7 @@ export class ScanController {
     if (id) {
       author = await this.sqlauthorsService.findOne(+id)
       if (author) {
-        novelsList = await this.sqlnovelsService.getBookByIds(author.novelIds)
+        novelsList = await this.sqlnovelsService.getBookByIds(author.novelIds, 1)
       }
     }
     const authorsList = await this.sqlauthorsService.getAuthors(0, 20)

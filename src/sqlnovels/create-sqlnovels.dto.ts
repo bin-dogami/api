@@ -10,6 +10,7 @@ export class CreateSqlnovels {
   thumb: string;
   tags: number[];
   from: string[];
+  isOnline: boolean;
   viewnum?: number;
   // volumeLen?: number;
   menusLen?: number;
