@@ -659,7 +659,7 @@ export class FixdataController {
     }
   }
 
-  //  根据一段日期之间的目录id列表
+  //  获取某些书的最后 take 章目录
   @Get('getLastTakeMenusByNovels')
   async getLastTakeMenusByNovels(@Query('ids') ids: number[], @Query('take') take?: string): Promise<number[]> {
     let menus = []
