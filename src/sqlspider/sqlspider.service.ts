@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan } from 'typeorm';
+import { Repository, MoreThan, In } from 'typeorm';
 import { sqlspider } from './sqlspider.entity';
 import { CreateSqlspider } from "./create-sqlspider.dto";
 
@@ -29,10 +29,11 @@ export class SqlspiderService {
     private readonly sqlspiderRepository: Repository<sqlspider>,
   ) { }
 
-  async create(id: number, status?: number): Promise<sqlspider | string> {
+  async create(id: number, status?: number, allIndexEq0?: boolean): Promise<sqlspider | string> {
     const oSpider = this.sqlspiderRepository.create({
       id,
       status: status === undefined ? ISpiderStatus.UNSPIDER : status,
+      allIndexEq0,
       text: ''
     });
     const one = await this.getById(oSpider.id)
@@ -141,5 +142,11 @@ export class SqlspiderService {
 
   async getAll(): Promise<sqlspider[]> {
     return await this.sqlspiderRepository.find();
+  }
+
+  async getSpidersByIds(ids: number[]): Promise<sqlspider[]> {
+    return await this.sqlspiderRepository.find({
+      where: { id: In(ids) },
+    })
   }
 }

@@ -115,7 +115,7 @@ export class SqlnovelsService {
       .addSelect("isComplete")
       .where("ctime >= :sDate", { sDate })
       .andWhere("ctime < :eDate", { eDate })
-      .orderBy("ctime", 'DESC')
+      .orderBy("id", 'DESC')
       .execute()
   }
 

@@ -132,14 +132,14 @@ export class GetBookController {
           await this.sqlspiderService.update(spider)
         }
       } else {
-        await this.sqlspiderService.create(novel.id, ISpiderStatus.SPIDERING)
+        await this.sqlspiderService.create(novel.id, ISpiderStatus.SPIDERING, false)
       }
 
       // 查询目录
       const count = await this.sqlmenusService.findCountByNovelId(novel['id']);
 
       const { id, title, description, author } = novel;
-      this.insertMenus({ ...novel, ...{ from: url }, ...{ filePath }, ...{ mnum: _mnum } });
+      this.insertMenus({ ...novel, ...{ from: url }, ...{ filePath }, ...{ mnum: _mnum }, ...{ isAllIndexEq0: spider && spider.allIndexEq0 === true } });
       this.logger.end(`### 【end】本书不是第一次抓取 ### id: ${id}； \n\n `);
       return { '本书不是第一次抓取': '', '已抓取章数': count, id, title, description, author };
     }
@@ -204,7 +204,8 @@ export class GetBookController {
     try {
       _novel = await this.sqlnovelsService.create(newNovel);
       if (_novel) {
-        await this.sqlspiderService.create(_novel.id, ISpiderStatus.SPIDERING)
+        const isAllEq0 = await this.detectNovelMenusIndexIsAllEq0(_novel.id)
+        await this.sqlspiderService.create(_novel.id, ISpiderStatus.SPIDERING, isAllEq0)
         recommend && await this.setRecommend(_novel)
       }
     } catch (err) {
@@ -228,6 +229,21 @@ export class GetBookController {
     return _novel
   }
 
+  async detectNovelMenusIndexIsAllEq0(id: number): Promise<boolean> {
+    const [menus, count] = await this.sqlmenusService.getMenusByBookId(id, 1, 5, false)
+    if (count <= 0) {
+      return false
+    }
+
+    let isAllEq0 = true
+    menus.forEach(({ index }) => {
+      if (index > 0) {
+        isAllEq0 = false
+      }
+    })
+    return isAllEq0
+  }
+
   // 更改抓取中的书状态为已抓取完
   @Post('setCurrentSpideringStop')
   async setCurrentSpideringStop() {
@@ -248,11 +264,19 @@ export class GetBookController {
       return text
     }
 
-    const firstSpiderNovelId = await this.sqlspiderService.getNextUnspider(id)
-    const novel = await this.sqlnovelsService.findById(firstSpiderNovelId, true)
+    const nextSpiderNovelId = await this.sqlspiderService.getNextUnspider(id)
+    const novel = await this.sqlnovelsService.findById(nextSpiderNovelId, true)
     if (!novel || !Array.isArray(novel.from) || !novel.from.length) {
-      this.logger.end(`### 【end】找不到要抓取的书，id: ${firstSpiderNovelId} ### \n`);
-      return `找不到要抓取的书，id: ${firstSpiderNovelId}`
+      // 如果有 nextSpiderNovelId，说明这条 spider 数据有问题，需要删除并抓取下一个
+      if (nextSpiderNovelId > 0) {
+        this.logger.log(`### 找不到要抓取的书，id: ${nextSpiderNovelId}，这条数据spider数据有问题，准备删除 ### \n`);
+        await this.sqlspiderService.remove(nextSpiderNovelId)
+        this.logger.log(`### 开始抓取下一本书 ### \n`);
+        await this.spiderNext(nextSpiderNovelId)
+        return `找不到要抓取的书，id: ${nextSpiderNovelId}`
+      }
+      this.logger.end(`### 【end】找不到要抓取的书，抓取结束了，id: ${nextSpiderNovelId} ### \n`);
+      return `找不到要抓取的书，抓取结束了，id: ${nextSpiderNovelId}`
     }
 
     // 更新抓取状态为抓取中
@@ -261,7 +285,8 @@ export class GetBookController {
       spider.status = ISpiderStatus.SPIDERING
       await this.sqlspiderService.update(spider)
     } else {
-      await this.sqlspiderService.create(id, ISpiderStatus.SPIDERING)
+      const isAllEq0 = await this.detectNovelMenusIndexIsAllEq0(id)
+      await this.sqlspiderService.create(id, ISpiderStatus.SPIDERING, isAllEq0)
     }
 
     // 抓书开始
@@ -273,7 +298,7 @@ export class GetBookController {
     });
 
     this.insertMenus({ ...novel, ...{ from }, ...{ filePath }, ...{ mnum: 0 } });
-    return `开始抓取${id ? '下' : '第'}一本书：${title}，作者: ${author}，来源: ${from}，id: ${firstSpiderNovelId}`
+    return `开始抓取${id ? '下' : '第'}一本书：${title}，作者: ${author}，来源: ${from}，id: ${nextSpiderNovelId}`
   }
 
   // 检查有哪本书在抓取中
@@ -295,9 +320,9 @@ export class GetBookController {
     if (SpideringNovels.length) {
       return `有${SpideringNovels.length}本书正在抓取中：(#${SpideringNovels[0].id}#)${SpideringNovels.map(({ id }) => id).join(', ')}`
     }
-    const firstSpiderNovelId = await this.sqlspiderService.getNextUnspider(0)
+    const nextSpiderNovelId = await this.sqlspiderService.getNextUnspider(0)
     // 有待抓取的先把待抓取的抓完，没有了再一个一个抓取
-    if (firstSpiderNovelId) {
+    if (nextSpiderNovelId) {
       return await this.spiderNext(0)
     }
     // 先把已抓取完的统一改为待抓取状态再一个一个抓取
@@ -311,37 +336,48 @@ export class GetBookController {
 
   // 抓取并插入目录
   async insertMenus(args: any) {
-    if (args.isSpiderComplete) {
-      // @TODO: 再跑一两遍数据，这个最好注释了吧，不需要再这删掉 spider 数据(上次因为误掉了所有目录数据所以全本的也要再跑一遍数据)
-      await this.sqlspiderService.remove(args.id)
-      this.logger.end(`### 【end】本书已经全部抓完了 ### id: ${args.id}； \n\n `)
-      if (this.justSpiderOne) {
-        return {
-          '错误': `本书已经全部抓完了`
-        }
-      }
-      return await this.setSpiderComplete(args.id)
-    }
+    // if (args.isSpiderComplete) {
+    //   // @TODO: 再跑一两遍数据，这个最好注释了吧，不需要再这删掉 spider 数据(上次因为误掉了所有目录数据所以全本的也要再跑一遍数据)
+    //   await this.sqlspiderService.remove(args.id)
+    //   this.logger.end(`### 【end】本书已经全部抓完了 ### id: ${args.id}； \n\n `)
+    //   if (this.justSpiderOne) {
+    //     return {
+    //       '错误': `本书已经全部抓完了`
+    //     }
+    //   }
+    //   return await this.setSpiderComplete(args.id)
+    // }
 
+    // 倒序获取最后3章
     let lastMenus: any = await this.sqlmenusService.findLastMenusByNovelId(args.id, 3)
     let lastMenu = null
+    let noNeedInsertMenus = []
     if (lastMenus.length) {
       // 之前才抓取了不到 3章的全删掉吧，重新抓取
       if (lastMenus.length < 3) {
         this.logger.log(`### 上次抓取到的目录不足3章，先全删了再重新抓取 ###`)
         await this.deleteMenusGtId('0', args.id)
       } else {
-        const filterMenu = lastMenus.filter((item: any) => item.index > 0)
-        if (filterMenu.length) {
-          lastMenu = filterMenu[0]
+        // const filterMenu = lastMenus.filter()
+        noNeedInsertMenus = lastMenus.map((item: any) => {
+          if (lastMenu) {
+            return null
+          }
+          if (item.index > 0) {
+            lastMenu = item
+            return null
+          }
+          return item
+        }).filter((item) => !!item)
+        if (lastMenu) {
           // console.log(lastMenu);
           // 最后面的 index === 0 的全删掉再重新抓取，因为 index 为0的可能目录里会重复好几个，比如 ’今天请个假’ 这样的没法获取到具体是哪一个
-          if (lastMenus[0].index <= 0) {
-            this.logger.log(`### 上次抓取到的目录最后一章 index == 0，先删了再重新抓取 ###`);
-            await this.deleteMenusGtId(lastMenu.id, args.id)
-          }
+          // if (lastMenus[0].index <= 0) {
+          //   this.logger.log(`### 上次抓取到的目录最后一章 index == 0，先删了再重新抓取 ###`);
+          //   await this.deleteMenusGtId(lastMenu.id, args.id)
+          // }
         } else {
-          const text = `上次抓取的最后三章的index 都为0，没法定位到上次抓取位置。如果这是个巧合，删掉最后几章再抓取；如果不是巧合，可以考虑删除书再重新抓（要不就写匹配的抓取组件吧）`
+          const text = `(${args.isAllIndexEq0 ? '此书所有index都是0' : '此书index并不都是0'}) 上次抓取的最后三章的index 都为0，没法定位到上次抓取位置。如果这是个巧合，删掉最后几章再抓取；如果不是巧合，可以考虑删除书再重新抓（要不就写匹配的抓取组件吧）`
           this.logger.end(`### ${text} ###`);
           const lastMenu = lastMenus[0]
           await this.sqlerrorsService.create({
@@ -349,10 +385,10 @@ export class GetBookController {
             novelId: args.id,
             menuIndex: lastMenu.index,
             type: IErrors.LAST3_MENUS_INDEX_EQ0,
-            info: `上次抓取的最后三章的index 都为0，没法定位到上次抓取位置，最后目录名：${lastMenu.moriginalname}，index: ${lastMenu.index}, 目录list: ${args.from}`,
+            info: `(${args.isAllIndexEq0 ? '此书所有index都是0' : '此书index并不都是0'}) 上次抓取的最后三章的index 都为0，没法定位到上次抓取位置，最后目录名：${lastMenu.moriginalname}，index: ${lastMenu.index}, 目录list: ${args.from}`,
           })
           if (this.justSpiderOne) {
-            await this.sqlspiderService.setFailedSpider(args.id, '上次抓取的最后三章的index 都为0，没法定位到上次抓取位置')
+            await this.sqlspiderService.setFailedSpider(args.id, `上次抓取的最后三章的index 都为0，没法定位到上次抓取位置 (${args.isAllIndexEq0 ? '此书所有index都是0' : '此书index并不都是0'})`)
             return {
               '错误': `${text}`
             }
@@ -362,7 +398,7 @@ export class GetBookController {
       }
     }
 
-    const text = lastMenu ? `上一次抓取的最后的目录id为${lastMenu.id}；index为${lastMenu.index}；moriginalname为${lastMenu.moriginalname}` : '本书从第一章开始抓取'
+    const text = lastMenu ? `上一次抓取的最后的目录id为${lastMenus[0].id}；index为${lastMenus[0].index}；moriginalname为${lastMenus[0].moriginalname}；` : '本书从第一章开始抓取'
     this.logger.log(`### ${text} ###`);
     const menus = await this.getMenus(args.from, args.mnum, lastMenu);
     // console.log(menus)
@@ -389,7 +425,7 @@ export class GetBookController {
       host: host,
       useFix: false,
     })
-    await this.insertMenuAndPages(args);
+    await this.insertMenuAndPages(args, noNeedInsertMenus.reverse());
   }
 
   async cannotFindLastMenu(menuId, novelId, index, from, moriginalname) {
@@ -403,8 +439,7 @@ export class GetBookController {
   }
 
   // 一次性插入多个目录及对应的章节内容
-  @Post('insertMenuAndPages')
-  async insertMenuAndPages(@Body() args: any) {
+  async insertMenuAndPages(args: any, noNeedInsertMenus: any[]) {
     const { id, title, menus, from, filePath, mnum } = args;
     const host = getHostFromUrl(from);
     this.logger.start(` ### 【start】开始插入目录及page ###`, filePath);
@@ -423,7 +458,15 @@ export class GetBookController {
     let hasInsertedNum = 0
     while (menus.length) {
       const currentMenuInfo = menus.shift();
+      // moriginalname === title
       const { url, index, title, mname, moriginalname } = currentMenuInfo
+      // 上次抓取的最后一（或二）章index 都=0的不再抓取
+      if (noNeedInsertMenus.length) {
+        const _menu = noNeedInsertMenus.shift()
+        if (_menu.moriginalname === moriginalname) {
+          continue;
+        }
+      }
       // 每抓取5次内容检查一下是否在抓取状态，如果被取消了抓取就中止
       if (hasInsertedNum > 5) {
         if (await this.sqlspiderService.isSpidering(id)) {
@@ -674,9 +717,19 @@ export class GetBookController {
     }
     // 通过主页设置的只抓取5个的方式抓取的，设置spider状态回0，以便之后再集体重新抓取
     if (justSpider5Page) {
+      const isAllEq0 = await this.detectNovelMenusIndexIsAllEq0(id)
       const spider = await this.sqlspiderService.getById(id)
       spider.status = ISpiderStatus.UNSPIDER
+      spider.allIndexEq0 = isAllEq0
       await this.sqlspiderService.update(spider)
+      // 如果只抓了5个目录且 index 都是 0 那就把前5个目录都删掉，不然下一次抓取还得去对比 index，麻烦，还不如先都删掉了
+      if (isAllEq0) {
+        const count = await this.sqlmenusService.findCountByNovelId(id)
+        if (count === 5) {
+          await this.sqlmenusService.removeByNovelId(id)
+          await this.sqlpagesService.removeByNovelId(id)
+        }
+      }
     } else {
       // 设置抓取完成并进行下一个的抓取
       await this.sqlspiderService.completeSpider(id)

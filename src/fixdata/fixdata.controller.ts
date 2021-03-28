@@ -61,7 +61,7 @@ export class FixdataController {
     if (+completeSpider > 1) {
       params.where.isSpiderComplete = completeSpider === '2'
     }
-    return await this.sqlnovelsService.getBooksByParams({
+    const [novels, count] = await this.sqlnovelsService.getBooksByParams({
       ...params,
       order: {
         id: desc === '1' ? "DESC" : "ASC",
@@ -69,6 +69,23 @@ export class FixdataController {
       skip: _skip,
       take: _size ? Math.min(100, _size) : 10,
     })
+    const ids = novels.map(({ id }) => id)
+    const spiders = await this.sqlspiderService.getSpidersByIds(ids)
+    const oSpiders = {}
+    spiders.forEach((item) => {
+      oSpiders[item.id] = item
+    })
+    novels.forEach((item: any) => {
+      if (item.id in oSpiders) {
+        const _item = oSpiders[item.id]
+        item.allIndexEq0 = _item.allIndexEq0 ? '是' : '否'
+        item.spiderStatus = SpiderStatus[_item.status]
+      } else if (item.isSpiderComplete) {
+        item.spiderStatus = '全抓了'
+        item.allIndexEq0 = '不晓得'
+      }
+    })
+    return [novels, count]
   }
 
   // 模糊查询
@@ -150,16 +167,16 @@ export class FixdataController {
       res += text
       this.logger.log(`# ${text} #`)
 
+      // 删除 spider 表
+      await this.deleteSpiderData(_id)
+      text = `删除spider表里数据，`
+      res += text
+      this.logger.log(`# ${text} #`)
+
       // 删除 menus 表
       await this.sqlmenusService.removeByNovelId(_id)
       await this.sqlpagesService.removeByNovelId(_id)
       text = `删除menus和pages表里数据，`
-      res += text
-      this.logger.log(`# ${text} #`)
-
-      // 删除 spider 表
-      await this.deleteSpiderData(_id)
-      text = `删除spider表里数据，`
       res += text
       this.logger.end(`### 【end】删除书本信息完成 ${text} ### \n\n\n`);
 
@@ -684,5 +701,43 @@ export class FixdataController {
   @Post('setAllBooksOnline')
   async setAllBooksOnline(): Promise<any> {
     return await this.sqlnovelsService.setAllBooksOnline()
+  }
+
+  async detectNovelMenusIndexIsAllEq0(id: number): Promise<boolean> {
+    const [menus, count] = await this.sqlmenusService.getMenusByBookId(id, 1, 5, false)
+    if (count <= 0) {
+      return false
+    }
+
+    let isAllEq0 = true
+    menus.forEach(({ index }) => {
+      if (index > 0) {
+        isAllEq0 = false
+      }
+    })
+    return isAllEq0
+  }
+
+  // 用完了记得注释掉
+  @Get('findAllBooksIndexEq0')
+  async findAllBooksIndexEq0(): Promise<any> {
+    const novels = await this.sqlnovelsService.getAllBooks()
+    console.log(`*** 开始找出所有index=0的书了，共${novels.length}本书 ***`)
+    while (novels.length) {
+      const { id, title, isSpiderComplete } = novels.shift()
+      const isAllEq0 = await this.detectNovelMenusIndexIsAllEq0(id)
+      if (isAllEq0) {
+        const spider = await this.sqlspiderService.getById(id)
+        if (spider) {
+          console.log(`*** ${title}（${id}）前5章 index 都是0 ***`)
+          spider.allIndexEq0 = isAllEq0
+          await this.sqlspiderService.update(spider)
+        } else {
+          console.log(`*** ${title}（${id}）前5章 index 都是0，isSpiderComplete 为 ${isSpiderComplete} ***`)
+        }
+      }
+    }
+    console.log('*** 找完了 ***')
+    return ''
   }
 }

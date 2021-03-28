@@ -12,6 +12,11 @@ export class sqlspider {
   @Column()
   status: number;
 
+  // 书所有的 index 都为 0 的
+  @Index()
+  @Column({ default: false })
+  allIndexEq0: boolean;
+
   // 状态为 3 时，text 里写入数据
   @Column()
   text: string;
