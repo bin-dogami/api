@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Equal, LessThan, LessThanOrEqual, MoreThan, In, Between } from 'typeorm';
+import { Repository, Equal, LessThan, LessThanOrEqual, MoreThan, In, Not } from 'typeorm';
 import { sqlmenus as menus } from './sqlmenus.entity';
 import { CreateSqlmenus } from "./create-sqlmenus.dto";
 import { getFirstMenuId, toClearTakeValue } from '../utils/index'
@@ -152,8 +152,11 @@ export class SqlmenusService {
     return [...prevMenus, ...nextMenus]
   }
 
-  // 根据一段日期之间的目录列表
-  async getMenusByCreateDate(sDate: string, eDate: string): Promise<menus[]> {
+  // 根据一段日期之间的目录列表，online: {1: 全部, 2: 未上线, 3: 已上线}
+  async getMenusByCreateDate(sDate: string, eDate: string, online: number, nIds: number[]): Promise<any> {
+    const isOnline: boolean | boolean[] = online === 1 ? [true, false] : (online === 2 ? false : true)
+    const onlineWhere = Array.isArray(isOnline) ? "IN (:...isOnline)" : "= :isOnline"
+
     return await this.sqlmenusRepository
       .createQueryBuilder("menus")
       .select("id")
@@ -164,6 +167,9 @@ export class SqlmenusService {
       .addSelect("moriginalname")
       .where("ctime >= :sDate", { sDate })
       .andWhere("ctime < :eDate", { eDate })
+      .andWhere(`isOnline ${onlineWhere}`, { isOnline })
+      // 不包含未上线的书目录
+      .andWhere("novelId Not IN (:...nIds)", { nIds })
       // @TODO: index全为0 的加个标识吧
       // .andWhere("index > :index", { index: 0 })
       .orderBy("id", 'DESC')
@@ -217,13 +223,13 @@ export class SqlmenusService {
   }
 
   // 批量设置目录上线且可访问
-  // async batchSetMenusOnline(ids: number[]): Promise<any> {
-  //   return await this.sqlmenusRepository.createQueryBuilder()
-  //     .update()
-  //     .set({ isOnline: true })
-  //     .where("id IN (:...ids)", { ids })
-  //     .execute()
-  // }
+  async batchSetMenusOnline(ids: number[]): Promise<any> {
+    return await this.sqlmenusRepository.createQueryBuilder()
+      .update()
+      .set({ isOnline: true })
+      .where("id IN (:...ids)", { ids })
+      .execute()
+  }
 
   // 设置所有未上线的目录上线
   async setAllMenusOnline(): Promise<any> {
@@ -234,12 +240,13 @@ export class SqlmenusService {
       .execute()
   }
 
-  // async batchSetMenusOnlineByNovel(novelId: number): Promise<any> {
-  //   return await this.sqlmenusRepository.createQueryBuilder()
-  //     .update()
-  //     .set({ isOnline: true })
-  //     .where("novelId = :novelId", { novelId })
-  //     .andWhere("isOnline = :online", { online: false })
-  //     .execute()
-  // }
+  // 指设置多本书的所有目录上线
+  async batchSetMenusOnlineByNovels(novelIds: number[]): Promise<any> {
+    return await this.sqlmenusRepository.createQueryBuilder()
+      .update()
+      .set({ isOnline: true })
+      .where("novelId IN (:...novelIds)", { novelIds })
+      .andWhere("isOnline = :online", { online: false })
+      .execute()
+  }
 }

@@ -617,16 +617,21 @@ export class FixdataController {
     return abnormals.length ? abnormals : res
   }
 
-  //  根据一段日期之间的目录id列表
+  //  根据一段日期之间的目录id列表，未上线的书的目录过滤掉
   @Get('getMenusByCreateDate')
-  async getMenusByCreateDate(@Query('sDate') sDate: string, @Query('eDate') eDate: string): Promise<any[]> {
-    return await this.sqlmenusService.getMenusByCreateDate(sDate, eDate)
+  async getMenusByCreateDate(@Query('sDate') sDate: string, @Query('eDate') eDate: string, @Query('online') online: string): Promise<any[]> {
+    // 获取所有未上线的书
+    const [novels, count] = await this.sqlnovelsService.getBooksByParams({
+      where: { isOnline: false }
+    })
+    const nIds = novels.map(({ id }: { id: number }) => id)
+    return await this.sqlmenusService.getMenusByCreateDate(sDate, eDate, +online || 1, nIds)
   }
 
-  // 根据一段日期之间的书id列表
+  // 查询某段日期内的创建的书id列表
   @Get('getBooksByCreateDate')
-  async getBooksByCreateDate(@Query('sDate') sDate: string, @Query('eDate') eDate: string): Promise<novels[]> {
-    return await this.sqlnovelsService.getBooksByCreateDate(sDate, eDate)
+  async getBooksByCreateDate(@Query('sDate') sDate: string, @Query('eDate') eDate: string, @Query('online') online: string): Promise<novels[]> {
+    return await this.sqlnovelsService.getBooksByCreateDate(sDate, eDate, +online || 1)
   }
 
   // 提交百度收录
@@ -693,14 +698,31 @@ export class FixdataController {
 
   // 设置所有未上线的目录上线
   @Post('setAllMnusOnline')
-  async setAllMnusOnline(): Promise<any> {
-    return await this.sqlmenusService.setAllMenusOnline()
+  async setAllMnusOnline(@Body('ids') ids: string): Promise<any> {
+    if (typeof ids !== 'string') {
+      return '数据类型不对'
+    }
+    if (ids === '') {
+      return await this.sqlmenusService.setAllMenusOnline()
+    } else {
+      const aIds = ids.split(',').map((id) => isNumber(id) ? +id : 0).filter((id) => !!id)
+      await this.sqlmenusService.batchSetMenusOnlineByNovels(aIds)
+      return await this.sqlmenusService.batchSetMenusOnline(aIds)
+    }
   }
 
   // 设置所有未上线的书本上线
   @Post('setAllBooksOnline')
-  async setAllBooksOnline(): Promise<any> {
-    return await this.sqlnovelsService.setAllBooksOnline()
+  async setAllBooksOnline(@Body('ids') ids: string): Promise<any> {
+    if (typeof ids !== 'string') {
+      return '数据类型不对'
+    }
+    if (ids === '') {
+      return await this.sqlnovelsService.setAllBooksOnline()
+    } else {
+      const aIds = ids.split(',').map((id) => isNumber(id) ? +id : 0).filter((id) => !!id)
+      return await this.sqlnovelsService.batchSetBooksOnline(aIds)
+    }
   }
 
   async detectNovelMenusIndexIsAllEq0(id: number): Promise<boolean> {
@@ -719,25 +741,25 @@ export class FixdataController {
   }
 
   // 用完了记得注释掉
-  @Get('findAllBooksIndexEq0')
-  async findAllBooksIndexEq0(): Promise<any> {
-    const novels = await this.sqlnovelsService.getAllBooks()
-    console.log(`*** 开始找出所有index=0的书了，共${novels.length}本书 ***`)
-    while (novels.length) {
-      const { id, title, isSpiderComplete } = novels.shift()
-      const isAllEq0 = await this.detectNovelMenusIndexIsAllEq0(id)
-      if (isAllEq0) {
-        const spider = await this.sqlspiderService.getById(id)
-        if (spider) {
-          console.log(`*** ${title}（${id}）前5章 index 都是0 ***`)
-          spider.allIndexEq0 = isAllEq0
-          await this.sqlspiderService.update(spider)
-        } else {
-          console.log(`*** ${title}（${id}）前5章 index 都是0，isSpiderComplete 为 ${isSpiderComplete} ***`)
-        }
-      }
-    }
-    console.log('*** 找完了 ***')
-    return ''
-  }
+  // @Get('findAllBooksIndexEq0')
+  // async findAllBooksIndexEq0(): Promise<any> {
+  //   const novels = await this.sqlnovelsService.getAllBooks()
+  //   console.log(`*** 开始找出所有index=0的书了，共${novels.length}本书 ***`)
+  //   while (novels.length) {
+  //     const { id, title, isSpiderComplete } = novels.shift()
+  //     const isAllEq0 = await this.detectNovelMenusIndexIsAllEq0(id)
+  //     if (isAllEq0) {
+  //       const spider = await this.sqlspiderService.getById(id)
+  //       if (spider) {
+  //         console.log(`*** ${title}（${id}）前5章 index 都是0 ***`)
+  //         spider.allIndexEq0 = isAllEq0
+  //         await this.sqlspiderService.update(spider)
+  //       } else {
+  //         console.log(`*** ${title}（${id}）前5章 index 都是0，isSpiderComplete 为 ${isSpiderComplete} ***`)
+  //       }
+  //     }
+  //   }
+  //   console.log('*** 找完了 ***')
+  //   return ''
+  // }
 }

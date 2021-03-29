@@ -425,6 +425,11 @@ export class GetBookController {
       host: host,
       useFix: false,
     })
+    const spider = await this.sqlspiderService.getById(args.id)
+    if (spider) {
+      spider.text = `${menus.length}章待抓取`
+      await this.sqlspiderService.update(spider)
+    }
     await this.insertMenuAndPages(args, noNeedInsertMenus.reverse());
   }
 

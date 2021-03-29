@@ -103,8 +103,11 @@ export class SqlnovelsService {
     })
   }
 
-  // 获取一段日期之间的列表
-  async getBooksByCreateDate(sDate: string, eDate: string): Promise<novels[]> {
+  // 获取一段日期之间的列表, online: {1: 全部, 2: 未上线, 3: 已上线}
+  async getBooksByCreateDate(sDate: string, eDate: string, online: number): Promise<novels[]> {
+    const isOnline: boolean | boolean[] = online === 1 ? [true, false] : (online === 2 ? false : true)
+    const onlineWhere = Array.isArray(isOnline) ? "IN (:...isOnline)" : "= :isOnline"
+
     return await this.sqlnovelsRepository
       .createQueryBuilder("novels")
       .select("id")
@@ -115,6 +118,7 @@ export class SqlnovelsService {
       .addSelect("isComplete")
       .where("ctime >= :sDate", { sDate })
       .andWhere("ctime < :eDate", { eDate })
+      .andWhere(`isOnline ${onlineWhere}`, { isOnline })
       .orderBy("id", 'DESC')
       .execute()
   }

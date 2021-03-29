@@ -8,6 +8,9 @@ $ yarn start
 
 # production mode
 $ npm run start:prod
+
+# pm2 启动
+pm2 start --name api ./dist/main.js
 ```
 
 
