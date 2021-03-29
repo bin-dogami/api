@@ -13,6 +13,8 @@ import { SqlauthorsService } from '../sqlauthors/sqlauthors.service';
 import { SqlerrorsService } from '../sqlerrors/sqlerrors.service';
 import { TumorTypes, SqltumorService } from '../sqltumor/sqltumor.service';
 import { ISpiderStatus, SqlspiderService, SpiderStatus } from '../sqlspider/sqlspider.service';
+import { SqlvisitorsService } from '../sqlvisitors/sqlvisitors.service';
+
 const dayjs = require('dayjs')
 
 import { sqlnovels as novels } from '../sqlnovels/sqlnovels.entity';
@@ -47,6 +49,7 @@ export class FixdataController {
     private readonly sqlspiderService: SqlspiderService,
     private readonly sqlrecommendsService: SqlrecommendsService,
     private readonly sqltypesdetailService: SqltypesdetailService,
+    private readonly sqlvisitorsService: SqlvisitorsService,
   ) { }
 
   @Get('getBookList')
@@ -738,6 +741,11 @@ export class FixdataController {
       }
     })
     return isAllEq0
+  }
+
+  @Get('getVisitors')
+  async getVisitors(): Promise<any[]> {
+    return await this.sqlvisitorsService.getAll()
   }
 
   // 用完了记得注释掉
