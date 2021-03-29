@@ -709,7 +709,6 @@ export class FixdataController {
       return await this.sqlmenusService.setAllMenusOnline()
     } else {
       const aIds = ids.split(',').map((id) => isNumber(id) ? +id : 0).filter((id) => !!id)
-      await this.sqlmenusService.batchSetMenusOnlineByNovels(aIds)
       return await this.sqlmenusService.batchSetMenusOnline(aIds)
     }
   }
@@ -721,9 +720,16 @@ export class FixdataController {
       return '数据类型不对'
     }
     if (ids === '') {
+      // 获取所有未上线的书
+      const [novels, count] = await this.sqlnovelsService.getBooksByParams({
+        where: { isOnline: false }
+      })
+      const nIds = novels.map(({ id }: { id: number }) => id)
+      await this.sqlmenusService.batchSetMenusOnlineByNovels(nIds)
       return await this.sqlnovelsService.setAllBooksOnline()
     } else {
       const aIds = ids.split(',').map((id) => isNumber(id) ? +id : 0).filter((id) => !!id)
+      await this.sqlmenusService.batchSetMenusOnlineByNovels(aIds)
       return await this.sqlnovelsService.batchSetBooksOnline(aIds)
     }
   }
