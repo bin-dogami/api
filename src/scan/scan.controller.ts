@@ -16,6 +16,7 @@ import { sqlauthors as authors } from '../sqlauthors/sqlauthors.entity';
 import { sqlmenus as menus } from '../sqlmenus/sqlmenus.entity';
 import { sqlrecommends as recommends } from '../sqlrecommends/sqlrecommends.entity';
 import { SqlauthorsService } from '../sqlauthors/sqlauthors.service';
+import { SqlvisitorsService } from '../sqlvisitors/sqlvisitors.service';
 import { sqlpages as pages } from '../sqlpages/sqlpages.entity';
 
 import { Mylogger } from '../mylogger/mylogger.service';
@@ -46,6 +47,7 @@ export class ScanController {
     private readonly sqlauthorsService: SqlauthorsService,
     private readonly sqlrecommendsService: SqlrecommendsService,
     private readonly sqltypesdetailService: SqltypesdetailService,
+    private readonly sqlvisitorsService: SqlvisitorsService,
   ) { }
 
   // 阅读历史
@@ -257,5 +259,31 @@ export class ScanController {
       novelsList,
       authorsList
     ]
+  }
+
+  // 统计 m 站用户访问设备信息
+  @Post('collectMHostUserVisit')
+  async collectMHostUserInfo(@Body('info') info: any): Promise<any> {
+    if (info && 'host' in info) {
+      const referer = info.referer
+      const fSpider = 'sogou|so|haosou|baidu|google|youdao|yahoo|bing|gougou|118114|vnet|360|ioage|sm|sp'.split('|').filter((s) => referer.includes(s))
+      // {nothing: 不是搜索引擎蜘蛛, liar: 多个搜索引擎蜘蛛的其实是伪装的, [其他]: 搜索引擎蜘蛛}
+      let spider = fSpider.length ? (fSpider.length > 1 ? 'liar' : fSpider[0]) : 'nothing'
+      try {
+        await this.sqlvisitorsService.create({
+          host: info['host'],
+          spider,
+          referer,
+          useragent: info['user-agent'],
+          secchua: info['sec-ch-ua'],
+          secchuamobile: info['sec-ch-ua-mobile'],
+          headers: JSON.stringify(info),
+        })
+      } catch (error) {
+        console.log(error)
+      }
+    } else {
+      console.log('用户访问设备信息参数info错误')
+    }
   }
 }

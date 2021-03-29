@@ -733,6 +733,12 @@ export class GetBookController {
         if (count === 5) {
           await this.sqlmenusService.removeByNovelId(id)
           await this.sqlpagesService.removeByNovelId(id)
+          const menusLen = await this.sqlmenusService.findCountByNovelId(id);
+          // 更新目录数
+          await this.sqlnovelsService.updateFields(id, {
+            menusLen,
+            updatetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
+          })
         }
       }
     } else {

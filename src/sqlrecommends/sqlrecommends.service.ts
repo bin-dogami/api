@@ -4,22 +4,20 @@ import { Repository } from 'typeorm';
 import { sqlrecommends as recommends } from './sqlrecommends.entity';
 import { CreateSqlrecommends } from "./create-sqlrecommends.dto";
 
-
-
 @Injectable()
 export class SqlrecommendsService {
   constructor(
     @InjectRepository(recommends)
-    private readonly SqlrecommendsRepository: Repository<recommends>,
+    private readonly sqlrecommendsRepository: Repository<recommends>,
   ) { }
 
   async create(createSqlrecommends: CreateSqlrecommends): Promise<recommends> {
-    const oTypes = this.SqlrecommendsRepository.create(createSqlrecommends);
-    return await this.SqlrecommendsRepository.save(oTypes);
+    const oTypes = this.sqlrecommendsRepository.create(createSqlrecommends);
+    return await this.sqlrecommendsRepository.save(oTypes);
   }
 
   async getList(skip: number, size?: number): Promise<recommends[]> {
-    return await this.SqlrecommendsRepository.find({
+    return await this.sqlrecommendsRepository.find({
       order: {
         level: "DESC",
         index: "DESC"
@@ -30,7 +28,7 @@ export class SqlrecommendsService {
   }
 
   async findById(id: number): Promise<recommends> {
-    return await this.SqlrecommendsRepository.findOne(
+    return await this.sqlrecommendsRepository.findOne(
       {
         where: { id },
       }
@@ -38,7 +36,7 @@ export class SqlrecommendsService {
   }
 
   async findLastLevel(): Promise<number> {
-    const novel = await this.SqlrecommendsRepository.findOne({
+    const novel = await this.sqlrecommendsRepository.findOne({
       order: {
         level: "DESC"
       }
@@ -50,14 +48,14 @@ export class SqlrecommendsService {
   async udpateLevel(id: number, toZero?: boolean): Promise<any> {
     const o = await this.findById(id);
     o.level = toZero ? 0 : await this.findLastLevel() + 1;
-    return await this.SqlrecommendsRepository.save(o);
+    return await this.sqlrecommendsRepository.save(o);
   }
 
   async remove(id: number): Promise<any> {
-    return await this.SqlrecommendsRepository.delete(id);
+    return await this.sqlrecommendsRepository.delete(id);
   }
 
   async save(o): Promise<any> {
-    return await this.SqlrecommendsRepository.save(o)
+    return await this.sqlrecommendsRepository.save(o)
   }
 }
