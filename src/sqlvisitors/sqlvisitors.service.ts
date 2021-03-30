@@ -6,7 +6,7 @@ import { CreateSqlvisitors } from "./create-sqlvisitors.dto";
 
 const dayjs = require('dayjs')
 const fs = require('fs');
-const logFilePath = './logs'
+const logFilePath = process.env.NODE_ENV === 'development' ? './logs' : '/root/nginx_logs'
 const path = require('path')
 
 
