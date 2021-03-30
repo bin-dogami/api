@@ -57,7 +57,7 @@ export class SqlmenusService {
 
   // 获取最后take条目录
   async findLastMenusByNovelId(novelId: number, _take?: number): Promise<menus[]> {
-    const take = _take || 1
+    const take = _take === 100000 ? undefined : (_take || 1)
     return await this.sqlmenusRepository.find({
       where: { novelId },
       order: {

@@ -693,44 +693,49 @@ export class FixdataController {
       if (!+id) {
         continue
       }
-      const lastMenus = await this.sqlmenusService.findLastMenusByNovelId(+id, +take || 50)
+      const lastMenus = await this.sqlmenusService.findLastMenusByNovelId(+id, +take || 100)
       Array.isArray(lastMenus) && (menus = [...menus, ...lastMenus.map(({ id }: { id: number }) => id)])
     }
     return menus
   }
 
-  // 设置所有未上线的目录上线
+  // 设置未上线的目录上线
   @Post('setAllMnusOnline')
   async setAllMnusOnline(@Body('ids') ids: string): Promise<any> {
     if (typeof ids !== 'string') {
       return '数据类型不对'
     }
     if (ids === '') {
-      return await this.sqlmenusService.setAllMenusOnline()
+      return '所有目录一次性上线功能取消'
+      // 一次性全部上线还是不要了
+      // return await this.sqlmenusService.setAllMenusOnline()
     } else {
       const aIds = ids.split(',').map((id) => isNumber(id) ? +id : 0).filter((id) => !!id)
       return await this.sqlmenusService.batchSetMenusOnline(aIds)
     }
   }
 
-  // 设置所有未上线的书本上线
+  // 设置指定或全部未上线的书本上线，如果是指定书，则返回书的后一百章ID
   @Post('setAllBooksOnline')
-  async setAllBooksOnline(@Body('ids') ids: string): Promise<any> {
+  async setAllBooksOnline(@Body('ids') ids: string, @Body('allmenus') allmenus: string): Promise<any> {
     if (typeof ids !== 'string') {
       return '数据类型不对'
     }
     if (ids === '') {
+      return '所有书本一次性上线功能取消'
+      // 所有书本上线，还是不了吧
       // 获取所有未上线的书
-      const [novels, count] = await this.sqlnovelsService.getBooksByParams({
-        where: { isOnline: false }
-      })
-      const nIds = novels.map(({ id }: { id: number }) => id)
-      await this.sqlmenusService.batchSetMenusOnlineByNovels(nIds)
-      return await this.sqlnovelsService.setAllBooksOnline()
+      // const [novels, count] = await this.sqlnovelsService.getBooksByParams({
+      //   where: { isOnline: false }
+      // })
+      // const nIds = novels.map(({ id }: { id: number }) => id)
+      // await this.sqlmenusService.batchSetMenusOnlineByNovels(nIds)
+      // return await this.sqlnovelsService.setAllBooksOnline()
     } else {
       const aIds = ids.split(',').map((id) => isNumber(id) ? +id : 0).filter((id) => !!id)
       await this.sqlmenusService.batchSetMenusOnlineByNovels(aIds)
-      return await this.sqlnovelsService.batchSetBooksOnline(aIds)
+      await this.sqlnovelsService.batchSetBooksOnline(aIds)
+      return await this.getLastTakeMenusByNovels(aIds, +allmenus ? '100000' : '100')
     }
   }
 

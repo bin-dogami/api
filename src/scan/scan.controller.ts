@@ -261,29 +261,30 @@ export class ScanController {
     ]
   }
 
-  // 统计 m 站用户访问设备信息
-  @Post('collectMHostUserVisit')
-  async collectMHostUserInfo(@Body('info') info: any): Promise<any> {
-    if (info && 'host' in info) {
-      const referer = info.referer
-      const fSpider = 'sogou|so|haosou|baidu|google|youdao|yahoo|bing|gougou|118114|vnet|360|ioage|sm|sp'.split('|').filter((s) => referer.includes(s))
-      // {nothing: 不是搜索引擎蜘蛛, liar: 多个搜索引擎蜘蛛的其实是伪装的, [其他]: 搜索引擎蜘蛛}
-      let spider = fSpider.length ? (fSpider.length > 1 ? 'liar' : fSpider[0]) : 'nothing'
-      try {
-        await this.sqlvisitorsService.create({
-          host: info['host'],
-          spider,
-          referer,
-          useragent: info['user-agent'],
-          secchua: info['sec-ch-ua'],
-          secchuamobile: info['sec-ch-ua-mobile'],
-          headers: JSON.stringify(info),
-        })
-      } catch (error) {
-        console.log(error)
-      }
-    } else {
-      console.log('用户访问设备信息参数info错误')
-    }
-  }
+  // 直接分析 nginx 日志吧
+  // // 统计 m 站用户访问设备信息
+  // @Post('collectMHostUserVisit')
+  // async collectMHostUserInfo(@Body('info') info: any): Promise<any> {
+  //   if (info && 'host' in info) {
+  //     const referer = info.referer
+  //     const fSpider = 'sogou|so|haosou|baidu|google|youdao|yahoo|bing|gougou|118114|vnet|360|ioage|sm|sp'.split('|').filter((s) => referer.includes(s))
+  //     // {nothing: 不是搜索引擎蜘蛛, liar: 多个搜索引擎蜘蛛的其实是伪装的, [其他]: 搜索引擎蜘蛛}
+  //     let spider = fSpider.length ? (fSpider.length > 1 ? 'liar' : fSpider[0]) : 'nothing'
+  //     try {
+  //       await this.sqlvisitorsService.create({
+  //         host: info['host'],
+  //         spider,
+  //         referer,
+  //         useragent: info['user-agent'],
+  //         secchua: info['sec-ch-ua'],
+  //         secchuamobile: info['sec-ch-ua-mobile'],
+  //         headers: JSON.stringify(info),
+  //       })
+  //     } catch (error) {
+  //       console.log(error)
+  //     }
+  //   } else {
+  //     console.log('用户访问设备信息参数info错误')
+  //   }
+  // }
 }
