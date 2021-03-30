@@ -9,31 +9,46 @@ export class sqlvisitors {
   @Column({ length: 128 })
   host: string;
 
+  @Column({ length: 128 })
+  url: string;
+
   // 蜘蛛 sogou|so|haosou|baidu|google|youdao|yahoo|bing|gougou|118114|vnet|360|ioage|sm|sp 等
   @Index()
-  @Column({ length: 100 })
+  @Column()
   spider: string;
 
-  @Index()
-  @Column({ length: 256 })
+  @Column()
+  ip: string;
+
+  @Column({ length: 255 })
   referer: string;
 
   // 浏览设备
-  @Column({ length: 1024 })
-  useragent: string;
+  @Column({ length: 512 })
+  use_agent: string;
 
-  // 浏览器版本？
-  @Column({ length: 256 })
-  secchua: string;
+  // 真实IP（列表，使用了代理就会有好几个IP）
+  @Column({ length: 512 })
+  http_x_forwarded_for: string;
 
-  // 这个不知道
-  @Column({ length: 256 })
-  secchuamobile: string;
+  // 请求状态，200 等
+  @Column()
+  status: number;
 
-  // 整个 headers 信息，上面的字段都是这个字段中的值
-  @Column({ length: 3072 })
-  headers: string;
+  // 请求的主体长度（response 大小）
+  @Column()
+  bytes: number;
 
-  @Column({ type: 'timestamp', default: () => 'current_timestamp' })
-  ctime: Timestamp;
+  // 页面访问需要验证时的字段这个字段伪装一下吧
+  @Column({ length: 255 })
+  user: string;
+
+  // 便于搜索
+  @Index()
+  @Column()
+  cDate: string;
+
+  // 访问时间
+  @Column()
+  ctime: string;
 }

@@ -6,8 +6,8 @@ const logFilePath = './logs'
 // 章节缺失错误日志文件名
 const PageLose = '章节缺失错误'
 const DeleteBook = '删除书本信息记录'
+const NginxLogCollectErrors = 'nginx日志收集错误'
 
-// @TODO: 确定 nginx 里会不会再写一遍 log 信息
 @Injectable()
 export class Mylogger extends Logger {
   private tmplLogs = '';
@@ -18,6 +18,9 @@ export class Mylogger extends Logger {
   }
   createDeleteBookLogFile() {
     return this.createogFile(DeleteBook)
+  }
+  createNginxLogCollectErrorsFile() {
+    return this.createogFile(NginxLogCollectErrors)
   }
   createogFile(name = 'errors') {
     const logPath = path.resolve(logFilePath);

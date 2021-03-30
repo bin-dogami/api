@@ -14,7 +14,6 @@ export enum ISpiderStatus {
   FAILDED_SPIDER = 3,
 }
 
-// @TODO: 建一个页面查看所有抓取状态及数据
 export const SpiderStatus = {
   [ISpiderStatus.UNSPIDER]: '待抓取',
   [ISpiderStatus.SPIDERING]: '抓取中',

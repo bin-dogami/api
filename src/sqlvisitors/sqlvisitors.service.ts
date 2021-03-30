@@ -4,6 +4,32 @@ import { Repository } from 'typeorm';
 import { sqlvisitors as visitors } from './sqlvisitors.entity';
 import { CreateSqlvisitors } from "./create-sqlvisitors.dto";
 
+const dayjs = require('dayjs')
+const fs = require('fs');
+const logFilePath = './logs'
+const path = require('path')
+
+
+
+// test text: '111.206.198.87 - - [30/Mar/2021:16:37:03 +0800] "GET /js/flexible.js HTTP/1.1" 200 1026 "https://m.zjjdxr.com/page/3023905" "Mozilla/5.0 (iPhone; CPU iPhone OS 9_1 like Mac OS X) AppleWebKit/601.1.46 (KHTML, like Gecko) Version/9.0 Mobile/13B143 Safari/601.1 (compatible; Baiduspider-render/2.0; +http://www.baidu.com/search/spider.html)"'
+const analysisLog = (text: string) => {
+  // 先把引号和日期(括号)的分割出来，再逐项替换，有[]和" 的去掉首尾这两符号，没有的按空格再分割，再去掉空项，返回拼接好的数组
+  let list: string[] = text.replace(/""/g, '"-"').split(/("[^"]+")/)
+  list = list.reduce((arr: string[], str: string) => {
+    const trimsStr = str ? str.trim() : ""
+    // undefined 或 trim为空的
+    if (!trimsStr.length) {
+      return arr
+    }
+    const _str = trimsStr.replace(/"/g, '').trim()
+    if (_str.length) {
+      return [...arr, _str]
+    }
+    return arr
+  }, [])
+  return list
+}
+
 @Injectable()
 export class SqlvisitorsService {
   constructor(
@@ -11,12 +37,31 @@ export class SqlvisitorsService {
     private readonly sqlvisitorsRepository: Repository<visitors>,
   ) { }
 
+  // 不传日期，就读今天的
+  async readLog(_date: string, host: string): Promise<any> {
+    const date = _date || dayjs().format('YYYY-MM-DD')
+    const logPath = path.resolve(`${logFilePath}/${date}-${host}.log`);
+    if (!fs.existsSync(logPath)) {
+      return '找不到日志目录'
+    }
+    try {
+      const data = fs.readFileSync(logPath)
+      const list = data.toString().split('\n')
+      return list.map((text) => {
+        return text.trim().length ? analysisLog(text) : null
+      }).filter((item) => !!item)
+    } catch (error) {
+      return `读取日志文 ${logPath} 错误: ${error}`
+    }
+  }
+
   async create(createSqlvisitors: CreateSqlvisitors): Promise<visitors> {
     const oVisitor = this.sqlvisitorsRepository.create(createSqlvisitors);
     return await this.sqlvisitorsRepository.save(oVisitor);
   }
 
-  async getList(skip: number, size?: number, spider?: string, host?: string): Promise<[visitors[], number]> {
+  async getList(skip: number,
+    size?: number, spider?: string, host?: string): Promise<[visitors[], number]> {
     return await this.sqlvisitorsRepository.findAndCount({
       where: {
         spider: spider || undefined,
@@ -38,6 +83,14 @@ export class SqlvisitorsService {
     return await this.sqlvisitorsRepository.findOne(
       {
         where: { id },
+      }
+    );
+  }
+
+  async findLastOne(): Promise<visitors> {
+    return await this.sqlvisitorsRepository.findOne(
+      {
+        order: { id: 'DESC' },
       }
     );
   }
