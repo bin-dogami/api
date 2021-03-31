@@ -5,4 +5,4 @@ import { Mylogger } from './mylogger.service';
   providers: [Mylogger],
   exports: [Mylogger],
 })
-export class myloggerModule { }
+export class MyloggerModule { }

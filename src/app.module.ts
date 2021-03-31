@@ -1,14 +1,21 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
+
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Connection } from 'typeorm';
 import { AppController } from './app.controller';
+// import { CustomizeScheduleModule } from './schedule/schedule.module';
 import { GetbookModule } from './getbook/getbook.module';
 import { FixdataModule } from './fixdata/fixdata.module';
 import { ScanModule } from './scan/scan.module';
+import { ScheduleService } from './schedule/schedule.service';
+import { MyloggerModule } from './mylogger/mylogger.module';
 
 @Module({
   imports: [
+    // 定时任务
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'mysql',
       host: 'localhost',
@@ -27,12 +34,14 @@ import { ScanModule } from './scan/scan.module';
       //   tableName: "configs-novelstables-query-result-caches"
       // }
     }),
+    // 要在一个 service 里调用另一个 service 类，需要在这里引入一下 Module
+    MyloggerModule,
     GetbookModule,
     FixdataModule,
     ScanModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, ScheduleService],
 })
 export class AppModule {
   constructor(private readonly connection: Connection) { }

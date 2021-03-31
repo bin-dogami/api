@@ -754,69 +754,9 @@ export class FixdataController {
     return isAllEq0
   }
 
-  // https://segmentfault.com/a/1190000022125108?utm_source=sf-similar-article
-  async saveLogs(date: string, host: string): Promise<any> {
-    if (!['m', 'ttttt5'].includes(host)) {
-      return 'host参数不对'
-    }
-
-    const logs = await this.sqlvisitorsService.readLog(date, host)
-    if (!Array.isArray(logs)) {
-      return logs
-    }
-    const lastLog = await this.sqlvisitorsService.findLastOne()
-    this.logger.start(`### 【start】开始把nginx日志收集到数据库中，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`, this.logger.createNginxLogCollectErrorsFile())
-    let successLen = 0
-    let failedLen = 0
-    while (logs.length) {
-      const [ip, user, ctime, url, status, bytes, referer, use_agent, http_x_forwarded_for] = logs.shift()
-      // 静态资源不记录
-      if (/.+.(js|css|ico|png|gif|jpg|jpeg|svg)\b/.test(url) || url.includes('_next/')) {
-        continue;
-      }
-      // 已添加过的就不添加了
-      if (lastLog && dayjs(ctime).diff(dayjs(lastLog.ctime)) <= 0) {
-        continue;
-      }
-      const fSpider = 'sogou|so|haosou|baidu|google|youdao|yahoo|bing|gougou|118114|vnet|360|ioage|sm|sp'.split('|').filter((s) => use_agent.includes(s))
-      // {normal: 不是搜索引擎蜘蛛, multiSpider: 多个搜索引擎蜘蛛的其实是伪装的, [其他]: 搜索引擎蜘蛛}
-      let spider = fSpider.length ? (fSpider.length > 1 ? 'multiSpider' : fSpider[0]) : 'normal'
-      if (use_agent.includes('Baiduspider')) {
-        spider = 'Baiduspider'
-      }
-
-      const data = {
-        ip,
-        host,
-        // 伪装一下吧
-        user: user === 'ob' ? 'laowang' : user,
-        spider,
-        cDate: dayjs(ctime).format('YYYY-MM-DD'),
-        ctime,
-        url,
-        status: +status,
-        bytes: +bytes,
-        referer,
-        use_agent,
-        http_x_forwarded_for
-      }
-      try {
-        await this.sqlvisitorsService.create(data)
-        successLen++
-      } catch (error) {
-        this.logger.log(`### 写入数据库错误: ${JSON.stringify(data)} ### \n`);
-        failedLen++
-      }
-    }
-    this.logger.end(`### 【end】本次记录结束 ### \n\n\n`);
-    return `记录日志完毕, 成功了 ${successLen} 条, 失败了 ${failedLen} 条`
-  }
-
   @Get('collectNginxLogs')
   async collectNginxLogs(): Promise<any> {
-    const mRes = await this.saveLogs('', 'm')
-    const adminRe = await this.saveLogs('', 'ttttt5')
-    return `m站： ${mRes} ；后台：${adminRe} `
+    return await this.sqlvisitorsService.collectNginxLogs()
   }
 
   // @Get('getVisitors')

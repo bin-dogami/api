@@ -6,7 +6,7 @@ const child_process = require('child_process');
 @Injectable()
 export class GetBookService {
   getHello(): string {
-    return 'Hello old bin!';
+    return 'Hello world!';
   }
 
   _getBook(url: string) {
