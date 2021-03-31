@@ -819,9 +819,16 @@ export class FixdataController {
     return `m站： ${mRes} ；后台：${adminRe} `
   }
 
-  @Get('getVisitors')
-  async getVisitors(): Promise<any[]> {
-    return await this.sqlvisitorsService.getAll()
+  // @Get('getVisitors')
+  // async getVisitors(): Promise<any[]> {
+  //   return await this.sqlvisitorsService.getAll()
+  // }
+
+  @Get('getVisitorsList')
+  async getVisitorsList(@Query('host') host: string, @Query('skip') skip: string, @Query('size') size: string, @Query('sDate') sDate: string, @Query('eDate') eDate: string, @Query('spider') spider: string): Promise<any[]> {
+    const _host = host === 'admin' ? 'ttttt5' : host
+    const _spider = spider === '1' ? '' : (spider === '2' ? 'spider' : 'normal')
+    return await this.sqlvisitorsService.getList(+skip, +size, _host, sDate, eDate, _spider)
   }
 
   // 用完了记得注释掉

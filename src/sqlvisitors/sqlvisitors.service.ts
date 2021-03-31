@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, LessThan, MoreThanOrEqual } from 'typeorm';
 import { sqlvisitors as visitors } from './sqlvisitors.entity';
 import { CreateSqlvisitors } from "./create-sqlvisitors.dto";
 
@@ -60,19 +60,33 @@ export class SqlvisitorsService {
     return await this.sqlvisitorsRepository.save(oVisitor);
   }
 
-  async getList(skip: number,
-    size?: number, spider?: string, host?: string): Promise<[visitors[], number]> {
-    return await this.sqlvisitorsRepository.findAndCount({
-      where: {
-        spider: spider || undefined,
-        host: host || undefined
-      },
-      order: {
-        ctime: 'DESC'
-      },
-      skip,
-      take: size && size <= 100 ? size : 20,
-    });
+  async getList(skip: number, size: number, host: string, sDate: string, eDate: string, spider: string): Promise<[visitors[], any[]]> {
+    const hostWhere = host ? 'host = :host' : 'host != :host'
+    const spiderWhere = spider === 'normal' ? 'spider = :spider' : 'spider != :spider'
+    // {全部: spider != '', 只看spider: spider != 'normal', 不看spider: spider = 'normal'}
+    const _spider = spider ? 'normal' : ''
+
+    const queryBuilder = this.sqlvisitorsRepository
+      .createQueryBuilder("visitors")
+      .where(hostWhere, { host: host || '' })
+      .andWhere(spiderWhere, { spider: _spider })
+      .andWhere("ctime >= :sDate", { sDate })
+      .andWhere("ctime < :eDate", { eDate })
+
+    return [
+      // list
+      await queryBuilder
+        .orderBy("id", 'DESC')
+        .offset(skip)
+        .limit(size || 100)
+        .select("*")
+        .execute(),
+
+      // count，=0 是个空数据，>0 是个[{total: 122}]
+      await queryBuilder
+        .select("count(*)", "total")
+        .execute()
+    ]
   }
 
   async getAll(): Promise<visitors[]> {
