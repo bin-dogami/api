@@ -226,6 +226,7 @@ export class ScanController {
       const novel: novels = await this.sqlnovelsService.findById(page.novelId, true)
       if (novel) {
         page['title'] = novel.title
+        page['typeid'] = novel.typeid
         page['typename'] = novel.typename
         page['author'] = novel.author
         page['isComplete'] = novel.isSpiderComplete

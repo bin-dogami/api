@@ -112,7 +112,7 @@ export class SqlvisitorsService {
         failedLen++
       }
     }
-    const text = `记录日志完毕, 成功了 ${successLen} 条, 失败了 ${failedLen} 条`
+    const text = `${host}站记录日志完毕, 成功了 ${successLen} 条, 失败了 ${failedLen} 条`
     this.logger.end(`### 【end】${text} ### \n\n\n`);
     return text
   }
@@ -131,7 +131,7 @@ export class SqlvisitorsService {
     this.collectNginxLogs()
   }
 
-  // 每天 晚上 12 点前执行一次
+  // @NOTE: 定时任务，每天 晚上 12 点前执行一次
   @Cron('30 59 23 * * *')
   handleInterval() {
     this.collectNginxLogs()
