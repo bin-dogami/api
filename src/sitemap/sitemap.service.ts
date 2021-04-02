@@ -13,7 +13,7 @@ const { SitemapStream, streamToPromise } = require('sitemap')
 const { Readable } = require('stream')
 
 const siteMapPath = '../web-scan/public'
-const timeFormat = 'YYYY-MM-DD HH:mm:ss'
+const timeFormat = 'YYYY-MM-DD HH:mm:ss:ss'
 
 @Injectable()
 export class SitemapService {
@@ -79,7 +79,7 @@ export class SitemapService {
       ) : 0.9
       return { url: `/book/${id}`, changefreq: priority > 0.5 ? 'daily' : 'weekly', priority, lastmod: updatetime }
     })
-    this.logger.log(`### 推荐书本共 ${recommendUrls.length}个，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`)
+    this.logger.log(`### 推荐书本共 ${recommendUrls.length}个，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm:ss')} ###`)
 
     // 完本且抓完的
     const completeBooks = await this.sqlnovelsService.getCompleteOrNotBooks(true, 500)
@@ -94,7 +94,7 @@ export class SitemapService {
       const changefreq = udpatedDays < -3 ? (udpatedDays < -10 ? 'monthly' : 'weekly') : 'daily'
       return { url: `/book/${id}`, changefreq, priority, lastmod: updatetime }
     }).filter((item) => !!item)
-    this.logger.log(`### 全本书共 ${completedUrls.length}个，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`)
+    this.logger.log(`### 全本书共 ${completedUrls.length}个，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm:ss')} ###`)
 
     // 没抓完的
     const unCompleteBooks = await this.sqlnovelsService.getCompleteOrNotBooks(false, 1000)
@@ -109,7 +109,7 @@ export class SitemapService {
       const changefreq = udpatedDays < -5 ? (udpatedDays < -20 ? 'monthly' : 'weekly') : 'daily'
       return { url: `/book/${id}`, changefreq, priority, lastmod: updatetime }
     }).filter((item) => !!item)
-    this.logger.log(`### 非全本书共 ${unCompletedUrls.length}个， 当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`)
+    this.logger.log(`### 非全本书共 ${unCompletedUrls.length}个， 当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm:ss')} ###`)
 
     return [
       ...recommendUrls,
@@ -136,15 +136,15 @@ export class SitemapService {
     const lastCtime = novels[novels.length - 1].ctime
     // 非最近 250 本书的
     const newMenus = await this.sqlmenusService.getMenusByNotInNovelIds(novelIds, lastCtime)
-    this.logger.log(`### 从 ${dayjs(lastCtime).format(timeFormat)} 开始抓取的已上线的 目录 共 ${newMenus.length}个，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`)
-    // 250 本书的每本最后 150 章，共 37500 章，@NOTE: 要考虑 xml 文件最大 10M
+    this.logger.log(`### 从 ${dayjs(lastCtime).format(timeFormat)} 开始抓取的已上线的 目录 共 ${newMenus.length}个，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm:ss')} ###`)
+    // 250 本书的每本最后 100 章，@NOTE: 要考虑 xml 文件最大 10M （10485760 个字节） 限制
     let booksMenus = []
     while (novelIds.length) {
       const id = novelIds.shift()
-      const nMenus = await this.sqlmenusService.getLastTakeMenusByNovelId(id, 150)
+      const nMenus = await this.sqlmenusService.getLastTakeMenusByNovelId(id, 100)
       booksMenus = [...booksMenus, ...nMenus]
     }
-    this.logger.log(`### 最近上线的 250 本书的最近100个目录 共有 ${booksMenus.length}个，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`)
+    this.logger.log(`### 最近上线的 250 本书的最近100个目录 共有 ${booksMenus.length}个，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm:ss')} ###`)
 
     return [...newMenus, ...booksMenus].map(({ id, ctime }) => {
       const udpatedDays = dayjs(ctime).diff(dayjs(), 'day')
@@ -177,22 +177,23 @@ export class SitemapService {
   // @TODO: 记得改 robots.txt
   // https://github.com/ekalinin/sitemap.js
   async createSiteMap() {
-    this.logger.start(`### 【start】开始更新/创建sitemap.xml文件，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`, this.logger.createSitemapLogFile())
+    this.logger.start(`### 【start】开始更新/创建sitemap.xml文件，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm:ss')} ###`, this.logger.createSitemapLogFile())
     const navUrls = await this.getNavUrls()
-    this.logger.log(`### 导航链接共 ${navUrls.length}个，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ### \n`)
+    this.logger.log(`### 导航链接共 ${navUrls.length}个，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm:ss')} ### \n`)
 
     const bookUrls = await this.getBooksUrls()
-    this.logger.log(`### 书本链接共 ${bookUrls.length}个，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ### \n`)
+    this.logger.log(`### 书本链接共 ${bookUrls.length}个，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm:ss')} ### \n`)
 
     const authorUrls = await this.getAuthors()
-    this.logger.log(`### 作者链接共 ${authorUrls.length}个，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ### \n`)
+    this.logger.log(`### 作者链接共 ${authorUrls.length}个，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm:ss')} ### \n`)
 
     const menuUrls = await this.getMenusUrls()
-    this.logger.log(`### 目录链接共 ${menuUrls.length}个，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ### \n`)
+    this.logger.log(`### 目录链接共 ${menuUrls.length}个，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm:ss')} ### \n`)
 
     this.logger.log(`### 开始生成 sitemap.xml 文件 ###`)
     try {
-      const urls = [...navUrls, ...bookUrls, ...menuUrls, ...authorUrls]
+      // 每个地址文件最多包含50,000个网址且需小于10MB。
+      const urls = [...navUrls, ...bookUrls, ...menuUrls, ...authorUrls].slice(0, 50000)
       const stream = new SitemapStream({
         hostname: 'https://m.zjjdxr.com/',
         xmlns: { // trim the xml namespace
@@ -204,11 +205,11 @@ export class SitemapService {
       })
       const res = await streamToPromise(Readable.from(urls).pipe(stream))
       fs.writeFileSync(`${siteMapPath}/sitemap.xml`, res.toString());
-      this.logger.end(`### 【end】创建完成，共${urls.length}个url地址，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ### \n\n\n`);
+      this.logger.end(`### 【end】创建完成，共${urls.length}个url地址，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm:ss')} ### \n\n\n`);
       return '创建完成'
     } catch (error) {
       const text = `创建失败: ${error}`
-      this.logger.end(`### 【end】${text}；当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ### \n\n\n`);
+      this.logger.end(`### 【end】${text}；当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm:ss')} ### \n\n\n`);
       return text
     }
   }
