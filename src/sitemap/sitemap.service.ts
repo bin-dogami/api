@@ -141,7 +141,7 @@ export class SitemapService {
     let booksMenus = []
     while (novelIds.length) {
       const id = novelIds.shift()
-      const nMenus = await this.sqlmenusService.getLastTakeMenusByNovelId(id, 300)
+      const nMenus = await this.sqlmenusService.getLastTakeMenusByNovelId(id, 150)
       booksMenus = [...booksMenus, ...nMenus]
     }
     this.logger.log(`### 最近上线的 250 本书的最近100个目录 共有 ${booksMenus.length}个，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`)
