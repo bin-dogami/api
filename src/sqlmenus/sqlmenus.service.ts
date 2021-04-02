@@ -188,6 +188,13 @@ export class SqlmenusService {
     });
   }
 
+  // @TODO: 用于测试
+  async findAllMenus(): Promise<menus[]> {
+    return await this.sqlmenusRepository.find({
+      select: ["id"]
+    });
+  }
+
   // 获取一本书的总目录数
   async findCountByNovelId(novelId: number): Promise<number> {
     return await this.sqlmenusRepository.count({
@@ -248,5 +255,34 @@ export class SqlmenusService {
       .where("novelId IN (:...novelIds)", { novelIds })
       .andWhere("isOnline = :online", { online: false })
       .execute()
+  }
+
+  // @NOTE: 给sitemap 用的
+  async getMenusByNotInNovelIds(novelIds: number[], ctime: any) {
+    return await this.sqlmenusRepository
+      .createQueryBuilder("menus")
+      .select("id")
+      .addSelect("ctime")
+      .andWhere(`ctime > :ctime`, { ctime })
+      .andWhere(`isOnline = :isOnline`, { isOnline: true })
+      .andWhere("novelId Not IN (:...novelIds)", { novelIds })
+      .orderBy("id", 'DESC')
+      .limit(30000)
+      .execute()
+  }
+
+  // @NOTE: 给sitemap 用的
+  async getLastTakeMenusByNovelId(id: number, take: number) {
+    return await this.sqlmenusRepository.find({
+      select: ["id", "ctime"],
+      where: {
+        novelId: id,
+        isOnline: true,
+      },
+      order: {
+        id: "DESC"
+      },
+      take
+    });
   }
 }

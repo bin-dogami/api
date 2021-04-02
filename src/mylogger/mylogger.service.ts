@@ -7,6 +7,7 @@ const logFilePath = './logs'
 const PageLose = '章节缺失错误'
 const DeleteBook = '删除书本信息记录'
 const NginxLogCollectErrors = 'nginx日志收集错误'
+const SitemapLog = '生成sitemap.xml文件日志'
 
 @Injectable()
 export class Mylogger extends Logger {
@@ -21,6 +22,9 @@ export class Mylogger extends Logger {
   }
   createNginxLogCollectErrorsFile() {
     return this.createogFile(NginxLogCollectErrors)
+  }
+  createSitemapLogFile() {
+    return this.createogFile(SitemapLog)
   }
   createogFile(name = 'errors') {
     const logPath = path.resolve(logFilePath);

@@ -31,3 +31,11 @@ this.sqlmenusRepository.createQueryBuilder("menus").getSql()
 
 ### skip 字段
 skip 不是第几页，而是第几个，比如要查第二页的，skip 就是 2 * size，从1开始
+
+### A.service 文件里调用 B.service 文件
+* B 模块需要在 B.module 的 exports 里写入 B.service
+* A.module 里需要 imports 进来 B.module； 不需要在 app.module 里加啥
+* 上两步完成后，A.service 里就可以引入 B.service 了，可以参考 sitemap 模块
+
+### 定时任务
+定时任务参考 sqlvisitors/sqlvisitors.service.ts

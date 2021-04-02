@@ -230,6 +230,7 @@ export class ScanController {
         page['typename'] = novel.typename
         page['author'] = novel.author
         page['isComplete'] = novel.isSpiderComplete
+        // @TODO: 应该先存缓存里，再定时更新这个值，
         novel['viewnum'] = novel['viewnum'] + 1
         this.sqlnovelsService.saveNovel(novel)
       } else {
@@ -251,7 +252,7 @@ export class ScanController {
     if (id) {
       author = await this.sqlauthorsService.findOne(+id)
       if (author) {
-        novelsList = await this.sqlnovelsService.getBookByIds(author.novelIds, 1)
+        novelsList = await this.sqlnovelsService.getBookByIds(author.novelIds, 1, true)
       }
     }
     const authorsList = await this.sqlauthorsService.getAuthors(0, 20)

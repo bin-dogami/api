@@ -5,12 +5,12 @@ import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Connection } from 'typeorm';
 import { AppController } from './app.controller';
-// import { CustomizeScheduleModule } from './schedule/schedule.module';
 import { GetbookModule } from './getbook/getbook.module';
 import { FixdataModule } from './fixdata/fixdata.module';
 import { ScanModule } from './scan/scan.module';
 import { ScheduleService } from './schedule/schedule.service';
 import { MyloggerModule } from './mylogger/mylogger.module';
+import { SitemapModule } from './sitemap/sitemap.module';
 
 @Module({
   imports: [
@@ -36,6 +36,7 @@ import { MyloggerModule } from './mylogger/mylogger.module';
     }),
     // 要在一个 service 里调用另一个 service 类，需要在这里引入一下 Module
     MyloggerModule,
+    SitemapModule,
     GetbookModule,
     FixdataModule,
     ScanModule,
