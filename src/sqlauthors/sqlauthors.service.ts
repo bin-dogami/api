@@ -16,14 +16,15 @@ export class SqlauthorsService {
     return await this.sqlauthorsRepository.save(oAuthor);
   }
 
-  async getAuthors(skip: number, size?: number): Promise<authors[]> {
+  async getAuthors(skip: number, take?: number, getAllFields?: boolean): Promise<authors[]> {
     return await this.sqlauthorsRepository.find({
-      select: ["id", "name"],
+      select: getAllFields ? undefined : ["id", "name"],
       order: {
+        id: "DESC",
         level: "DESC"
       },
       skip,
-      take: size && size <= 50 ? size : 20,
+      take
     })
   }
 
@@ -49,5 +50,9 @@ export class SqlauthorsService {
 
   async updateAuthor(author: authors): Promise<void> {
     await this.sqlauthorsRepository.save(author);
+  }
+
+  async remove(id: number) {
+    return await this.sqlauthorsRepository.delete(id);
   }
 }

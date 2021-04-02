@@ -12,9 +12,10 @@ import { SqlerrorsModule } from '../sqlerrors/sqlerrors.module';
 import { SqltumorModule } from '../sqltumor/sqltumor.module';
 import { SqlspiderModule } from '../sqlspider/sqlspider.module';
 import { SqlvisitorsModule } from '../sqlvisitors/sqlvisitors.module';
+import { SitemapModule } from '../sitemap/sitemap.module';
 
 @Module({
-  imports: [SqlnovelsModule, SqltypesModule, SqlmenusModule, SqlpagesModule, SqlrecommendsModule, SqltypesdetailModule, SqlauthorsModule, SqlerrorsModule, SqltumorModule, SqlspiderModule, SqlvisitorsModule],
+  imports: [SqlnovelsModule, SqltypesModule, SqlmenusModule, SqlpagesModule, SqlrecommendsModule, SqltypesdetailModule, SqlauthorsModule, SqlerrorsModule, SqltumorModule, SqlspiderModule, SqlvisitorsModule, SitemapModule],
   providers: [FixdataService],
   controllers: [FixdataController]
 })

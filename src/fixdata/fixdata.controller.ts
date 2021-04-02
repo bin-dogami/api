@@ -14,6 +14,7 @@ import { SqlerrorsService } from '../sqlerrors/sqlerrors.service';
 import { TumorTypes, SqltumorService } from '../sqltumor/sqltumor.service';
 import { ISpiderStatus, SqlspiderService, SpiderStatus } from '../sqlspider/sqlspider.service';
 import { SqlvisitorsService } from '../sqlvisitors/sqlvisitors.service';
+import { SitemapService } from '../sitemap/sitemap.service';
 
 const dayjs = require('dayjs')
 
@@ -50,6 +51,7 @@ export class FixdataController {
     private readonly sqlrecommendsService: SqlrecommendsService,
     private readonly sqltypesdetailService: SqltypesdetailService,
     private readonly sqlvisitorsService: SqlvisitorsService,
+    private readonly sitemapService: SitemapService,
   ) { }
 
   @Get('getBookList')
@@ -78,7 +80,16 @@ export class FixdataController {
     spiders.forEach((item) => {
       oSpiders[item.id] = item
     })
+
+    // 推荐
+    const recommends = await this.sqlrecommendsService.getAll()
+    const oRecommendIds = {}
+    recommends.forEach(({ id }) => {
+      oRecommendIds[id] = 1
+    })
+
     novels.forEach((item: any) => {
+      item.isRecommend = item.id in oRecommendIds
       if (item.id in oSpiders) {
         const _item = oSpiders[item.id]
         item.allIndexEq0 = _item.allIndexEq0 ? '是' : '否'
@@ -769,6 +780,11 @@ export class FixdataController {
     const _host = host === 'admin' ? 'ttttt5' : host
     const _spider = spider === '1' ? '' : (spider === '2' ? 'spider' : 'normal')
     return await this.sqlvisitorsService.getList(+skip, +size, _host, sDate, eDate, _spider)
+  }
+
+  @Get('createSitemap')
+  async createSitemap(): Promise<any> {
+    return await this.sitemapService.createSiteMap()
   }
 
   // 用完了记得注释掉

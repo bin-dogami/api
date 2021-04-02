@@ -30,14 +30,14 @@ export class SqlnovelsService {
     })
   }
 
-  async getBookByIds(novelIds: number[], getOnline?: number): Promise<novels[]> {
+  async getBookByIds(novelIds: number[], getOnline?: number, getPartsFields?: boolean): Promise<novels[]> {
     // getOnline 为0或不传时，不分上线不上线，为1时，只查上线的，为2时，只查不上线的
     const online: any = {}
     if (getOnline > 0) {
       online.isOnline = getOnline === 1
     }
     return await this.sqlnovelsRepository.find({
-      select: ["id", "title", "author", "authorId", "description", "thumb"],
+      select: getPartsFields ? ["id", "title", "author", "authorId", "description", "thumb"] : undefined,
       where: { id: In(novelIds), ...online },
     })
   }
@@ -221,5 +221,17 @@ export class SqlnovelsService {
       .set({ isOnline: true })
       .where("isOnline = :online", { online: false })
       .execute()
+  }
+
+  // @NOTE: 主要给 sitemap 用，完本的书和非完本的分两次取，因为要根据更新时间来分权重，而完本的可能不更新了，时间也不一样
+  async getCompleteOrNotBooks(isSpiderComplete: boolean, take: number): Promise<novels[]> {
+    return await this.sqlnovelsRepository.find({
+      select: ["id", "updatetime"],
+      where: { isSpiderComplete, isOnline: true },
+      order: {
+        updatetime: "DESC"
+      },
+      take
+    })
   }
 }

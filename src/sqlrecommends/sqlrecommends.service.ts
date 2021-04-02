@@ -51,8 +51,23 @@ export class SqlrecommendsService {
     return await this.sqlrecommendsRepository.save(o);
   }
 
-  async remove(id: number): Promise<any> {
-    return await this.sqlrecommendsRepository.delete(id);
+  async getAll(): Promise<recommends[]> {
+    return await this.sqlrecommendsRepository.find({
+      select: ["id"],
+    });
+  }
+
+  // index 才是主键
+  async remove(index: number): Promise<any> {
+    return await this.sqlrecommendsRepository.delete(index);
+  }
+
+  async removeByBookId(id: number): Promise<any> {
+    const data = await this.findById(id)
+    if (data) {
+      return await this.sqlrecommendsRepository.delete(data.index);
+    }
+    return '找不到书id对应的数据'
   }
 
   async save(o): Promise<any> {

@@ -38,6 +38,7 @@
     "request-promise": "^4.2.6",
     "rimraf": "^3.0.2",
     "rxjs": "^6.5.4",
+    "sitemap": "^6.4.0",
     "typeorm": "^0.2.29",
     "uuid": "^8.3.2"
   },
