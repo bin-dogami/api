@@ -1,4 +1,4 @@
-import { getValidTitle, getHostFromUrl, getHost, getNovelId, getMenuId, downloadImage } from '../utils/index'
+import { getValidTitle, getHostFromUrl, getHost, getNovelId, getMenuId, downloadImage, ImagePath } from '../utils/index'
 import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { GetBookService } from './getbook.service';
 import { SqlnovelsService } from '../sqlnovels/sqlnovels.service';
@@ -13,8 +13,6 @@ import { ITumor, formula, SqltumorService } from '../sqltumor/sqltumor.service';
 import { ISpiderStatus, SqlspiderService, CreateSqlspider } from '../sqlspider/sqlspider.service';
 import { Mylogger } from '../mylogger/mylogger.service';
 const dayjs = require('dayjs')
-
-const ImagePath = '../web-static/'
 
 const getValidUrl = (host: string, url: string, from: string) => {
   // url 带域名
@@ -45,11 +43,6 @@ export class GetBookController {
     private readonly sqlrecommendsService: SqlrecommendsService,
     private readonly sqltypesdetailService: SqltypesdetailService,
   ) {
-  }
-
-  @Get()
-  getHello(): string {
-    return this.getBookService.getHello();
   }
 
   async setRecommend(novel) {
@@ -156,64 +149,17 @@ export class GetBookController {
       });
     }
 
-    const lastNovelId = await this.sqlnovelsService.findLastId();
-    const currentNovelId = getNovelId(lastNovelId);
-    this.logger.log(`# 开始抓取书封面到 image 目录 #`);
-    const newThumbPath = await downloadImage(ImagePath + 'images', thumb, currentNovelId)
-    const authorInfo = await this.sqlauthorsService.findOneByAuthorName(author);
-    let authorId = 0
-    if (authorInfo) {
-      authorId = authorInfo.id
-      if (!authorInfo.novelIds.includes(currentNovelId)) {
-        authorInfo.novelIds.push(currentNovelId)
-        await this.sqlauthorsService.updateAuthor(authorInfo)
-      }
-    } else {
-      try {
-        const authorInfo = await this.sqlauthorsService.create({
-          novelIds: [currentNovelId],
-          name: author,
-          level: 0,
-          levelName: '',
-        });
-        if (authorInfo) {
-          authorId = authorInfo.id
-        }
-      } catch (error) {
-        this.logger.log(`# [failed] 创建作者数据失败，作者：[${author}]，错误信息：${error} #`);
-      }
-    }
-    const newNovel = {
-      id: currentNovelId,
-      title,
-      otitle: title,
-      description: description.length > 990 ? description.substr(0, 990) : description,
-      author,
-      authorId,
-      typeid: typeInfo.id,
-      typename: typeInfo.name,
-      from: [from],
-      tags: [],
-      thumb: newThumbPath.replace(ImagePath, ''),
-      // 新添加的书先不上，等确定没问题了再上（顺便也提交百度收录）
-      isOnline: false
-    }
-    // 写入书信息
-    this.logger.log(`# 开始写入书信息 #`);
-    let _novel = null
-    try {
-      _novel = await this.sqlnovelsService.create(newNovel);
-      if (_novel) {
-        const isAllEq0 = await this.detectNovelMenusIndexIsAllEq0(_novel.id)
-        await this.sqlspiderService.create(_novel.id, ISpiderStatus.SPIDERING, isAllEq0)
-        recommend && await this.setRecommend(_novel)
-      }
-    } catch (err) {
-      this.logger.end(`### [failed] 写入书数据失败：${err} ###`);
+    const _novel = await this.getBookService.createNovel(true, title, author, thumb, description, typeInfo.id, typeInfo.name, from)
+    if (typeof _novel === 'string') {
       return {
-        '错误': `写入书数据失败：${err}`
+        '错误': _novel
       };
+    } else {
+      const isAllEq0 = await this.detectNovelMenusIndexIsAllEq0(_novel.id)
+      await this.sqlspiderService.create(_novel.id, ISpiderStatus.SPIDERING, isAllEq0)
+      recommend && await this.setRecommend(_novel)
     }
+
     // 写入分类详情表
     if (isTypeCreateNow) {
       this.logger.log(`# 开始写入分类详情表 #`);
@@ -267,7 +213,7 @@ export class GetBookController {
     const nextSpiderNovelId = await this.sqlspiderService.getNextUnspider(id)
     const novel = await this.sqlnovelsService.findById(nextSpiderNovelId, true)
     if (!novel || !Array.isArray(novel.from) || !novel.from.length) {
-      // 如果有 nextSpiderNovelId，说明这条 spider 数据有问题，需要删除并抓取下一个
+      // 书已经被删掉了，而有 nextSpiderNovelId，说明这条 spider 数据有问题，需要删除并抓取下一个
       if (nextSpiderNovelId > 0) {
         this.logger.log(`### 找不到要抓取的书，id: ${nextSpiderNovelId}，这条数据spider数据有问题，准备删除 ### \n`);
         await this.sqlspiderService.remove(nextSpiderNovelId)
@@ -292,6 +238,11 @@ export class GetBookController {
     // 抓书开始
     this.logger.start(`\n\n\n\n ### 【start】 开始抓取书信息 ###`);
     const { title, author } = novel;
+    if (!novel.from.length) {
+      this.logger.end(`### 【end】这本书没有来源，无法抓取，可能是手动添加的书，id: ${nextSpiderNovelId} ### \n`);
+      await this.spiderNext(nextSpiderNovelId)
+      return `这本书没有来源，无法抓取，可能是手动添加的书，id: ${nextSpiderNovelId}`
+    }
     const from = novel.from[novel.from.length - 1]
     const filePath = this.logger.log(`# 获取书信息成功 # 书名: ${title}；作者: ${author}；来源: ${from}； id: ${novel.id}`, {
       bookname: title
@@ -336,18 +287,6 @@ export class GetBookController {
 
   // 抓取并插入目录
   async insertMenus(args: any) {
-    // if (args.isSpiderComplete) {
-    //   // @TODO: 再跑一两遍数据，这个最好注释了吧，不需要再这删掉 spider 数据(上次因为误掉了所有目录数据所以全本的也要再跑一遍数据)
-    //   await this.sqlspiderService.remove(args.id)
-    //   this.logger.end(`### 【end】本书已经全部抓完了 ### id: ${args.id}； \n\n `)
-    //   if (this.justSpiderOne) {
-    //     return {
-    //       '错误': `本书已经全部抓完了`
-    //     }
-    //   }
-    //   return await this.setSpiderComplete(args.id)
-    // }
-
     // 倒序获取最后3章
     let lastMenus: any = await this.sqlmenusService.findLastMenusByNovelId(args.id, 3)
     let lastMenu = null
@@ -358,7 +297,6 @@ export class GetBookController {
         this.logger.log(`### 上次抓取到的目录不足3章，先全删了再重新抓取 ###`)
         await this.deleteMenusGtId('0', args.id)
       } else {
-        // const filterMenu = lastMenus.filter()
         noNeedInsertMenus = lastMenus.map((item: any) => {
           if (lastMenu) {
             return null
@@ -370,12 +308,7 @@ export class GetBookController {
           return item
         }).filter((item) => !!item)
         if (lastMenu) {
-          // console.log(lastMenu);
-          // 最后面的 index === 0 的全删掉再重新抓取，因为 index 为0的可能目录里会重复好几个，比如 ’今天请个假’ 这样的没法获取到具体是哪一个
-          // if (lastMenus[0].index <= 0) {
-          //   this.logger.log(`### 上次抓取到的目录最后一章 index == 0，先删了再重新抓取 ###`);
-          //   await this.deleteMenusGtId(lastMenu.id, args.id)
-          // }
+          //
         } else {
           const text = `(${args.isAllIndexEq0 ? '此书所有index都是0' : '此书index并不都是0'}) 上次抓取的最后三章的index 都为0，没法定位到上次抓取位置。如果这是个巧合，删掉最后几章再抓取；如果不是巧合，可以考虑删除书再重新抓（要不就写匹配的抓取组件吧）`
           this.logger.end(`### ${text} ###`);

@@ -12,13 +12,15 @@ export enum ISpiderStatus {
   SPIDERING = 1,
   SPIDERED = 2,
   FAILDED_SPIDER = 3,
+  ADD_SELF = 4,
 }
 
 export const SpiderStatus = {
   [ISpiderStatus.UNSPIDER]: '待抓取',
   [ISpiderStatus.SPIDERING]: '抓取中',
   [ISpiderStatus.SPIDERED]: '抓取完成',
-  [ISpiderStatus.FAILDED_SPIDER]: '抓取异常'
+  [ISpiderStatus.FAILDED_SPIDER]: '抓取异常',
+  [ISpiderStatus.ADD_SELF]: '手动添加'
 }
 
 @Injectable()

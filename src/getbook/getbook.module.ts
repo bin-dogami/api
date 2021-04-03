@@ -15,6 +15,7 @@ import { SqlspiderModule } from '../sqlspider/sqlspider.module';
 @Module({
   imports: [SqlnovelsModule, SqltypesModule, SqlmenusModule, SqlpagesModule, SqlrecommendsModule, SqltypesdetailModule, SqlauthorsModule, SqlerrorsModule, SqltumorModule, SqlspiderModule],
   providers: [GetBookService],
-  controllers: [GetBookController]
+  controllers: [GetBookController],
+  exports: [GetBookService]
 })
 export class GetbookModule { }

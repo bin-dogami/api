@@ -1,12 +1,21 @@
-import { Injectable } from '@nestjs/common';
-import { downloadImage } from '../utils/index';
+import { sqlnovels } from './../sqlnovels/sqlnovels.entity';
+import { Injectable, Controller } from '@nestjs/common';
 const spawn = require("child_process").spawn;
 const child_process = require('child_process');
+import { SqlnovelsService } from '../sqlnovels/sqlnovels.service';
+import { sqlnovels as novels } from '../sqlnovels/sqlnovels.entity';
+import { SqlauthorsService } from '../sqlauthors/sqlauthors.service';
+import { getNovelId, downloadImage, ImagePath } from '../utils/index'
+import { Mylogger } from '../mylogger/mylogger.service';
 
 @Injectable()
 export class GetBookService {
-  getHello(): string {
-    return 'Hello world!';
+  private readonly logger = new Mylogger(GetBookService.name);
+
+  constructor(
+    private readonly sqlauthorsService: SqlauthorsService,
+    private readonly sqlnovelsService: SqlnovelsService,
+  ) {
   }
 
   _getBook(url: string) {
@@ -126,5 +135,67 @@ export class GetBookService {
 
   async getImage(path: string, url: string, id: number): Promise<any> {
     return await downloadImage(path, url, id);
+  }
+
+  // isSpider： {true: '要抓取的书，在getbook.controller里用', false: '要手动添加的书，接口在 fixdata 里' }
+  async createNovel(isSpider: boolean, title: string, author: string, thumb: string, description: string, typeid: number, typename: string, from: string): Promise<string | novels> {
+    const lastNovelId = await this.sqlnovelsService.findLastId();
+    const currentNovelId = getNovelId(lastNovelId);
+    let newThumbPath = ''
+    if (isSpider) {
+      this.logger.log(`# 开始抓取书封面到 image 目录 #`);
+      newThumbPath = await downloadImage(ImagePath + 'images', thumb, currentNovelId)
+    } else {
+      // 先上传图片再创建id 的
+      newThumbPath = thumb.replace(/\d+/g, `${currentNovelId}`)
+    }
+    let authorInfo = await this.sqlauthorsService.findOneByAuthorName(author);
+    let authorId = 0
+    if (authorInfo) {
+      authorId = authorInfo.id
+    } else {
+      try {
+        authorInfo = await this.sqlauthorsService.create({
+          novelIds: [],
+          name: author,
+          level: 0,
+          levelName: '',
+        });
+        if (authorInfo) {
+          authorId = authorInfo.id
+        }
+      } catch (error) {
+        this.logger.end(`# [failed] 创建作者数据失败，作者：[${author}]，错误信息：${error} #`);
+        return `创建作者数据失败，作者：[${author}]，错误信息：${error}`
+      }
+    }
+    const newNovel = {
+      id: currentNovelId,
+      title,
+      otitle: title,
+      description: description.length > 990 ? description.substr(0, 990) : description,
+      author,
+      authorId,
+      typeid: typeid,
+      typename: typename,
+      from: from ? [from] : [],
+      tags: [],
+      thumb: newThumbPath.replace(ImagePath, ''),
+      // 新添加的书先不上，等确定没问题了再上（顺便也提交百度收录）
+      isOnline: false
+    }
+    if (!authorInfo.novelIds.includes(currentNovelId)) {
+      authorInfo.novelIds.push(currentNovelId)
+      await this.sqlauthorsService.updateAuthor(authorInfo)
+    }
+    // 写入书信息
+    this.logger.log(`# 开始写入书信息 #`);
+    let _novel = null
+    try {
+      return await this.sqlnovelsService.create(newNovel);
+    } catch (err) {
+      this.logger.end(`### [failed] 写入书数据失败：${err} ###`);
+      return `写入书数据失败：${err}`
+    }
   }
 }

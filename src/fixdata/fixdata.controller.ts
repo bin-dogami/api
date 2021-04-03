@@ -1,7 +1,6 @@
-import { sqlspider } from './../sqlspider/sqlspider.entity';
-import { sqlerrors } from './../sqlerrors/sqlerrors.entity';
-import { getHost, unique, toClearTakeValue } from '../utils/index'
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { getHost, unique, toClearTakeValue, downloadImage, writeImage, ImagePath } from '../utils/index'
+import { Controller, Get, Post, Body, Param, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { FixdataService } from './fixdata.service';
 import { SqlnovelsService } from '../sqlnovels/sqlnovels.service';
 import { SqltypesService } from '../sqltypes/sqltypes.service';
@@ -15,6 +14,7 @@ import { TumorTypes, SqltumorService } from '../sqltumor/sqltumor.service';
 import { ISpiderStatus, SqlspiderService, SpiderStatus } from '../sqlspider/sqlspider.service';
 import { SqlvisitorsService } from '../sqlvisitors/sqlvisitors.service';
 import { SitemapService } from '../sitemap/sitemap.service';
+import { GetBookService } from '../getbook/getbook.service';
 
 const dayjs = require('dayjs')
 
@@ -39,6 +39,7 @@ export class FixdataController {
   clearingAllBooksContents = false;
 
   constructor(
+    private readonly getBookService: GetBookService,
     private readonly fixdataService: FixdataService,
     private readonly sqlnovelsService: SqlnovelsService,
     private readonly sqltypesService: SqltypesService,
@@ -93,6 +94,7 @@ export class FixdataController {
       if (item.id in oSpiders) {
         const _item = oSpiders[item.id]
         item.allIndexEq0 = _item.allIndexEq0 ? '是' : '否'
+        item.spiderCode = _item.status
         item.spiderStatus = SpiderStatus[_item.status]
       } else if (item.isSpiderComplete) {
         item.spiderStatus = '全抓了'
@@ -240,7 +242,10 @@ export class FixdataController {
       const bookInfo = await this.getBookInfo(id)
       if (fieldName === 'isSpiderComplete') {
         if (_fieldValue) {
-          await this.deleteSpiderData(+id)
+          const spider = await this.sqlspiderService.getById(+id)
+          if (spider.status !== ISpiderStatus.ADD_SELF) {
+            await this.deleteSpiderData(+id)
+          }
         } else {
           await this.sqlspiderService.create(+id)
         }
@@ -786,6 +791,54 @@ export class FixdataController {
   async createSitemap(): Promise<any> {
     return await this.sitemapService.createSiteMap()
   }
+
+  @Get('getTypes')
+  async getTypes(): Promise<any> {
+    return await this.sqltypesService.findAll(false)
+  }
+
+  // 通过文件上传图片
+  @Post('uploadImages')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadImages(@UploadedFile() file) {
+    const imagePath = await writeImage(ImagePath + 'images', file.buffer, file.originalname)
+    console.log(imagePath, file);
+    return imagePath.replace(ImagePath, '')
+  }
+
+  // 提交url形式上传图片
+  @Post('uploadImagesByUrl')
+  async uploadImagesByUrl(@Body('url') url: string) {
+    const imagePath = await downloadImage(ImagePath + 'images', url, dayjs().format('YYYYMMDDHHmmss'))
+    return imagePath.replace(ImagePath, '')
+  }
+
+  // 创建一本书
+  @Post('createBook')
+  async createBook(@Body('title') title: string, @Body('author') author: string, @Body('description') description: string, @Body('typeid') typeid: string, @Body('typename') typename: string, @Body('thumb') thumb: string, @Body('recommend') recommend: string) {
+    let novel: any = await this.sqlnovelsService.findByOriginalTitle(title, author);
+    if (novel) {
+      return {
+        id: novel.id,
+        success: false,
+        msg: `这本书已经有了，id 是 ${novel.id}`
+      }
+    }
+
+    novel = await this.getBookService.createNovel(false, title, author, thumb, description, +typeid, typename, '')
+    if (typeof novel === 'string') {
+      return novel
+    } else {
+      await this.sqlspiderService.create(novel.id, ISpiderStatus.ADD_SELF)
+      recommend && await this.setRecommend(novel.id + '', '1')
+      return {
+        id: novel.id,
+        success: true,
+        msg: `创建成功`
+      }
+    }
+  }
+
 
   // 用完了记得注释掉
   // @Get('findAllBooksIndexEq0')

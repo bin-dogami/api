@@ -1,3 +1,4 @@
+const dayjs = require('dayjs')
 const fs = require('fs');
 const download = require('download');
 
@@ -43,6 +44,8 @@ export const getHost = (url: string) => {
   return _url.replace(/https?:\/\//, '')
 }
 
+export const ImagePath = '../web-static/'
+
 export const downloadImage = async (path: string, url: string, id: number) => {
   if (!fs.existsSync(path)) {
     fs.mkdirSync(path);
@@ -52,6 +55,19 @@ export const downloadImage = async (path: string, url: string, id: number) => {
   const imageType = urlSplitArr.length ? urlSplitArr[urlSplitArr.length - 1] : 'jpg';
   const filePath = `${path}/${id}.${imageType}`;
   fs.writeFileSync(filePath, await download(url));
+  return filePath;
+}
+
+export const writeImage = async (path: string, imageBuffer: any, imageName: string) => {
+  if (!fs.existsSync(path)) {
+    fs.mkdirSync(path);
+  }
+
+  const urlSplitArr = imageName.split('.');
+  const imageType = urlSplitArr.length ? urlSplitArr[urlSplitArr.length - 1] : 'jpg';
+  // 先创建一个时间戳的图片，到时候再重命名
+  const filePath = `${path}/${dayjs().format('YYYYMMDDHHmmss')}.${imageType}`;
+  fs.writeFileSync(filePath, imageBuffer);
   return filePath;
 }
 

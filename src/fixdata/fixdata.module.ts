@@ -13,9 +13,10 @@ import { SqltumorModule } from '../sqltumor/sqltumor.module';
 import { SqlspiderModule } from '../sqlspider/sqlspider.module';
 import { SqlvisitorsModule } from '../sqlvisitors/sqlvisitors.module';
 import { SitemapModule } from '../sitemap/sitemap.module';
+import { GetbookModule } from '../getbook/getbook.module';
 
 @Module({
-  imports: [SqlnovelsModule, SqltypesModule, SqlmenusModule, SqlpagesModule, SqlrecommendsModule, SqltypesdetailModule, SqlauthorsModule, SqlerrorsModule, SqltumorModule, SqlspiderModule, SqlvisitorsModule, SitemapModule],
+  imports: [GetbookModule, SqlnovelsModule, SqltypesModule, SqlmenusModule, SqlpagesModule, SqlrecommendsModule, SqltypesdetailModule, SqlauthorsModule, SqlerrorsModule, SqltumorModule, SqlspiderModule, SqlvisitorsModule, SitemapModule],
   providers: [FixdataService],
   controllers: [FixdataController]
 })
