@@ -46,7 +46,7 @@ export class GetBookController {
   }
 
   async setRecommend(novel) {
-    const { id, title, description, author, authorId, thumb } = novel
+    const { id, title, description, author, authorId, thumb, isOnline } = novel
     this.logger.log(`# 本书设置为推荐 start #`);
     const level = await this.sqlrecommendsService.findLastLevel()
     await this.sqlrecommendsService.create({
@@ -57,6 +57,7 @@ export class GetBookController {
       author,
       authorId,
       thumb,
+      isOnline
     });
     this.logger.log(`# 本书设置为推荐 end #`);
   }

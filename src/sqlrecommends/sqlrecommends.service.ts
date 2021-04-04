@@ -16,12 +16,15 @@ export class SqlrecommendsService {
     return await this.sqlrecommendsRepository.save(oTypes);
   }
 
-  async getList(skip: number, size?: number): Promise<recommends[]> {
+  // needOnline： 是否需要上线字段，不上线的先不考虑
+  async getList(skip: number, size?: number, needOnline?: boolean): Promise<recommends[]> {
+    const where = needOnline ? { isOnline: true } : undefined
     return await this.sqlrecommendsRepository.find({
       order: {
         level: "DESC",
         index: "DESC"
       },
+      where,
       skip,
       take: size && size <= 100 ? size : 20,
     });
@@ -33,6 +36,13 @@ export class SqlrecommendsService {
         where: { id },
       }
     );
+  }
+
+  async findByIds(ids: number[]): Promise<any> {
+    return await this.sqlrecommendsRepository.createQueryBuilder()
+      .select("*")
+      .where("id IN (:...ids)", { ids })
+      .execute()
   }
 
   async findLastLevel(): Promise<number> {
@@ -51,9 +61,12 @@ export class SqlrecommendsService {
     return await this.sqlrecommendsRepository.save(o);
   }
 
-  async getAll(): Promise<recommends[]> {
+  // needOnline： 是否需要上线字段，不上线的先不考虑
+  async getAll(needOnline?: boolean): Promise<recommends[]> {
+    const where = needOnline ? { isOnline: true } : undefined
     return await this.sqlrecommendsRepository.find({
       select: ["id"],
+      where
     });
   }
 

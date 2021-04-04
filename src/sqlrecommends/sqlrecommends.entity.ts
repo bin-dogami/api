@@ -28,4 +28,9 @@ export class sqlrecommends {
 
   @Column()
   thumb: string;
+
+  // 与 novels 里的 isOnline 保持同步
+  @Index()
+  @Column({ default: true })
+  isOnline: boolean;
 }

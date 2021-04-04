@@ -83,15 +83,24 @@ export class FixdataController {
     })
 
     // 推荐
-    const recommends = await this.sqlrecommendsService.getAll()
+    const recommends = await this.sqlrecommendsService.findByIds(ids)
+    console.log(recommends)
     const oRecommendIds = {}
-    recommends.forEach(({ id }) => {
-      oRecommendIds[id] = 1
+    recommends.forEach((item) => {
+      oRecommendIds[item.id] = item
     })
 
     novels.forEach((item: any) => {
       item.isRecommend = item.id in oRecommendIds
-      if (item.id in oSpiders) {
+
+      // @TODO: fix data，有空去掉
+      const id = item.id
+      if (item.id in oRecommendIds && item.isOnline !== oRecommendIds[id].isOnline) {
+        oRecommendIds[id].isOnline = item.isOnline
+        this.sqlrecommendsService.save(oRecommendIds[id])
+      }
+
+      if (id in oSpiders) {
         const _item = oSpiders[item.id]
         item.allIndexEq0 = _item.allIndexEq0 ? '是' : '否'
         item.spiderCode = _item.status
@@ -207,7 +216,7 @@ export class FixdataController {
     if (!novel || !novel.id) {
       return '找不到书本信息'
     }
-    const { title, description, author, authorId, thumb } = novel
+    const { title, description, author, authorId, thumb, isOnline } = novel
     const oRec = await this.sqlrecommendsService.findById(+id)
     if (!oRec || !oRec.index) {
       if (toRec) {
@@ -220,6 +229,7 @@ export class FixdataController {
           author,
           authorId,
           thumb,
+          isOnline
         }) ? '' : '设置失败';
       } else {
         return '找不到本书的推荐信息'
@@ -751,6 +761,12 @@ export class FixdataController {
       const aIds = ids.split(',').map((id) => isNumber(id) ? +id : 0).filter((id) => !!id)
       await this.sqlmenusService.batchSetMenusOnlineByNovels(aIds)
       await this.sqlnovelsService.batchSetBooksOnline(aIds)
+      const recommends = await this.sqlrecommendsService.findByIds(aIds)
+      while (recommends.length) {
+        const item = recommends.shift()
+        item.isOnline = true
+        await this.sqlrecommendsService.save(item)
+      }
       return await this.getLastTakeMenusByNovels(aIds, +allmenus ? '100000' : '100')
     }
   }

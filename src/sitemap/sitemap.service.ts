@@ -44,7 +44,7 @@ export class SitemapService {
   }
 
   async getBooksUrls(): Promise<any[]> {
-    const recommends = await this.sqlrecommendsService.getAll()
+    const recommends = await this.sqlrecommendsService.getAll(true)
     const recommendIds = []
     const oRecommendIds = {}
     recommends.forEach(({ id }) => {

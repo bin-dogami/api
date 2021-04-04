@@ -18,7 +18,7 @@ export class SqlauthorsService {
 
   async getAuthors(skip: number, take?: number, getAllFields?: boolean): Promise<authors[]> {
     return await this.sqlauthorsRepository.find({
-      select: getAllFields ? undefined : ["id", "name"],
+      select: getAllFields ? undefined : ["id", "name", "novelIds"],
       order: {
         id: "DESC",
         level: "DESC"

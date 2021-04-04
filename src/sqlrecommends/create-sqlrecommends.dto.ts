@@ -6,4 +6,5 @@ export class CreateSqlrecommends {
   authorId: number;
   description: string;
   thumb: string;
+  isOnline?: boolean;
 }

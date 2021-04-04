@@ -125,14 +125,14 @@ export class ScanController {
   @Get('getBooksByHot')
   @UseInterceptors(CacheInterceptor)
   async getBooksByHot(@Query('skip') skip: number, @Query('size') size?: number): Promise<recommends[]> {
-    return await this.sqlrecommendsService.getList(+skip, +size);
+    return await this.sqlrecommendsService.getList(+skip, +size, true);
   }
 
   // 前100个里随机取 size 个 推荐书
   @Get('getRecommendBooks')
   async getRecommendBooks(@Query('size') size?: number): Promise<recommends[]> {
     const _size = +size || 4
-    const list = await this.sqlrecommendsService.getList(0, 100);
+    const list = await this.sqlrecommendsService.getList(0, 100, true);
     return shuffle(list).slice(0, _size)
   }
 
@@ -255,7 +255,19 @@ export class ScanController {
         novelsList = await this.sqlnovelsService.getBookByIds(author.novelIds, 1, true)
       }
     }
-    const authorsList = await this.sqlauthorsService.getAuthors(0, 20)
+    let authorsList = await this.sqlauthorsService.getAuthors(0, 20)
+    const _authorsList = [...authorsList]
+    while (_authorsList.length) {
+      const { id, novelIds } = _authorsList.shift()
+      if (!novelIds.length) {
+        authorsList = authorsList.filter((item) => item.id !== id)
+      } else {
+        const novels = await this.sqlnovelsService.getBookByIds(novelIds, 1, true)
+        if (!novels.length) {
+          authorsList = authorsList.filter((item) => item.id !== id)
+        }
+      }
+    }
     return [
       author,
       novelsList,
