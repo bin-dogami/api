@@ -58,7 +58,7 @@ export const downloadImage = async (path: string, url: string, id: number) => {
   return filePath;
 }
 
-export const writeImage = async (path: string, imageBuffer: any, imageName: string) => {
+export const writeImage = async (path: string, imageBuffer: any, imageName: string, id?: string) => {
   if (!fs.existsSync(path)) {
     fs.mkdirSync(path);
   }
@@ -66,7 +66,7 @@ export const writeImage = async (path: string, imageBuffer: any, imageName: stri
   const urlSplitArr = imageName.split('.');
   const imageType = urlSplitArr.length ? urlSplitArr[urlSplitArr.length - 1] : 'jpg';
   // 先创建一个时间戳的图片，到时候再重命名
-  const filePath = `${path}/${dayjs().format('YYYYMMDDHHmmss')}.${imageType}`;
+  const filePath = `${path}/${id || dayjs().format('YYYYMMDDHHmmss')}.${imageType}`;
   fs.writeFileSync(filePath, imageBuffer);
   return filePath;
 }

@@ -815,8 +815,8 @@ export class FixdataController {
   // 通过文件上传图片
   @Post('uploadImages')
   @UseInterceptors(FileInterceptor('file'))
-  async uploadImages(@UploadedFile() file) {
-    const imagePath = await writeImage(ImagePath + 'images', file.buffer, file.originalname)
+  async uploadImages(@UploadedFile() file, @Body('id') id: string) {
+    const imagePath = await writeImage(ImagePath + 'images', file.buffer, file.originalname, id)
     return imagePath.replace(ImagePath, '')
   }
 
