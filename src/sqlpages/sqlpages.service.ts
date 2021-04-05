@@ -52,4 +52,18 @@ export class SqlpagesService {
       .andWhere(gtId, { id })
       .execute()
   }
+
+  // 获取完整内容，有nextId 就持续遍历再合到一个 content 上
+  // @TODO: 一章内容特别特别多时候就不应该一次性取完了
+  async getWholeContent(page: any, content: string) {
+    if (!page.nextId) {
+      return content
+    }
+
+    const nextPage: any = await this.sqlpagesRepository.findOne(page.nextId)
+    if (nextPage) {
+      return await this.getWholeContent(nextPage, content + nextPage.content)
+    }
+    return content
+  }
 }

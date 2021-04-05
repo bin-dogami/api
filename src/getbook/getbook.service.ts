@@ -4,6 +4,7 @@ const spawn = require("child_process").spawn;
 const child_process = require('child_process');
 import { SqlnovelsService } from '../sqlnovels/sqlnovels.service';
 import { sqlnovels as novels } from '../sqlnovels/sqlnovels.entity';
+import { SqlpagesService } from '../sqlpages/sqlpages.service';
 import { SqlauthorsService } from '../sqlauthors/sqlauthors.service';
 import { getNovelId, downloadImage, ImagePath } from '../utils/index'
 import { Mylogger } from '../mylogger/mylogger.service';
@@ -15,6 +16,7 @@ export class GetBookService {
   constructor(
     private readonly sqlauthorsService: SqlauthorsService,
     private readonly sqlnovelsService: SqlnovelsService,
+    private readonly sqlpagesService: SqlpagesService,
   ) {
   }
 
@@ -190,12 +192,21 @@ export class GetBookService {
     }
     // 写入书信息
     this.logger.log(`# 开始写入书信息 #`);
-    let _novel = null
     try {
       return await this.sqlnovelsService.create(newNovel);
     } catch (err) {
       this.logger.end(`### [failed] 写入书数据失败：${err} ###`);
       return `写入书数据失败：${err}`
+    }
+  }
+
+  // page content 一次放不下的分多页，id 为当前 id+1，如果id 被占用了就再+1，以此类推
+  async getNextPageId(id: number) {
+    const nextId = id + 1
+    if (await this.sqlpagesService.findOne(nextId)) {
+      return await this.getNextPageId(nextId)
+    } else {
+      return nextId
     }
   }
 }

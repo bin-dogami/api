@@ -13,16 +13,16 @@ export const getFirstNovelId = () => {
 }
 
 export const getNovelId = (id: number) => {
-  return id + getRandom(0, 100);
+  return id + getRandom(1, 100);
 }
 
 export const getFirstMenuId = () => {
   return getRandom(123456, 345678);
 }
 
-// 一次性要抓取的章节多的跨度大
+// 一次性要抓取的章节多的跨度大，isNew 其实没啥意义
 export const getMenuId = (id: number, isNew?: boolean) => {
-  return id + getRandom(0, isNew ? 3000 : 300);
+  return id + getRandom(10, isNew ? 500 : 300);
 }
 
 // 可能是这样： 004失去记忆的自己是个食人魔？（http://localhost:3010/book/23084）

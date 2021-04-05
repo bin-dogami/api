@@ -8,6 +8,7 @@ const PageLose = '章节缺失错误'
 const DeleteBook = '删除书本信息记录'
 const NginxLogCollectErrors = 'nginx日志收集错误'
 const SitemapLog = '生成sitemap.xml文件日志'
+const CreateBook = '创建一本书'
 
 @Injectable()
 export class Mylogger extends Logger {
@@ -15,18 +16,21 @@ export class Mylogger extends Logger {
   private filePath = '';
 
   createPageLoseErrorLogFile() {
-    return this.createogFile(PageLose)
+    return this.createLogFileByName(PageLose)
   }
   createDeleteBookLogFile() {
-    return this.createogFile(DeleteBook)
+    return this.createLogFileByName(DeleteBook)
   }
   createNginxLogCollectErrorsFile() {
-    return this.createogFile(NginxLogCollectErrors)
+    return this.createLogFileByName(NginxLogCollectErrors)
   }
   createSitemapLogFile() {
-    return this.createogFile(SitemapLog)
+    return this.createLogFileByName(SitemapLog)
   }
-  createogFile(name = 'errors') {
+  createBookLogFile() {
+    return this.createLogFileByName(CreateBook)
+  }
+  createLogFileByName(name = 'errors') {
     const logPath = path.resolve(logFilePath);
     if (!fs.existsSync(logPath)) {
       fs.mkdirSync(logPath);

@@ -153,7 +153,7 @@ export class SqlvisitorsService {
       .where(hostWhere, { host: host || '' })
       .andWhere(spiderWhere, { spider: _spider })
       .andWhere("ctime >= :sDate", { sDate })
-      .andWhere("ctime < :eDate", { eDate })
+      .andWhere("ctime < :eDate", { eDate: eDate || '2100-01-01' })
 
     return [
       // list

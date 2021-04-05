@@ -1,4 +1,4 @@
-import { getHost, unique, toClearTakeValue, downloadImage, writeImage, ImagePath } from '../utils/index'
+import { getHost, unique, toClearTakeValue, downloadImage, writeImage, ImagePath, getMenuId } from '../utils/index'
 import { Controller, Get, Post, Body, Param, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FixdataService } from './fixdata.service';
@@ -84,7 +84,6 @@ export class FixdataController {
 
     // 推荐
     const recommends = await this.sqlrecommendsService.findByIds(ids)
-    console.log(recommends)
     const oRecommendIds = {}
     recommends.forEach((item) => {
       oRecommendIds[item.id] = item
@@ -818,7 +817,6 @@ export class FixdataController {
   @UseInterceptors(FileInterceptor('file'))
   async uploadImages(@UploadedFile() file) {
     const imagePath = await writeImage(ImagePath + 'images', file.buffer, file.originalname)
-    console.log(imagePath, file);
     return imagePath.replace(ImagePath, '')
   }
 
@@ -841,12 +839,14 @@ export class FixdataController {
       }
     }
 
+    this.logger.start(`\n ### 【start】 开始抓取书信息 ###`, this.logger.createBookLogFile());
     novel = await this.getBookService.createNovel(false, title, author, thumb, description, +typeid, typename, '')
     if (typeof novel === 'string') {
       return novel
     } else {
       await this.sqlspiderService.create(novel.id, ISpiderStatus.ADD_SELF)
       recommend && await this.setRecommend(novel.id + '', '1')
+      this.logger.end(`### [success] 创建书成功，id: ${novel.id}，${recommend ? '并设置为推荐' : ''} ###`);
       return {
         id: novel.id,
         success: true,
@@ -855,6 +855,134 @@ export class FixdataController {
     }
   }
 
+  // 要添加的目录是在 prevMenuId 之后，在 nextMenu 之前
+  @Post('createMenu')
+  async createMenu(@Body('mname') mname: string, @Body('index') index: string, @Body('content') content: string[], @Body('prevMenuId') prevMenuId: string, @Body('novelId') novelId: string) {
+    let _prevMenuId = +prevMenuId
+    const _novelId = +novelId
+
+    // 获取所有目录中最后一条目录的id
+    const lastMenuId = await this.sqlmenusService.findLastMenuId()
+    let currentMenuId = getMenuId(lastMenuId, true)
+    // 在目录之后增加新目录
+    if (_prevMenuId > 0) {
+      const nextMenu = await this.sqlmenusService.getNextMenus(_prevMenuId, _novelId, 1, false, 0)
+      if (nextMenu.length) {
+        const nextMenuId = nextMenu[0].id
+        while (1) {
+          // _prevMenuId 与 nextMenu 紧挨着就没有空间插入目录了
+          if (nextMenuId - _prevMenuId <= 1) {
+            return `创建目录失败，下一个目录之前没有空间可供新目录插入`
+          }
+          currentMenuId = _prevMenuId + 1
+          // 需要确认这个 id 是不是被其他书的目录占了
+          if (await this.detectCurrentMenuIdValid(currentMenuId)) {
+            break
+          } else {
+            _prevMenuId = currentMenuId
+          }
+        }
+      } else {
+        // _prevMenuId 是最后一个目录用 currentMenuId 就行
+      }
+    } else {
+      const count = await this.sqlmenusService.findCountByNovelId(_novelId)
+      // 在第一个目录前增加一个目录
+      if (count > 0) {
+        // 获取第一章
+        const firstMenu = await this.sqlmenusService.getNextMenus(0, _novelId, 1, false, 0)
+        let firstMenuId = firstMenu[0].id
+        while (1) {
+          currentMenuId = firstMenuId - 1
+          // 需要确认这个 id 是不是被其他书的目录占了
+          if (await this.detectCurrentMenuIdValid(currentMenuId)) {
+            break
+          } else {
+            firstMenuId = currentMenuId
+          }
+        }
+      } else {
+        // 创建第一个目录， 用 currentMenuId 就行
+      }
+    }
+
+    // 不创建 log 文件了，想看就直接在控制台看吧
+    this.logger.start(`\n ### 【start】 开始创建目录 ###`)
+    let menuInfo = null
+    try {
+      menuInfo = await this.sqlmenusService.create({
+        id: currentMenuId,
+        novelId: _novelId,
+        mname,
+        moriginalname: mname,
+        index: +index,
+        ErrorType: 0,
+        from: '',
+        // 新创建的目录先不上，等确定没问题了再上（顺便也提交百度收录）
+        isOnline: false
+      })
+      this.logger.log(`# [success]插入目录成功 # 目录名：【${mname} 】 是第${index} 章；id: ${menuInfo.id} `)
+    } catch (err) {
+      const text = `章节插入错误，错误信息: ${err}`
+      this.logger.log(`# [failed] ${text} \n`)
+      return text
+    }
+    // 更新书中目录数
+    const menusLen = await this.sqlmenusService.findCountByNovelId(_novelId);
+    await this.sqlnovelsService.updateFields(_novelId, {
+      menusLen,
+      updatetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
+    })
+    this.logger.log(`\n ### 开始插入内容 ###`)
+
+    let i = 0
+    let nextId = currentMenuId
+
+    while (content.length) {
+      i++
+      let text = content.shift()
+      const page = i > 1 ? `第${i}页` : ''
+      this.logger.log(`# 第${index} 章${page}开始插入page，此章节共 ${text.length} 个字 #`);
+      const pageId = i === 1 ? currentMenuId : nextId
+      nextId = content.length ? await this.getBookService.getNextPageId(pageId) : 0
+      try {
+        await this.sqlpagesService.create({
+          id: pageId,
+          nextId,
+          novelId: _novelId,
+          content: text,
+          wordsnum: text.length,
+        });
+      } catch (error) {
+        break
+      }
+      const mIdText = i === 1 ? '' : `目录id: ${currentMenuId}`
+      this.logger.log(`# 插入章节内容成功 # ${page}, 字数：${text.length}；id: ${pageId}；${mIdText} \n`)
+    }
+    this.logger.log(`\n ### [end] 插入目录及内容结束 ###`)
+    return {
+      id: currentMenuId,
+      msg: `创建目录及插入内容成功，内容成功插入${i}页，失败的内容页数：${content.length}页`
+    }
+  }
+
+  async detectCurrentMenuIdValid(id: number) {
+    const menu = await this.sqlmenusService.findOne(id)
+    return !menu
+  }
+
+  // 查询某段日期内的创建的书id列表
+  @Get('getContent')
+  async getContent(@Query('id') id: string): Promise<any> {
+    let page: any = await this.sqlpagesService.findOne(+id)
+    if (!page) {
+      return `找不到 ${id} 对应的目录内容`
+    }
+    const content = await this.sqlpagesService.getWholeContent(page, page['content'])
+    return {
+      content
+    }
+  }
 
   // 用完了记得注释掉
   // @Get('findAllBooksIndexEq0')

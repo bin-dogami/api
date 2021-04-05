@@ -117,7 +117,7 @@ export class SqlnovelsService {
       .addSelect("menusLen")
       .addSelect("isComplete")
       .where("ctime >= :sDate", { sDate })
-      .andWhere("ctime < :eDate", { eDate })
+      .andWhere("ctime < :eDate", { eDate: eDate || '2100-01-01' })
       .andWhere(`isOnline ${onlineWhere}`, { isOnline })
       .orderBy("id", 'DESC')
       .execute()

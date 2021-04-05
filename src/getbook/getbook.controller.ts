@@ -407,6 +407,7 @@ export class GetBookController {
         }
       }
       // 每抓取5次内容检查一下是否在抓取状态，如果被取消了抓取就中止
+      // @TODO: 这里可以设置一个本 Class 的私有变量去实时中断
       if (hasInsertedNum > 5) {
         if (await this.sqlspiderService.isSpidering(id)) {
           hasInsertedNum = -1
@@ -532,7 +533,7 @@ export class GetBookController {
         const page = i > 1 ? `第${i}页` : ''
         this.logger.log(`# 第${index} 章${page}开始插入page，此章节共 ${content.length} 个字 #`);
         const pageId = i === 1 ? mId : nextId
-        nextId = contentList.length ? await this.getNextPageId(pageId) : 0
+        nextId = contentList.length ? await this.getBookService.getNextPageId(pageId) : 0
         await this.sqlpagesService.create({
           id: pageId,
           nextId,
@@ -552,16 +553,6 @@ export class GetBookController {
         await this.insertPageFailed(mId, id, index, _url, moriginalname, `章节内容插入表中失败: ${err}`)
       }
       return false
-    }
-  }
-
-  // page content 一次放不下的分多页，id 为当前 id+1，如果id 被占用了就再+1，以此类推
-  async getNextPageId(id: number) {
-    const nextId = id + 1
-    if (await this.sqlpagesService.findOne(nextId)) {
-      return await this.getNextPageId(nextId)
-    } else {
-      return nextId
     }
   }
 
@@ -640,8 +631,8 @@ export class GetBookController {
     let _content = formula(content, _tumorList)
     _content = _content.split(splitStr).map((str) => {
       const _str = str.trim()
-      return _str.length ? `<p>${_str}</p>` : false
-    }).filter((str) => !!str).join('')
+      return _str.length ? `<p>${_str}</p>` : ''
+    }).join('')
     // TEXT 能存 65535 / 4（utf8mb4类型每一个字符占4个字节） 个汉字
     // 字数超出 text 限制时多分几次存储
     if (_content.length > 16000) {

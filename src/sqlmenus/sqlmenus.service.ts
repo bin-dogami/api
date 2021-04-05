@@ -166,7 +166,7 @@ export class SqlmenusService {
       .addSelect("ctime")
       .addSelect("moriginalname")
       .where("ctime >= :sDate", { sDate })
-      .andWhere("ctime < :eDate", { eDate })
+      .andWhere("ctime < :eDate", { eDate: eDate || '2100-01-01' })
       .andWhere(`isOnline ${onlineWhere}`, { isOnline })
       // 不包含未上线的书目录
       .andWhere("novelId Not IN (:...nIds)", { nIds })

@@ -73,7 +73,7 @@ export class ScanController {
     return await this.sqlnovelsService.getBookByTitleWithLike(name, 1)
   }
 
-  // 分类页
+  // 分类页 @NOTE: 缓存
   @Get('getTypesData')
   @UseInterceptors(CacheInterceptor)
   async getTypesData(@Query('id') id: number, @Query('skip') skip: number, @Query('size') size?: number): Promise<any> {
@@ -86,7 +86,7 @@ export class ScanController {
     }
   }
 
-  // 首页
+  // 首页 @NOTE: 缓存
   @Get('getIndexData')
   @UseInterceptors(CacheInterceptor)
   async getIndexData(): Promise<any[]> {
@@ -107,21 +107,21 @@ export class ScanController {
     ]
   }
 
-  // 根据分类获取书list，skip： 从第几个开始，不是从第几页开始
+  // 根据分类获取书list，skip： 从第几个开始，不是从第几页开始 @NOTE: 缓存
   @Get('getBooksByType')
   @UseInterceptors(CacheInterceptor)
   async getBooksByType(@Query('typeId') typeId: number, @Query('skip') skip: number, @Query('size') size?: number): Promise<novels[]> {
     return await this.sqlnovelsService.getBooksByType(+typeId, +skip, +size);
   }
 
-  // 根据全本书list
+  // 根据全本书list @NOTE: 缓存
   @Get('getBooksByCompleted')
   @UseInterceptors(CacheInterceptor)
   async getBooksByCompleted(@Query('skip') skip: number, @Query('size') size?: number): Promise<novels[]> {
     return await this.sqlnovelsService.getBooksByCompleted(+skip, size ? +size : 20);
   }
 
-  // 根据热门推荐书 list
+  // 根据热门推荐书 list @NOTE: 缓存
   @Get('getBooksByHot')
   @UseInterceptors(CacheInterceptor)
   async getBooksByHot(@Query('skip') skip: number, @Query('size') size?: number): Promise<recommends[]> {
@@ -187,18 +187,6 @@ export class ScanController {
     })
   }
 
-  // 获取完整内容，有nextId 就持续遍历再合到一个 content 上
-  async getWholeContent(page: any, content: string) {
-    if (!page.nextId) {
-      return content
-    }
-
-    const nextPage: any = await this.sqlpagesService.findOne(page.nextId)
-    if (nextPage) {
-      return await this.getWholeContent(nextPage, content + nextPage.content)
-    }
-    return content
-  }
 
   // page 页数据获取
   @Get('getPageById')
@@ -219,7 +207,7 @@ export class ScanController {
       page['mname'] = menu['mname']
       page['volume'] = menu['volume']
       page['realName'] = menu['moriginalname']
-      page['content'] = await this.getWholeContent(page, page['content'])
+      page['content'] = await this.sqlpagesService.getWholeContent(page, page['content'])
     }
 
     if (page) {
@@ -244,17 +232,7 @@ export class ScanController {
     return []
   }
 
-  // 查询作者书list
-  @Get('getAuthorData')
-  async getAuthorData(@Query('id') id: number): Promise<[authors, novels[], authors[]]> {
-    let author = null
-    let novelsList = []
-    if (id) {
-      author = await this.sqlauthorsService.findOne(+id)
-      if (author) {
-        novelsList = await this.sqlnovelsService.getBookByIds(author.novelIds, 1, true)
-      }
-    }
+  async getAuthorsList() {
     let authorsList = await this.sqlauthorsService.getAuthors(0, 20)
     const _authorsList = [...authorsList]
     while (_authorsList.length) {
@@ -268,6 +246,23 @@ export class ScanController {
         }
       }
     }
+    return authorsList
+  }
+
+  // 查询作者书list
+  @Get('getAuthorData')
+  async getAuthorData(@Query('id') id: number): Promise<[authors, novels[], authors[]]> {
+    let author = null
+    let novelsList = []
+    if (id) {
+      author = await this.sqlauthorsService.findOne(+id)
+      if (author) {
+        novelsList = await this.sqlnovelsService.getBookByIds(author.novelIds, 1, true)
+      }
+    }
+
+    const authorsList = await this.getAuthorsList()
+
     return [
       author,
       novelsList,
