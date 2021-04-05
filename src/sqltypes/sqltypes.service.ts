@@ -17,10 +17,16 @@ export class SqltypesService {
   }
 
   async findAll(isTag: boolean): Promise<types[]> {
-    return await this.sqltypesRepository.find({
+    const types = await this.sqltypesRepository.find({
       select: ["id", "name"],
       where: { isTag }
     });
+    types.forEach((item, index) => {
+      if (item.name === '其他小说') {
+        types.push(types.splice(index, 1)[0])
+      }
+    })
+    return types
   }
 
   async findOne(id: number): Promise<types> {

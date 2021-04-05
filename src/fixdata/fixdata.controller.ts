@@ -834,6 +834,47 @@ export class FixdataController {
     return imagePath.replace(ImagePath, '')
   }
 
+  // 增加一个分类
+  @Post('createType')
+  async createType(@Body('typeName') typeName: string) {
+    const typeInfo = await this.sqltypesService.findOneByName(typeName);
+    if (!typeInfo) {
+      try {
+        const res = await this.sqltypesService.create({
+          name: typeName,
+          isTag: false
+        });
+        return ''
+      } catch (error) {
+        return `创建失败：${error}`
+      }
+    } else {
+      return '创建失败：这个分类已经有了哦'
+    }
+  }
+
+  // 更改书的分类
+  @Post('modifyType')
+  async modifyType(@Body('id') id: string, @Body('typeid') typeid: string, @Body('typename') typename: string) {
+    const novelId = +id
+    try {
+      await this.sqlnovelsService.updateFields(novelId, {
+        typeid,
+        typename
+      })
+      await this.sqltypesdetailService.removeByNovelId(novelId)
+      await this.sqltypesdetailService.create({
+        tid: +typeid,
+        isTag: false,
+        typename,
+        novelId
+      })
+      return ''
+    } catch (error) {
+      return JSON.stringify(error)
+    }
+  }
+
   // 创建一本书
   @Post('createBook')
   async createBook(@Body('title') title: string, @Body('author') author: string, @Body('description') description: string, @Body('typeid') typeid: string, @Body('typename') typename: string, @Body('thumb') thumb: string, @Body('recommend') recommend: string) {

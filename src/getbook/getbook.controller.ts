@@ -29,6 +29,8 @@ export class GetBookController {
   // 重新抓取的次数限制
   reSpiderInfo = null;
   tumorUseFixList = null;
+  // @TODO: 使用 isSpidering 判定是否在抓取
+  // isSpidering = false;
 
   constructor(
     private readonly getBookService: GetBookService,
@@ -140,7 +142,7 @@ export class GetBookController {
 
     // 查询分类
     this.logger.log(`# 开始查询书所属分类 #`);
-    let typeInfo = await this.sqltypesService.findOneByName(type);
+    let typeInfo = await this.sqltypesService.findOneByName(type.includes('其他') ? '其他小说' : type);
     const isTypeCreateNow = !typeInfo;
     if (!typeInfo) {
       this.logger.log(`# 开始创建新分类 #`);
@@ -167,7 +169,7 @@ export class GetBookController {
       await this.sqltypesdetailService.create({
         tid: typeInfo.id,
         isTag: false,
-        typename: type,
+        typename: typeInfo.name,
         novelId: _novel.id
       });
     }
