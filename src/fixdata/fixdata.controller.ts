@@ -1,3 +1,4 @@
+import { getNovelId } from './../utils/index';
 import { getHost, unique, toClearTakeValue, downloadImage, writeImage, ImagePath, getMenuId } from '../utils/index'
 import { Controller, Get, Post, Body, Param, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -817,7 +818,13 @@ export class FixdataController {
   @UseInterceptors(FileInterceptor('file'))
   async uploadImages(@UploadedFile() file, @Body('id') id: string) {
     const imagePath = await writeImage(ImagePath + 'images', file.buffer, file.originalname, id)
-    return imagePath.replace(ImagePath, '')
+    const thumb = imagePath.replace(ImagePath, '')
+    if (id) {
+      await this.sqlnovelsService.updateFields(+id, {
+        thumb
+      })
+    }
+    return thumb
   }
 
   // 提交url形式上传图片
