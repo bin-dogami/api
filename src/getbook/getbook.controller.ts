@@ -274,8 +274,9 @@ export class GetBookController {
   @Get('detectWhoIsSpidering')
   async detectWhoIsSpidering() {
     const SpideringNovels = await this.sqlspiderService.findAllByStatus(ISpiderStatus.SPIDERING)
+    const unSpiderCount = await this.sqlspiderService.getUnSpiderTotal()
     if (SpideringNovels.length) {
-      return `有${SpideringNovels.length}本书正在抓取中：(#${SpideringNovels[0].id}#)${SpideringNovels.map(({ id }) => id).join(', ')}`
+      return `有${SpideringNovels.length}本书正在抓取中：(#${SpideringNovels[0].id}#)，${unSpiderCount}本书待抓取`
     } else {
       return ''
     }

@@ -71,6 +71,15 @@ export class SqlspiderService {
     });
   }
 
+  async getUnSpiderTotal(): Promise<number> {
+    const data = await this.sqlspiderRepository
+      .createQueryBuilder()
+      .select("count(*)", "total")
+      .where("status = :status", { status: ISpiderStatus.UNSPIDER })
+      .execute()
+    return data.length && data[0] ? data[0].total : 0
+  }
+
   // @TODO: 这块改了，确认下不影响 getbook 里的接口。 获取下一个待抓取书id，id 可以为0，为0 就是第一条
   async getNextUnspider(id: number): Promise<number> {
     const spider = await this.sqlspiderRepository.findOne({
