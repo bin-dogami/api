@@ -9,6 +9,7 @@ const DeleteBook = '删除书本信息记录'
 const NginxLogCollectErrors = 'nginx日志收集错误'
 const SitemapLog = '生成sitemap.xml文件日志'
 const CreateBook = '创建一本书'
+const AutoSpiderAll = '定时任务自动抓取目录'
 
 @Injectable()
 export class Mylogger extends Logger {
@@ -29,6 +30,9 @@ export class Mylogger extends Logger {
   }
   createBookLogFile() {
     return this.createLogFileByName(CreateBook)
+  }
+  createAutoSpiderAll() {
+    return this.createLogFileByName(AutoSpiderAll)
   }
   createLogFileByName(name = 'errors') {
     const logPath = path.resolve(logFilePath);

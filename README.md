@@ -37,5 +37,8 @@ skip 不是第几页，而是第几个，比如要查第二页的，skip 就是 
 * A.module 里需要 imports 进来 B.module； 不需要在 app.module 里加啥
 * 上两步完成后，A.service 里就可以引入 B.service 了，可以参考 sitemap 模块
 
+### 引入问题
+* A 引了 B，B就不要引 A 了，不然会有问题，可以建个 common 模块，把A和B 都要用的扔 common 里
+
 ### 定时任务
 定时任务参考 sqlvisitors/sqlvisitors.service.ts

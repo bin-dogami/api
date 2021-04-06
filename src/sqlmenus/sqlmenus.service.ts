@@ -168,8 +168,8 @@ export class SqlmenusService {
       .where("ctime >= :sDate", { sDate })
       .andWhere("ctime < :eDate", { eDate: eDate || '2100-01-01' })
       .andWhere(`isOnline ${onlineWhere}`, { isOnline })
-      // 不包含未上线的书目录
-      .andWhere("novelId Not IN (:...nIds)", { nIds })
+      // 不包含未上线的书目录，nIds 不能为空数组，不然SQL报错
+      .andWhere("novelId Not IN (:...nIds)", { nIds: nIds.length ? nIds : [1] })
       // @TODO: index全为0 的加个标识吧
       // .andWhere("index > :index", { index: 0 })
       .orderBy("id", 'DESC')

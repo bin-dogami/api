@@ -14,10 +14,11 @@ import { SqlspiderModule } from '../sqlspider/sqlspider.module';
 import { SqlvisitorsModule } from '../sqlvisitors/sqlvisitors.module';
 import { SitemapModule } from '../sitemap/sitemap.module';
 import { GetbookModule } from '../getbook/getbook.module';
+import { CommonModule } from '../common/common.module';
 
 @Module({
-  imports: [GetbookModule, SqlnovelsModule, SqltypesModule, SqlmenusModule, SqlpagesModule, SqlrecommendsModule, SqltypesdetailModule, SqlauthorsModule, SqlerrorsModule, SqltumorModule, SqlspiderModule, SqlvisitorsModule, SitemapModule],
+  imports: [CommonModule, GetbookModule, SqlnovelsModule, SqltypesModule, SqlmenusModule, SqlpagesModule, SqlrecommendsModule, SqltypesdetailModule, SqlauthorsModule, SqlerrorsModule, SqltumorModule, SqlspiderModule, SqlvisitorsModule, SitemapModule],
   providers: [FixdataService],
-  controllers: [FixdataController]
+  controllers: [FixdataController],
 })
 export class FixdataModule { }

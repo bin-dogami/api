@@ -74,3 +74,10 @@ export const writeImage = async (path: string, imageBuffer: any, imageName: stri
 export const unique = (arr: number[]) => {
   return Array.from(new Set(arr));
 }
+
+export const isNumber = (num: any) => {
+  if (typeof num === 'number') {
+    return true
+  }
+  return typeof num === 'string' && /^\d+$/.test(num)
+}

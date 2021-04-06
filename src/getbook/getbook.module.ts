@@ -11,9 +11,10 @@ import { SqlauthorsModule } from '../sqlauthors/sqlauthors.module';
 import { SqlerrorsModule } from '../sqlerrors/sqlerrors.module';
 import { SqltumorModule } from '../sqltumor/sqltumor.module';
 import { SqlspiderModule } from '../sqlspider/sqlspider.module';
-
+import { CommonModule } from '../common/common.module';
+import { SitemapModule } from '../sitemap/sitemap.module';
 @Module({
-  imports: [SqlnovelsModule, SqltypesModule, SqlmenusModule, SqlpagesModule, SqlrecommendsModule, SqltypesdetailModule, SqlauthorsModule, SqlerrorsModule, SqltumorModule, SqlspiderModule],
+  imports: [CommonModule, SitemapModule, SqlnovelsModule, SqltypesModule, SqlmenusModule, SqlpagesModule, SqlrecommendsModule, SqltypesdetailModule, SqlauthorsModule, SqlerrorsModule, SqltumorModule, SqlspiderModule],
   providers: [GetBookService],
   controllers: [GetBookController],
   exports: [GetBookService]

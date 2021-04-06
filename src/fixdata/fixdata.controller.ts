@@ -1,5 +1,5 @@
 import { getNovelId } from './../utils/index';
-import { getHost, unique, toClearTakeValue, downloadImage, writeImage, ImagePath, getMenuId } from '../utils/index'
+import { getHost, unique, toClearTakeValue, downloadImage, writeImage, ImagePath, getMenuId, isNumber } from '../utils/index'
 import { Controller, Get, Post, Body, Param, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FixdataService } from './fixdata.service';
@@ -16,6 +16,7 @@ import { ISpiderStatus, SqlspiderService, SpiderStatus } from '../sqlspider/sqls
 import { SqlvisitorsService } from '../sqlvisitors/sqlvisitors.service';
 import { SitemapService } from '../sitemap/sitemap.service';
 import { GetBookService } from '../getbook/getbook.service';
+import { CommonService } from '../common/common.service';
 
 const dayjs = require('dayjs')
 
@@ -23,23 +24,13 @@ import { sqlnovels as novels } from '../sqlnovels/sqlnovels.entity';
 import { sqlauthors as authors } from '../sqlauthors/sqlauthors.entity';
 import { Mylogger } from '../mylogger/mylogger.service';
 
-// https://github.com/request/request#promises--asyncawait
-// https://github.com/request/request-promise
-var rp = require('request-promise');
-
-const isNumber = (num: any) => {
-  if (typeof num === 'number') {
-    return true
-  }
-  return typeof num === 'string' && /^\d+$/.test(num)
-}
-
 @Controller('fixdata')
 export class FixdataController {
   private readonly logger = new Mylogger(FixdataController.name);
   clearingAllBooksContents = false;
 
   constructor(
+    private readonly commonService: CommonService,
     private readonly getBookService: GetBookService,
     private readonly fixdataService: FixdataService,
     private readonly sqlnovelsService: SqlnovelsService,
@@ -649,12 +640,7 @@ export class FixdataController {
   //  根据一段日期之间的目录id列表，未上线的书的目录过滤掉
   @Get('getMenusByCreateDate')
   async getMenusByCreateDate(@Query('sDate') sDate: string, @Query('eDate') eDate: string, @Query('online') online: string): Promise<any[]> {
-    // 获取所有未上线的书
-    const [novels, count] = await this.sqlnovelsService.getBooksByParams({
-      where: { isOnline: false }
-    })
-    const nIds = novels.map(({ id }: { id: number }) => id)
-    return await this.sqlmenusService.getMenusByCreateDate(sDate, eDate, +online || 1, nIds)
+    return await this.commonService.getMenusByDateInOnlineNovles(sDate, eDate, online)
   }
 
   // 查询某段日期内的创建的书id列表
@@ -665,49 +651,8 @@ export class FixdataController {
 
   // 提交百度收录
   @Post('curlBaiduSeo')
-  async curlBaiduSeo(@Body('links') links: string, @Body('dev') dev: string): Promise<any> {
-    if (+dev) {
-      return {
-        success: true,
-        msg: '测试成功(开发环境不能提交，因为数据是不对的)'
-      }
-    }
-
-    if (links.length) {
-      // https://ziyuan.baidu.com/linksubmit/index?site=http://m.zjjdxr.com/
-      const res = await rp({
-        url: 'http://data.zz.baidu.com/urls?site=https://m.zjjdxr.com&token=pyoHHEdGLmensoRP',
-        method: "POST",
-        // json: true,
-        headers: {
-          "content-type": "text/plain",
-        },
-        body: links
-      })
-      if (!res) {
-        return {
-          success: false,
-          msg: '提交API接口返回值出错了'
-        }
-      }
-      // @TODO: 写入 log里记录一下提交记录吧
-      const { success, remain, not_valid, not_same_site, error, message } = JSON.parse(res)
-      let text = JSON.stringify(res)
-      if (success !== undefined) {
-        let more = not_valid ? `不合法的url: ${not_valid.join(', ')}` : ''
-        text = `提交收录成功，剩余收录数: ${remain}, ${more}`
-      } else if (error !== undefined) {
-        text = `提交收录失败(${error})，错误信息: ${message}`
-      }
-      return {
-        success: !!success,
-        msg: text
-      }
-    }
-    return {
-      success: false,
-      msg: 'links 不能为空'
-    }
+  async curlBaiduSeo(@Body('links') links: string): Promise<any> {
+    return await this.commonService.curlBaiduSeo(links)
   }
 
   //  获取某些书的最后 take 章目录
@@ -728,17 +673,7 @@ export class FixdataController {
   // 设置未上线的目录上线
   @Post('setAllMnusOnline')
   async setAllMnusOnline(@Body('ids') ids: string): Promise<any> {
-    if (typeof ids !== 'string') {
-      return '数据类型不对'
-    }
-    if (ids === '') {
-      return '所有目录一次性上线功能取消'
-      // 一次性全部上线还是不要了
-      // return await this.sqlmenusService.setAllMenusOnline()
-    } else {
-      const aIds = ids.split(',').map((id) => isNumber(id) ? +id : 0).filter((id) => !!id)
-      return await this.sqlmenusService.batchSetMenusOnline(aIds)
-    }
+    return await this.commonService.setAllMnusOnline(ids)
   }
 
   // 设置指定或全部未上线的书本上线，如果是指定书，则返回书的后一百章ID

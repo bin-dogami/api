@@ -12,6 +12,10 @@ import { IErrors, SqlerrorsService } from '../sqlerrors/sqlerrors.service';
 import { ITumor, formula, SqltumorService } from '../sqltumor/sqltumor.service';
 import { ISpiderStatus, SqlspiderService, CreateSqlspider } from '../sqlspider/sqlspider.service';
 import { Mylogger } from '../mylogger/mylogger.service';
+import { CommonService } from '../common/common.service';
+import { SitemapService } from '../sitemap/sitemap.service';
+import { Cron, Interval } from '@nestjs/schedule';
+
 const dayjs = require('dayjs')
 
 const getValidUrl = (host: string, url: string, from: string) => {
@@ -31,9 +35,13 @@ export class GetBookController {
   tumorUseFixList = null;
   // @TODO: 使用 isSpidering 判定是否在抓取
   // isSpidering = false;
+  // 1 是后台点的 抓取全部，2 是定时任务在抓取全部，0 是没有在抓取
+  spiderAllStatus = 0;
 
   constructor(
+    private readonly commonService: CommonService,
     private readonly getBookService: GetBookService,
+    private readonly sitemapService: SitemapService,
     private readonly sqlnovelsService: SqlnovelsService,
     private readonly sqltypesService: SqltypesService,
     private readonly sqlmenusService: SqlmenusService,
@@ -196,6 +204,7 @@ export class GetBookController {
   // 更改抓取中的书状态为已抓取完
   @Post('setCurrentSpideringStop')
   async setCurrentSpideringStop() {
+    this.spiderAllStatus = 0
     return await this.sqlspiderService.stopAllSpidering()
   }
 
@@ -225,6 +234,12 @@ export class GetBookController {
         return `找不到要抓取的书，id: ${nextSpiderNovelId}`
       }
       this.logger.end(`### 【end】找不到要抓取的书，抓取结束了，id: ${nextSpiderNovelId} ### \n`);
+
+      // 定时任务抓取完了自动提交收录
+      if (this.spiderAllStatus === 2) {
+        await this.getUnOnlineMenusAndSubmitSEO()
+      }
+      this.spiderAllStatus = 0
       return `找不到要抓取的书，抓取结束了，id: ${nextSpiderNovelId}`
     }
 
@@ -266,9 +281,53 @@ export class GetBookController {
     }
   }
 
+  async getUnOnlineMenusAndSubmitSEO() {
+    if (process.env.NODE_ENV === 'development') {
+      return
+    }
+    // 获取所有上线了的书的未上线目录
+    const menus = await this.commonService.getMenusByDateInOnlineNovles('', '', '2')
+    this.logger.log(`\n ### 抓完了，现在获取刚抓取的目录，共${menus.length}章，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`);
+    if (menus.length) {
+      // 目录上线
+      try {
+        await this.sqlmenusService.batchSetMenusOnline(menus.map(({ id }) => id))
+        this.logger.log(`\n ### 目录上线成功，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`);
+
+        // 提交到百度收录
+        const links = menus.map(({ id }) => `https://m.zjjdxr.com/page/${id}`).join('\n').trim()
+        const res = await this.commonService.curlBaiduSeo(links)
+        this.logger.log(`\n ### 提交抓取的目录到百度收录：${res.msg}，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`);
+
+        // 更新 sitemap.xml
+        const siteMapRes = await this.sitemapService.createSiteMap()
+        this.logger.log(`\n ### sitemap.xml文件${siteMapRes} ###`);
+      } catch (error) {
+        this.logger.log(`\n ### 目录上线失败，原因：${error} ###`);
+      }
+    }
+    this.logger.end(`\n ### 【end】，本次抓取结束，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`);
+  }
+
+  // @NOTE: 定时任务，每天 1点到晚上11点多个时间点执行
+  @Cron('30 16 1,6,8,10,12,15,18,21,23 * * *')
+  async cronSpiderAll() {
+    this.logger.start(`\n ### 【start】 到点自动开始抓取所有新目录了，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`, this.logger.createAutoSpiderAll());
+    this.spiderAllStatus = 2
+    await this.spiderAll(true)
+  }
+
   // 统一抓取所有需要再次抓取的书
   @Post('spiderAll')
-  async spiderAll() {
+  async spiderAll(isAutoSpider: boolean) {
+    if ((isAutoSpider && this.spiderAllStatus === 1) || (!isAutoSpider && this.spiderAllStatus === 2)) {
+      const text = this.spiderAllStatus === 2 ? '定时任务在抓呢' : '后台点的抓取按钮还没抓完呢'
+      this.logger.end(`\n ### 【end】，${text} ###`);
+      return text
+    }
+    if (!isAutoSpider) {
+      this.spiderAllStatus = 1
+    }
     this.justSpiderOne = false
     const SpideringNovels = await this.sqlspiderService.findAllByStatus(ISpiderStatus.SPIDERING)
     if (SpideringNovels.length) {
@@ -396,7 +455,6 @@ export class GetBookController {
     }
     let currentMenuId = await this.sqlmenusService.findLastMenuId()
     let menusInsertFailedInfo = ''
-    let hasInsertedNum = 0
     while (menus.length) {
       const currentMenuInfo = menus.shift();
       // moriginalname === title
@@ -409,18 +467,12 @@ export class GetBookController {
         }
       }
       // 每抓取5次内容检查一下是否在抓取状态，如果被取消了抓取就中止
-      // @TODO: 这里可以设置一个本 Class 的私有变量去实时中断
-      if (hasInsertedNum > 5) {
-        if (await this.sqlspiderService.isSpidering(id)) {
-          hasInsertedNum = -1
-        } else {
-          const text = `因抓取状态不是抓取中，中止抓取，index: ${index} ，title: ${title} `
-          this.logger.log(`# ${text} #`)
-          await this.sqlspiderService.completeSpider(id, text)
-          break
-        }
+      if (!this.spiderAllStatus) {
+        const text = `因抓取状态不是抓取中，中止抓取，index: ${index} ，title: ${title} `
+        this.logger.log(`# ${text} #`)
+        await this.sqlspiderService.completeSpider(id, text)
+        break
       }
-      hasInsertedNum++
 
       let ErrorType = 0
       let menuInfo: any;
