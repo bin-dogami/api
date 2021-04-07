@@ -33,10 +33,8 @@ export class GetBookController {
   // 重新抓取的次数限制
   reSpiderInfo = null;
   tumorUseFixList = null;
-  // @TODO: 使用 isSpidering 判定是否在抓取
-  // isSpidering = false;
-  // 1 是后台点的 抓取全部，2 是定时任务在抓取全部，0 是没有在抓取
-  spiderAllStatus = 0;
+  // 1 是后台点的 抓取全部，2 是定时任务在抓取全部，3 是单个的抓取，0 是没有在抓取
+  currentSpiderStatus = 0;
 
   constructor(
     private readonly commonService: CommonService,
@@ -92,6 +90,11 @@ export class GetBookController {
   // mnum 为暂时只抓取几章，先记入数据库，再慢慢抓取
   @Post('spider')
   async spider(@Body('url') url: string, @Body('recommend') recommend: string, @Body('mnum') mnum: number) {
+    if (this.currentSpiderStatus) {
+      return {
+        '错误': `有书在抓取中`
+      }
+    }
     this.justSpiderOne = true
     const isSpidering = await this.detectWhoIsSpidering()
     if (isSpidering) {
@@ -143,6 +146,7 @@ export class GetBookController {
       const count = await this.sqlmenusService.findCountByNovelId(novel['id']);
 
       const { id, title, description, author } = novel;
+      this.currentSpiderStatus = 3
       this.insertMenus({ ...novel, ...{ from: url }, ...{ filePath }, ...{ mnum: _mnum }, ...{ isAllIndexEq0: spider && spider.allIndexEq0 === true } });
       this.logger.end(`### 【end】本书不是第一次抓取 ### id: ${id}； \n\n `);
       return { '本书不是第一次抓取': '', '已抓取章数': count, id, title, description, author };
@@ -181,6 +185,7 @@ export class GetBookController {
         novelId: _novel.id
       });
     }
+    this.currentSpiderStatus = 3
     this.insertMenus({ ..._novel, ...{ from: url }, ...{ filePath }, ...{ mnum: _mnum } });
     this.logger.end(`### 【end】结束抓取/更新书信息 ### \n`);
     return _novel
@@ -204,7 +209,7 @@ export class GetBookController {
   // 更改抓取中的书状态为已抓取完
   @Post('setCurrentSpideringStop')
   async setCurrentSpideringStop() {
-    this.spiderAllStatus = 0
+    this.currentSpiderStatus = 0
     return await this.sqlspiderService.stopAllSpidering()
   }
 
@@ -236,10 +241,10 @@ export class GetBookController {
       this.logger.end(`### 【end】找不到要抓取的书，抓取结束了，id: ${nextSpiderNovelId} ### \n`);
 
       // 定时任务抓取完了自动提交收录
-      if (this.spiderAllStatus === 2) {
+      if (this.currentSpiderStatus === 2) {
         await this.getUnOnlineMenusAndSubmitSEO()
       }
-      this.spiderAllStatus = 0
+      this.currentSpiderStatus = 0
       return `找不到要抓取的书，抓取结束了，id: ${nextSpiderNovelId}`
     }
 
@@ -314,20 +319,20 @@ export class GetBookController {
   @Cron('30 16 1,6,8,10,12,15,18,21,23 * * *')
   async cronSpiderAll() {
     this.logger.start(`\n ### 【start】 到点自动开始抓取所有新目录了，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`, this.logger.createAutoSpiderAll());
-    this.spiderAllStatus = 2
+    this.currentSpiderStatus = 2
     await this.spiderAll(true)
   }
 
   // 统一抓取所有需要再次抓取的书
   @Post('spiderAll')
   async spiderAll(isAutoSpider: boolean) {
-    if ((isAutoSpider && this.spiderAllStatus === 1) || (!isAutoSpider && this.spiderAllStatus === 2)) {
-      const text = this.spiderAllStatus === 2 ? '定时任务在抓呢' : '后台点的抓取按钮还没抓完呢'
+    if ((isAutoSpider && this.currentSpiderStatus === 1) || (!isAutoSpider && this.currentSpiderStatus === 2)) {
+      const text = this.currentSpiderStatus === 2 ? '定时任务在抓呢' : '后台点的抓取按钮还没抓完呢'
       this.logger.end(`\n ### 【end】，${text} ###`);
       return text
     }
     if (!isAutoSpider) {
-      this.spiderAllStatus = 1
+      this.currentSpiderStatus = 1
     }
     this.justSpiderOne = false
     const SpideringNovels = await this.sqlspiderService.findAllByStatus(ISpiderStatus.SPIDERING)
@@ -468,7 +473,7 @@ export class GetBookController {
         }
       }
       // 每抓取5次内容检查一下是否在抓取状态，如果被取消了抓取就中止
-      if (!this.spiderAllStatus) {
+      if (!this.currentSpiderStatus) {
         const text = `因抓取状态不是抓取中，中止抓取，index: ${index} ，title: ${title} `
         this.logger.log(`# ${text} #`)
         await this.sqlspiderService.completeSpider(id, text)

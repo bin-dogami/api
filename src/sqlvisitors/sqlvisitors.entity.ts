@@ -9,7 +9,7 @@ export class sqlvisitors {
   @Column({ length: 128 })
   host: string;
 
-  @Column({ length: 512 })
+  @Column({ length: 2048 })
   url: string;
 
   // 蜘蛛 sogou|so|haosou|baidu|google|youdao|yahoo|bing|gougou|118114|vnet|360|ioage|sm|sp 等

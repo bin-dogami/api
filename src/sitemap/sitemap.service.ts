@@ -136,7 +136,7 @@ export class SitemapService {
     const lastCtime = novels[novels.length - 1].ctime
     // 非最近 250 本书的
     const newMenus = await this.sqlmenusService.getMenusByNotInNovelIds(novelIds, lastCtime)
-    this.logger.log(`### 从 ${dayjs(lastCtime).format(timeFormat)} 开始抓取的已上线的 目录 共 ${newMenus.length}个，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm:ss')} ###`)
+    this.logger.log(`### 从 ${dayjs(lastCtime).format(timeFormat)} 开始抓取的已上线的目录 共 ${newMenus.length}个，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm:ss')} ###`)
     // 250 本书的每本最后 100 章，@NOTE: 要考虑 xml 文件最大 10M （10485760 个字节） 限制
     let booksMenus = []
     while (novelIds.length) {
