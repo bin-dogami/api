@@ -707,6 +707,7 @@ export class GetBookController {
     }
     // 通过主页设置的只抓取5个的方式抓取的，设置spider状态回0，以便之后再集体重新抓取
     if (justSpider5Page) {
+      this.currentSpiderStatus = 0
       const isAllEq0 = await this.detectNovelMenusIndexIsAllEq0(id)
       const spider = await this.sqlspiderService.getById(id)
       spider.status = ISpiderStatus.UNSPIDER
