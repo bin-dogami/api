@@ -758,6 +758,11 @@ export class FixdataController {
       await this.sqlnovelsService.updateFields(+id, {
         thumb
       })
+      const recommend = await this.sqlrecommendsService.findById(+id)
+      if (recommend) {
+        recommend.thumb = thumb
+        await this.sqlrecommendsService.save(recommend)
+      }
     }
     return thumb
   }
