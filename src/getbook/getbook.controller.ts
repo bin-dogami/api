@@ -356,6 +356,10 @@ export class GetBookController {
     return await this.spiderNext(0)
   }
 
+  resetSpiderStatus() {
+    this.currentSpiderStatus = 0
+  }
+
   // 抓取并插入目录
   async insertMenus(args: any) {
     // 倒序获取最后3章
@@ -392,6 +396,7 @@ export class GetBookController {
             info: `(${args.isAllIndexEq0 ? '此书所有index都是0' : '此书index并不都是0'}) 上次抓取的最后三章的index 都为0，没法定位到上次抓取位置，最后目录名：${lastMenu.moriginalname}，index: ${lastMenu.index}, 目录list: ${args.from}`,
           })
           if (this.justSpiderOne) {
+            this.resetSpiderStatus()
             await this.sqlspiderService.setFailedSpider(args.id, `上次抓取的最后三章的index 都为0，没法定位到上次抓取位置 (${args.isAllIndexEq0 ? '此书所有index都是0' : '此书index并不都是0'})`)
             return {
               '错误': `${text}`
@@ -411,6 +416,7 @@ export class GetBookController {
       this.logger.end(`###[failed] 获取目录失败 ${err} ###`)
       lastMenu && await this.cannotFindLastMenu(lastMenu.id, args.id, lastMenu.index, args.from, lastMenu.moriginalname)
       if (this.justSpiderOne) {
+        this.resetSpiderStatus()
         return {
           '错误': `获取目录失败 ${err}`
         }
