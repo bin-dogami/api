@@ -217,6 +217,7 @@ export class GetBookController {
   async spiderNext(id: number) {
     // 从主页进行的只抓取本书的
     if (this.justSpiderOne) {
+      this.currentSpiderStatus = 0
       return
     }
 
@@ -708,8 +709,10 @@ export class GetBookController {
       this.reSpiderInfo = null
     }
     // 通过主页设置的只抓取5个的方式抓取的，设置spider状态回0，以便之后再集体重新抓取
-    if (justSpider5Page) {
+    if (this.currentSpiderStatus === 3) {
       this.currentSpiderStatus = 0
+    }
+    if (justSpider5Page) {
       const isAllEq0 = await this.detectNovelMenusIndexIsAllEq0(id)
       const spider = await this.sqlspiderService.getById(id)
       spider.status = ISpiderStatus.UNSPIDER
