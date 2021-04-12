@@ -1,5 +1,5 @@
 import { getNovelId } from './../utils/index';
-import { getHost, unique, toClearTakeValue, downloadImage, writeImage, ImagePath, getMenuId, isNumber } from '../utils/index'
+import { getHost, getValidUrl, getHostFromUrl, unique, toClearTakeValue, downloadImage, writeImage, ImagePath, getMenuId, isNumber } from '../utils/index'
 import { Controller, Get, Post, Body, Param, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FixdataService } from './fixdata.service';
@@ -10,7 +10,7 @@ import { SqlpagesService } from '../sqlpages/sqlpages.service';
 import { SqlrecommendsService } from '../sqlrecommends/sqlrecommends.service';
 import { SqltypesdetailService } from '../sqltypesdetail/sqltypesdetail.service';
 import { SqlauthorsService } from '../sqlauthors/sqlauthors.service';
-import { SqlerrorsService } from '../sqlerrors/sqlerrors.service';
+import { IErrors, SqlerrorsService } from '../sqlerrors/sqlerrors.service';
 import { TumorTypes, SqltumorService } from '../sqltumor/sqltumor.service';
 import { ISpiderStatus, SqlspiderService, SpiderStatus } from '../sqlspider/sqlspider.service';
 import { SqlvisitorsService } from '../sqlvisitors/sqlvisitors.service';
@@ -843,6 +843,37 @@ export class FixdataController {
     }
   }
 
+  // 获取 prevMenuId 与 在本书中它后面的一个目录之间的一个小效id
+  async getValidNextMenuId(prevMenuId: number, novelId: number, _currentMenuId?: number) {
+    let currentMenuId = _currentMenuId
+    if (!currentMenuId) {
+      // 获取所有目录中最后一条目录的id
+      const lastMenuId = await this.sqlmenusService.findLastMenuId()
+      currentMenuId = getMenuId(lastMenuId, true)
+    }
+    const nextMenu = await this.sqlmenusService.getNextMenus(prevMenuId, novelId, 1, false, 0)
+    // 如果prevMenuId不是本书的最后一个目录
+    if (nextMenu.length) {
+      const nextMenuId = nextMenu[0].id
+      while (1) {
+        // prevMenuId 与 nextMenu 紧挨着就没有空间插入目录了
+        if (nextMenuId - prevMenuId <= 1) {
+          return `下一个目录之前没有空间可供新目录插入`
+        }
+        currentMenuId = prevMenuId + 1
+        // 需要确认这个 id 是不是被其他书的目录占了，是true就说明没被占可用
+        if (await this.detectCurrentMenuIdValid(currentMenuId)) {
+          return currentMenuId
+        } else {
+          prevMenuId = currentMenuId
+        }
+      }
+    } else {
+      // prevMenuId 是最后一个目录用 currentMenuId 就行
+      return currentMenuId
+    }
+  }
+
   // 要添加的目录是在 prevMenuId 之后，在 nextMenu 之前
   @Post('createMenu')
   async createMenu(@Body('mname') mname: string, @Body('index') index: string, @Body('content') content: string[], @Body('prevMenuId') prevMenuId: string, @Body('novelId') novelId: string) {
@@ -854,25 +885,31 @@ export class FixdataController {
     let currentMenuId = getMenuId(lastMenuId, true)
     // 在目录之后增加新目录
     if (_prevMenuId > 0) {
-      const nextMenu = await this.sqlmenusService.getNextMenus(_prevMenuId, _novelId, 1, false, 0)
-      if (nextMenu.length) {
-        const nextMenuId = nextMenu[0].id
-        while (1) {
-          // _prevMenuId 与 nextMenu 紧挨着就没有空间插入目录了
-          if (nextMenuId - _prevMenuId <= 1) {
-            return `创建目录失败，下一个目录之前没有空间可供新目录插入`
-          }
-          currentMenuId = _prevMenuId + 1
-          // 需要确认这个 id 是不是被其他书的目录占了
-          if (await this.detectCurrentMenuIdValid(currentMenuId)) {
-            break
-          } else {
-            _prevMenuId = currentMenuId
-          }
-        }
+      const res = await this.getValidNextMenuId(_prevMenuId, _novelId, currentMenuId)
+      if (typeof res === 'number') {
+        currentMenuId = res
       } else {
-        // _prevMenuId 是最后一个目录用 currentMenuId 就行
+        return `创建目录失败，${res}`
       }
+      // // const nextMenu = await this.sqlmenusService.getNextMenus(_prevMenuId, _novelId, 1, false, 0)
+      // // if (nextMenu.length) {
+      // //   const nextMenuId = nextMenu[0].id
+      // //   while (1) {
+      // //     // _prevMenuId 与 nextMenu 紧挨着就没有空间插入目录了
+      // //     if (nextMenuId - _prevMenuId <= 1) {
+      // //       return `创建目录失败，下一个目录之前没有空间可供新目录插入`
+      // //     }
+      // //     currentMenuId = _prevMenuId + 1
+      // //     // 需要确认这个 id 是不是被其他书的目录占了
+      // //     if (await this.detectCurrentMenuIdValid(currentMenuId)) {
+      // //       break
+      // //     } else {
+      // //       _prevMenuId = currentMenuId
+      // //     }
+      // //   }
+      // } else {
+      //   // _prevMenuId 是最后一个目录用 currentMenuId 就行
+      // }
     } else {
       const count = await this.sqlmenusService.findCountByNovelId(_novelId)
       // 在第一个目录前增加一个目录
@@ -970,6 +1007,138 @@ export class FixdataController {
     return {
       content
     }
+  }
+
+  @Post('fixLostMenus')
+  async fixLostMenus(@Body('ids') ids: number[]) {
+    if (!Array.isArray(ids)) {
+      return '参数有问题'
+    }
+    this.logger.start(`\n ### 【start】 开始修复丢失的目录 ###`, this.logger.createFixLostMenus());
+    while (ids.length) {
+      const novelId = ids.shift()
+      const menus = await this.sqlmenusService.findAll(+novelId)
+      const prev10Menus = menus.slice(0, 10)
+      let hasIndex = false
+      prev10Menus.forEach(({ index }) => {
+        if (index) {
+          hasIndex = true
+        }
+      })
+      let lastIndex = 0
+      let lastMenuId = 0
+      let lastOriginalName = ''
+      let originMenus: any = null
+      let oRriginalMenus = null
+      let lastFixIndex = 0
+      const novel = await this.sqlnovelsService.findById(novelId, true)
+      if (!novel || !novel.from.length || !novel.from[0].length) {
+        continue
+      }
+      while (menus.length) {
+        const { id, index, mname, moriginalname } = menus.shift()
+        if (moriginalname === lastOriginalName) {
+          // 删除同名的目录，正好清理一下数据
+          await this.sqlmenusService.remove(id)
+          await this.sqlpagesService.remove(id)
+          await this.sqlerrorsService.removeByMenuId(id)
+          continue;
+        }
+        if (hasIndex) {
+          let text = ''
+          if (index) {
+            if (index - lastIndex > 1) {
+              let insertedNum = 0
+              const currentIndex = index
+              const needFixedNum = index - lastIndex - 1
+              const from = novel.from[0]
+              if (!originMenus) {
+                originMenus = await this.getBookService.getMenus(from, 0)
+                if (!originMenus || !Array.isArray(originMenus) || !originMenus.length) {
+                  break;
+                }
+                // originMenus.map((item) => {
+                //   oRriginalMenus[item.title] = item
+                // })
+              }
+              let startMatching = false
+              for (let i = lastFixIndex, len = originMenus.length; i < len; i++) {
+                const { url, index, title, mname, moriginalname } = originMenus[i]
+                if (title === moriginalname) {
+                  lastFixIndex = i
+                  break
+                }
+                // 如果只差了10个，但是插入了20个，那肯定是有问题，就中断一下；>5避免插入的是一个有index的两个没index的这种
+                if (insertedNum > needFixedNum * 2 && insertedNum > 5) {
+                  text = `目录id: ${id}(书id: ${novelId}), 第 ${currentIndex} 章, 目录名：${moriginalname}, 此章和上一章（index为${lastIndex}）之间需要补充${needFixedNum}章，但现在插入了${insertedNum}章还能再插入，这肯定有问题`
+                  lastFixIndex = i
+                  break
+                }
+                if (startMatching) {
+                  const currentMenuId: any = await this.getValidNextMenuId(lastMenuId, novelId)
+                  if (typeof currentMenuId !== 'number') {
+                    text = `目录id: ${lastMenuId}(书id: ${novelId}), 第 ${lastIndex} 章, 目录名：${lastOriginalName} 之后，${currentMenuId}, 下一章id为 ${id}，目录名${moriginalname}`
+                    break
+                  }
+                  insertedNum++
+                  const host = getHostFromUrl(from);
+                  const _url = getValidUrl(host, url, from)
+                  try {
+                    await this.sqlmenusService.create({
+                      id: currentMenuId,
+                      novelId,
+                      mname,
+                      moriginalname: title,
+                      index,
+                      ErrorType: 0,
+                      from: _url,
+                      isOnline: false
+                    })
+                    // 插入page数据，把 getbook 里的insertPages里的抽离出来复用吧
+
+                    // await this.sqlpagesService.create({
+                    //   id: currentMenuId,
+                    //   novelId,
+                    //   mname,
+                    //   moriginalname: title,
+                    //   index,
+                    //   ErrorType: 0,
+                    //   from: _url,
+                    //   isOnline: false
+                    // })
+                  } catch (error) {
+                    text = `目录id: ${currentMenuId}(书id: ${novelId}), 第 ${index} 章, 目录名：${title} ，目录或page插入失败`
+                  }
+                } else if (title === lastOriginalName) {
+                  startMatching = true
+                }
+              }
+
+            } else if (index === lastIndex) {
+              text = `目录id: ${id}(书id: ${novelId}), 第 ${index} 章, 目录名：${moriginalname}, 章节上和一章重复了`
+            } else if (index - lastIndex < 0) {
+              text = `目录id: ${id}(书id: ${novelId}), 第 ${index} 章, 目录名：${moriginalname}, index 居然比上一章的还小！`
+            }
+            lastIndex = index
+          }
+          if (text) {
+            await this.sqlerrorsService.create({
+              menuId: id,
+              novelId,
+              menuIndex: index,
+              type: IErrors.PAGE_LOST,
+              info: text,
+            })
+            this.logger.log(`### ${text} ###`);
+          }
+        } else {
+
+        }
+        lastMenuId = id
+        lastOriginalName = moriginalname
+      }
+    }
+    this.logger.end(`\n ### 【end】 修复结束 ### \n\n`);
   }
 
   // 用完了记得注释掉

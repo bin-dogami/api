@@ -19,7 +19,7 @@ export const ErrorTypes = {
   [IErrors.MENU_INDEX_ABNORMAL]: '目录index异常',
   [IErrors.CANNOT_FIND_LAST_MENU]: '找不到上一次抓取的最后章节',
   [IErrors.LAST3_MENUS_INDEX_EQ0]: '上一次抓取的最后3章index都是0',
-  [IErrors.PAGE_LOST]: 'page缺失'
+  [IErrors.PAGE_LOST]: 'page缺失'  // 抓取失败章节
 }
 
 @Injectable()

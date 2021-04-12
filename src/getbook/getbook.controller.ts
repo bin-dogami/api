@@ -1,4 +1,4 @@
-import { getValidTitle, getHostFromUrl, getHost, getNovelId, getMenuId, downloadImage, ImagePath } from '../utils/index'
+import { getValidUrl, getHostFromUrl, getHost, getNovelId, getMenuId, downloadImage, ImagePath } from '../utils/index'
 import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { GetBookService } from './getbook.service';
 import { SqlnovelsService } from '../sqlnovels/sqlnovels.service';
@@ -17,14 +17,6 @@ import { SitemapService } from '../sitemap/sitemap.service';
 import { Cron, Interval } from '@nestjs/schedule';
 
 const dayjs = require('dayjs')
-
-const getValidUrl = (host: string, url: string, from: string) => {
-  // url 带域名
-  if (host.includes(getHost(url))) {
-    return url.includes('http') ? url : `http://${url}`
-  }
-  return /^\//.test(url) ? host + url : `${from}/${url}`
-}
 
 @Controller('getbook')
 export class GetBookController {
@@ -394,11 +386,11 @@ export class GetBookController {
           let currentIndex = _menus.length - 1
           while (currentIndex > 1) {
             const { title } = _menus[currentIndex]
-            if (title === lastMenus[lastMenus.length - 1].moriginalname) {
+            if (title === lastMenus[0].moriginalname) {
               const prevMenu = _menus[currentIndex - 1]
-              if (prevMenu && prevMenu.title === lastMenus[lastMenus.length - 2].moriginalname) {
+              if (prevMenu && prevMenu.title === lastMenus[1].moriginalname) {
                 const prevAndPrevMenu = _menus[currentIndex - 2]
-                if (prevAndPrevMenu && prevAndPrevMenu.title === lastMenus[lastMenus.length - 3].moriginalname) {
+                if (prevAndPrevMenu && prevAndPrevMenu.title === lastMenus[2].moriginalname) {
                   menus = _menus.slice(currentIndex + 1)
                   break;
                 }
@@ -413,13 +405,17 @@ export class GetBookController {
             // const text = `(${args.isAllIndexEq0 ? '此书所有index都是0' : '此书index并不都是0'}) 上次抓取的最后三章的index 都为0，没法定位到上次抓取位置。如果这是个巧合，删掉最后几章再抓取；如果不是巧合，可以考虑删除书再重新抓（要不就写匹配的抓取组件吧）`
             // this.logger.end(`### ${text} ###`);
             // const lastMenu = lastMenus[0]
-            // await this.sqlerrorsService.create({
-            //   menuId: lastMenu.id,
-            //   novelId: args.id,
-            //   menuIndex: lastMenu.index,
-            //   type: IErrors.LAST3_MENUS_INDEX_EQ0,
-            //   info: `(${args.isAllIndexEq0 ? '此书所有index都是0' : '此书index并不都是0'}) 上次抓取的最后三章的index 都为0，没法定位到上次抓取位置，最后目录名：${lastMenu.moriginalname}，index: ${lastMenu.index}, 目录list: ${args.from}`,
-            // })
+            const titles = lastMenus.map(({ moriginalname }) => moriginalname).join(',')
+            // 完本的应该改一下书的状态
+            if (titles.includes('结局') || titles.includes('完本')) {
+              await this.sqlerrorsService.create({
+                menuId: lastMenu.id,
+                novelId: args.id,
+                menuIndex: lastMenu.index,
+                type: IErrors.LAST3_MENUS_INDEX_EQ0,
+                info: `完本了？`,
+              })
+            }
             // if (this.justSpiderOne) {
             //   this.resetSpiderStatus()
             //   await this.sqlspiderService.setFailedSpider(args.id, `上次抓取的最后三章的index 都为0，没法定位到上次抓取位置 (${args.isAllIndexEq0 ? '此书所有index都是0' : '此书index并不都是0'})`)
@@ -753,17 +749,17 @@ export class GetBookController {
       await this.sqlspiderService.update(spider)
       // 如果只抓了5个目录且 index 都是 0 那就把前5个目录都删掉，不然下一次抓取还得去对比 index，麻烦，还不如先都删掉了
       if (isAllEq0) {
-        const count = await this.sqlmenusService.findCountByNovelId(id)
-        if (count === 5) {
-          await this.sqlmenusService.removeByNovelId(id)
-          await this.sqlpagesService.removeByNovelId(id)
-          const menusLen = await this.sqlmenusService.findCountByNovelId(id);
-          // 更新目录数
-          await this.sqlnovelsService.updateFields(id, {
-            menusLen,
-            updatetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
-          })
-        }
+        // const count = await this.sqlmenusService.findCountByNovelId(id)
+        // if (count === 5) {
+        //   await this.sqlmenusService.removeByNovelId(id)
+        //   await this.sqlpagesService.removeByNovelId(id)
+        const menusLen = await this.sqlmenusService.findCountByNovelId(id);
+        //   // 更新目录数
+        await this.sqlnovelsService.updateFields(id, {
+          menusLen,
+          updatetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
+        })
+        // }
       }
     } else {
       // 设置抓取完成并进行下一个的抓取

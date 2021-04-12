@@ -10,6 +10,7 @@ const NginxLogCollectErrors = 'nginx日志收集错误'
 const SitemapLog = '生成sitemap.xml文件日志'
 const CreateBook = '创建一本书'
 const AutoSpiderAll = '定时任务自动抓取目录'
+const FixLostMenus = '修复丢失的目录列表'
 
 @Injectable()
 export class Mylogger extends Logger {
@@ -33,6 +34,9 @@ export class Mylogger extends Logger {
   }
   createAutoSpiderAll() {
     return this.createLogFileByName(AutoSpiderAll)
+  }
+  createFixLostMenus() {
+    return this.createLogFileByName(FixLostMenus)
   }
   createLogFileByName(name = 'errors') {
     const logPath = path.resolve(logFilePath);

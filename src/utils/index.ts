@@ -81,3 +81,11 @@ export const isNumber = (num: any) => {
   }
   return typeof num === 'string' && /^\d+$/.test(num)
 }
+
+export const getValidUrl = (host: string, url: string, from: string) => {
+  // url 带域名
+  if (host.includes(getHost(url))) {
+    return url.includes('http') ? url : `http://${url}`
+  }
+  return /^\//.test(url) ? host + url : `${from}/${url}`
+}
