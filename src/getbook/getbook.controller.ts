@@ -400,6 +400,7 @@ export class GetBookController {
                 const prevAndPrevMenu = menus[currentIndex - 2]
                 if (prevAndPrevMenu && prevAndPrevMenu.title === lastMenus[lastMenus.length - 3].moriginalname) {
                   menus = menus.slice(currentIndex + 1)
+                  console.log('111', currentIndex, menus.length, menusLen)
                   break;
                 }
               }
@@ -408,7 +409,7 @@ export class GetBookController {
           }
 
           // 对比目录没有找到上次的三个目录，可能没有新的章节，也可能目录名称被改了，也可能目录分页了（确认抓取的网站是不是分页了）
-          if (!menus.length) {
+          if (!menus || !menus.length) {
             let text = `上次抓取的最后三章的index 都为0，对比整个目录list，没有定位到次抓取位置，${menusLen % 10 === 0 ? '所有目录数刚好个' + menusLen + '个，是不是目录分页了' : '应该新的章节还没有，或者上次的目录名称已经被改了'}`
             // const text = `(${args.isAllIndexEq0 ? '此书所有index都是0' : '此书index并不都是0'}) 上次抓取的最后三章的index 都为0，没法定位到上次抓取位置。如果这是个巧合，删掉最后几章再抓取；如果不是巧合，可以考虑删除书再重新抓（要不就写匹配的抓取组件吧）`
             // this.logger.end(`### ${text} ###`);
