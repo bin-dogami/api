@@ -399,7 +399,7 @@ export class GetBookController {
               if (prevMenu && prevMenu.title === lastMenus[lastMenus.length - 2].moriginalname) {
                 const prevAndPrevMenu = menus[currentIndex - 2]
                 if (prevAndPrevMenu && prevAndPrevMenu.title === lastMenus[lastMenus.length - 3].moriginalname) {
-                  menus = menus.slice()
+                  menus = menus.slice(currentIndex + 1)
                   break;
                 }
               }
