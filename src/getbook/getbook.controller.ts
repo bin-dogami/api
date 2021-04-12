@@ -389,18 +389,17 @@ export class GetBookController {
           //
         } else {
           // 如果三个目录 index 都为 0，那获取所有的目录，然后一个一个比对，看到哪一个了
-          menus = await this.getMenus(args.from, 0)
-          const menusLen = menus.length
-          let currentIndex = menus.length - 1
+          const _menus = await this.getMenus(args.from, 0)
+          const menusLen = _menus.length
+          let currentIndex = _menus.length - 1
           while (currentIndex > 1) {
-            const { title } = menus[currentIndex]
+            const { title } = _menus[currentIndex]
             if (title === lastMenus[lastMenus.length - 1].moriginalname) {
-              const prevMenu = menus[currentIndex - 1]
+              const prevMenu = _menus[currentIndex - 1]
               if (prevMenu && prevMenu.title === lastMenus[lastMenus.length - 2].moriginalname) {
-                const prevAndPrevMenu = menus[currentIndex - 2]
+                const prevAndPrevMenu = _menus[currentIndex - 2]
                 if (prevAndPrevMenu && prevAndPrevMenu.title === lastMenus[lastMenus.length - 3].moriginalname) {
-                  menus = menus.slice(currentIndex + 1)
-                  console.log('111', currentIndex, menus.length, menusLen)
+                  menus = _menus.slice(currentIndex + 1)
                   break;
                 }
               }
