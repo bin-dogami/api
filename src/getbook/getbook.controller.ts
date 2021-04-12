@@ -404,10 +404,10 @@ export class GetBookController {
             let text = `上次抓取的最后三章的index 都为0，对比整个目录list，没有定位到次抓取位置，${menusLen % 10 === 0 ? '所有目录数刚好个' + menusLen + '个，是不是目录分页了' : '应该新的章节还没有，或者上次的目录名称已经被改了'}`
             // const text = `(${args.isAllIndexEq0 ? '此书所有index都是0' : '此书index并不都是0'}) 上次抓取的最后三章的index 都为0，没法定位到上次抓取位置。如果这是个巧合，删掉最后几章再抓取；如果不是巧合，可以考虑删除书再重新抓（要不就写匹配的抓取组件吧）`
             // this.logger.end(`### ${text} ###`);
-            // const lastMenu = lastMenus[0]
             const titles = lastMenus.map(({ moriginalname }) => moriginalname).join(',')
             // 完本的应该改一下书的状态
             if (titles.includes('结局') || titles.includes('完本')) {
+              const lastMenu = lastMenus[0]
               await this.sqlerrorsService.create({
                 menuId: lastMenu.id,
                 novelId: args.id,

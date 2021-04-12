@@ -1037,6 +1037,7 @@ export class FixdataController {
       }
       while (menus.length) {
         const { id, index, mname, moriginalname } = menus.shift()
+        // @TODO: 正常抓取书的目录时就应该去一下重
         if (moriginalname === lastOriginalName) {
           // 删除同名的目录，正好清理一下数据
           await this.sqlmenusService.remove(id)
