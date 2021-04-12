@@ -364,8 +364,10 @@ export class GetBookController {
   async insertMenus(args: any) {
     // 倒序获取最后3章
     let lastMenus: any = await this.sqlmenusService.findLastMenusByNovelId(args.id, 3)
+    // 最后一个有 index 的目录
     let lastMenu = null
     let noNeedInsertMenus = []
+    let menus: any = null
     if (lastMenus.length) {
       // 之前才抓取了不到 3章的全删掉吧，重新抓取
       if (lastMenus.length < 3) {
@@ -382,34 +384,59 @@ export class GetBookController {
           }
           return item
         }).filter((item) => !!item)
+        // 如果最后一个有 index 的目录存在啥也不用管
         if (lastMenu) {
           //
         } else {
-          const text = `(${args.isAllIndexEq0 ? '此书所有index都是0' : '此书index并不都是0'}) 上次抓取的最后三章的index 都为0，没法定位到上次抓取位置。如果这是个巧合，删掉最后几章再抓取；如果不是巧合，可以考虑删除书再重新抓（要不就写匹配的抓取组件吧）`
-          this.logger.end(`### ${text} ###`);
-          const lastMenu = lastMenus[0]
-          await this.sqlerrorsService.create({
-            menuId: lastMenu.id,
-            novelId: args.id,
-            menuIndex: lastMenu.index,
-            type: IErrors.LAST3_MENUS_INDEX_EQ0,
-            info: `(${args.isAllIndexEq0 ? '此书所有index都是0' : '此书index并不都是0'}) 上次抓取的最后三章的index 都为0，没法定位到上次抓取位置，最后目录名：${lastMenu.moriginalname}，index: ${lastMenu.index}, 目录list: ${args.from}`,
-          })
-          if (this.justSpiderOne) {
-            this.resetSpiderStatus()
-            await this.sqlspiderService.setFailedSpider(args.id, `上次抓取的最后三章的index 都为0，没法定位到上次抓取位置 (${args.isAllIndexEq0 ? '此书所有index都是0' : '此书index并不都是0'})`)
-            return {
-              '错误': `${text}`
+          // 如果三个目录 index 都为 0，那获取所有的目录，然后一个一个比对，看到哪一个了
+          menus = await this.getMenus(args.from, 0)
+          const menusLen = menus.length
+          let currentIndex = menus.length - 1
+          while (currentIndex > 1) {
+            const { title } = menus[currentIndex]
+            if (title === lastMenus[lastMenus.length - 1].moriginalname) {
+              const prevMenu = menus[currentIndex - 1]
+              if (prevMenu && prevMenu.title === lastMenus[lastMenus.length - 2].moriginalname) {
+                const prevAndPrevMenu = menus[currentIndex - 2]
+                if (prevAndPrevMenu && prevAndPrevMenu.title === lastMenus[lastMenus.length - 3].moriginalname) {
+                  menus = menus.slice()
+                  break;
+                }
+              }
             }
+            currentIndex--
           }
-          return await this.setSpiderComplete(args.id)
+
+          // 对比目录没有找到上次的三个目录，可能没有新的章节，也可能目录名称被改了，也可能目录分页了（确认抓取的网站是不是分页了）
+          if (!menus.length) {
+            let text = `上次抓取的最后三章的index 都为0，对比整个目录list，没有定位到次抓取位置，${menusLen % 10 === 0 ? '所有目录数刚好个' + menusLen + '个，是不是目录分页了' : '应该新的章节还没有，或者上次的目录名称已经被改了'}`
+            // const text = `(${args.isAllIndexEq0 ? '此书所有index都是0' : '此书index并不都是0'}) 上次抓取的最后三章的index 都为0，没法定位到上次抓取位置。如果这是个巧合，删掉最后几章再抓取；如果不是巧合，可以考虑删除书再重新抓（要不就写匹配的抓取组件吧）`
+            // this.logger.end(`### ${text} ###`);
+            // const lastMenu = lastMenus[0]
+            // await this.sqlerrorsService.create({
+            //   menuId: lastMenu.id,
+            //   novelId: args.id,
+            //   menuIndex: lastMenu.index,
+            //   type: IErrors.LAST3_MENUS_INDEX_EQ0,
+            //   info: `(${args.isAllIndexEq0 ? '此书所有index都是0' : '此书index并不都是0'}) 上次抓取的最后三章的index 都为0，没法定位到上次抓取位置，最后目录名：${lastMenu.moriginalname}，index: ${lastMenu.index}, 目录list: ${args.from}`,
+            // })
+            // if (this.justSpiderOne) {
+            //   this.resetSpiderStatus()
+            //   await this.sqlspiderService.setFailedSpider(args.id, `上次抓取的最后三章的index 都为0，没法定位到上次抓取位置 (${args.isAllIndexEq0 ? '此书所有index都是0' : '此书index并不都是0'})`)
+            //   return {
+            //     '错误': `${text}`
+            //   }
+            // }
+            this.logger.end(`### ${text} ###`);
+            return await this.setSpiderComplete(args.id)
+          }
         }
       }
     }
 
     const text = lastMenu ? `上一次抓取的最后的目录id为${lastMenus[0].id}；index为${lastMenus[0].index}；moriginalname为${lastMenus[0].moriginalname}；` : '本书从第一章开始抓取'
     this.logger.log(`### ${text} ###`);
-    const menus = await this.getMenus(args.from, args.mnum, lastMenu);
+    menus = menus || await this.getMenus(args.from, args.mnum, lastMenu);
     // console.log(menus)
     if (!Array.isArray(menus)) {
       const err = menus ? menus.err : ''
