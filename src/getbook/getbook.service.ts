@@ -6,17 +6,20 @@ import { SqlnovelsService } from '../sqlnovels/sqlnovels.service';
 import { sqlnovels as novels } from '../sqlnovels/sqlnovels.entity';
 import { SqlpagesService } from '../sqlpages/sqlpages.service';
 import { SqlauthorsService } from '../sqlauthors/sqlauthors.service';
-import { getNovelId, downloadImage, ImagePath } from '../utils/index'
+import { ITumor, formula, SqltumorService } from '../sqltumor/sqltumor.service';
+import { getNovelId, downloadImage, ImagePath, getHost } from '../utils/index'
 import { Mylogger } from '../mylogger/mylogger.service';
 
 @Injectable()
 export class GetBookService {
   private readonly logger = new Mylogger(GetBookService.name);
+  tumorUseFixList = null;
 
   constructor(
     private readonly sqlauthorsService: SqlauthorsService,
     private readonly sqlnovelsService: SqlnovelsService,
     private readonly sqlpagesService: SqlpagesService,
+    private readonly sqltumorService: SqltumorService,
   ) {
   }
 
@@ -46,6 +49,7 @@ export class GetBookService {
     }
   }
 
+  // @TODO: 抓取 fyxfcw.com 的目录会卡住不动
   _getMenu(url: string, len: number, lastMenus?: any) {
     return new Promise((resolve, reject) => {
       const child = child_process.fork('./spider/getmenu.js', [url, len || '', JSON.stringify(lastMenus || null)]);
@@ -208,5 +212,121 @@ export class GetBookService {
     } else {
       return nextId
     }
+  }
+
+  async insertPage(from: string, novelId: number, mId: number, args: any, log?: any) {
+    const { moriginalname, index, res, menus } = args
+    const list = await this.getPageInfo(from);
+    if (!list || !Array.isArray(list) || 'err' in list) {
+      const err = list && list.err ? `(${list.err})` : ''
+      log && log(`###[failed] 获取章节内容失败 ${err}, 目录名：【${moriginalname} 】, 是第${index} 章 ###`);
+      // if (res) {
+      //   index > 0 && res.failedIndex.push(index)
+      //   await this.insertPageFailed(mId, id, index, from, moriginalname, '获取章节内容失败: ' + err)
+      // }
+
+      return err
+    }
+
+    const tumorList = await this.sqltumorService.findList(false, getHost(from));
+    const contentList: string[] = await this.dealContent(list, tumorList)
+    if (res && !menus.length) {
+      res.lastPage = `第${index} 章: 【${moriginalname} 】 <br />${contentList[0]}`;
+    }
+    if (!contentList[0].trim().length) {
+      log && log(`# [failed] 插入章节内容失败，抓到的内容为空或错误 # 目录名：【${moriginalname}】, 是第${index}章, 错误信息：一个字也没抓到 \n`)
+      // if (res) {
+      //   index > 0 && res.failedIndex.push(index)
+      //   await this.insertPageFailed(mId, id, index, from, moriginalname, '插入章节内容失败，抓到的内容为空或错误')
+      // }
+      return '抓到的内容为空或错误'
+    }
+    let i = 0
+    let nextId = mId
+
+    // @TODO: 先用修复的清理内容的文本简单地再次替换一下，之后再优化吧
+    if (this.tumorUseFixList === null) {
+      this.tumorUseFixList = await this.sqltumorService.findList(true);
+    }
+
+    while (contentList.length) {
+      let content = contentList.shift()
+
+      // @TODO: 先用修复的清理内容的文本简单地再次替换一下，之后再优化吧
+      Array.isArray(this.tumorUseFixList) && this.tumorUseFixList.forEach(({ text }: { text: string }) => {
+        content = content.replace(text, '')
+      })
+
+      i++
+      const page = i > 1 ? `第${i}页` : ''
+      log && log(`# 第${index} 章${page}开始插入page，此章节共 ${content.length} 个字 #`);
+      const pageId = i === 1 ? mId : nextId
+      nextId = contentList.length ? await this.getNextPageId(pageId) : 0
+      await this.sqlpagesService.create({
+        id: pageId,
+        nextId,
+        novelId,
+        content: content,
+        wordsnum: content.length,
+      });
+      const mIdText = i === 1 ? '' : `目录id: ${mId}`
+      log && log(`# 插入章节内容成功 # 目录名：【${moriginalname}】, 是第${index}章${page}, 字数：${content.length}；id: ${pageId}；${mIdText} \n`)
+    }
+  }
+
+  // 把字数过多的章节拆分成段
+  async splitContent(list: string[], tumorList: any[], max: number) {
+    const cList = []
+    let arr = []
+    let len = 0
+    const fn = async (arr: any[], cList: any[]) => {
+      const contentList = await this.dealContent(arr, tumorList)
+      if (contentList.length && contentList[0]) {
+        cList.push(contentList[0])
+      }
+    }
+    while (1) {
+      if (!list.length) {
+        await fn(arr, cList)
+        break;
+      }
+      const item = list.shift()
+      // 7 为 <p></p>
+      if (item.length + 7 + len < max) {
+        arr.push(item)
+        len += item.length + 7
+      } else {
+        // 最后一个应该再减掉，不然就超了
+        list.unshift(item)
+        arr.pop()
+        await fn(arr, cList)
+        arr = []
+        len = 0
+      }
+    }
+
+    return cList
+  }
+
+  async dealContent(list: string[], tumorList: any[]) {
+    if (!list || !list.length) {
+      return ['']
+    }
+
+    const splitStr = '$&$#@@@#$&$'
+    const content = list.join(splitStr)
+    // 直接替换 的排前面，避免 直接替换 的内容部分里含其他类型的
+    const _tumorList = tumorList.sort(({ type }) => type === ITumor.JUST_REPLACE ? -1 : 1)
+    let _content = formula(content, _tumorList)
+    _content = _content.split(splitStr).map((str) => {
+      const _str = str.trim()
+      return _str.length ? `<p>${_str}</p>` : ''
+    }).join('')
+    // TEXT 能存 65535 / 4（utf8mb4类型每一个字符占4个字节） 个汉字
+    // 字数超出 text 限制时多分几次存储
+    if (_content.length > 16000) {
+      return await this.splitContent(list, tumorList, 16000)
+    }
+    return [_content]
   }
 }

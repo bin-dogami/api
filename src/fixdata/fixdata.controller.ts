@@ -28,6 +28,7 @@ import { Mylogger } from '../mylogger/mylogger.service';
 export class FixdataController {
   private readonly logger = new Mylogger(FixdataController.name);
   clearingAllBooksContents = false;
+  isFixAllMenus = false;
 
   constructor(
     private readonly commonService: CommonService,
@@ -1009,13 +1010,13 @@ export class FixdataController {
     }
   }
 
-  @Post('fixLostMenus')
-  async fixLostMenus(@Body('ids') ids: number[]) {
-    if (!Array.isArray(ids)) {
-      return '参数有问题'
-    }
-    this.logger.start(`\n ### 【start】 开始修复丢失的目录 ###`, this.logger.createFixLostMenus());
+  async _fixLostMenus(ids: number[], allowFixGt20?: Boolean) {
+    this.logger.start(`\n ### 【start】 开始修复丢失的目录，共${ids.length} 本书要修复 ###`, this.logger.createFixLostMenus());
     while (ids.length) {
+      if (!this.isFixAllMenus) {
+        this.logger.log(`\n ### isFixAllMenus 状态变成 false 了 ### \n\n`);
+        break;
+      }
       const novelId = ids.shift()
       const menus = await this.sqlmenusService.findAll(+novelId)
       const prev10Menus = menus.slice(0, 10)
@@ -1029,12 +1030,60 @@ export class FixdataController {
       let lastMenuId = 0
       let lastOriginalName = ''
       let originMenus: any = null
-      let oRriginalMenus = null
       let lastFixIndex = 0
+      let fixedMenuNum = []
+      let needBreak = false
+      let _allowFixGt20 = allowFixGt20
       const novel = await this.sqlnovelsService.findById(novelId, true)
       if (!novel || !novel.from.length || !novel.from[0].length) {
         continue
       }
+      const insertMenuAndPage = async (menu: any, id: number, moriginalname: string, from: string) => {
+        const { url, index, title, mname } = menu
+        let text = ''
+        let currentMenuId: any = await this.getValidNextMenuId(lastMenuId, novelId)
+        if (typeof currentMenuId !== 'number') {
+          text = `目录id: ${lastMenuId}(书id: ${novelId}), 第 ${lastIndex} 章, 目录名：${lastOriginalName} 之后，${currentMenuId}, 下一章id为 ${id}，目录名${moriginalname}`
+          return {
+            break: true,
+            text
+          }
+        }
+        const host = getHostFromUrl(from);
+        const _url = getValidUrl(host, url, from)
+        try {
+          await this.sqlmenusService.create({
+            id: currentMenuId,
+            novelId,
+            mname,
+            moriginalname: title,
+            index,
+            ErrorType: 0,
+            from: _url,
+            isOnline: false
+          })
+          fixedMenuNum.push(currentMenuId)
+        } catch (error) {
+          currentMenuId = 0
+          text = `目录id: ${currentMenuId}(书id: ${novelId}), 第 ${index} 章, 目录名：${title} ，目录插入失败, ${error}`
+        }
+        if (!text) {
+          // 插入page数据，把 getbook 里的insertPages里的抽离出来复用吧
+          const res = await this.getBookService.insertPage(_url, novelId, currentMenuId, {
+            moriginalname: title,
+            index,
+          })
+          if (typeof res === 'string') {
+            text = `目录id: ${currentMenuId}(书id: ${novelId}), 第 ${index} 章, 目录名：${title} ，page内容插入失败：获取章节内容失败, ${res}`
+          }
+        }
+        return {
+          currentMenuId,
+          text
+        }
+      }
+      // 先删除原来的 PAGE_LOST 对应的数据
+      await this.sqlerrorsService.deletePageLostDataByNovelId(novelId)
       while (menus.length) {
         const { id, index, mname, moriginalname } = menus.shift()
         // @TODO: 正常抓取书的目录时就应该去一下重
@@ -1045,9 +1094,12 @@ export class FixdataController {
           await this.sqlerrorsService.removeByMenuId(id)
           continue;
         }
+        // 前10个里有 index的就当所有目录有index
+        let text = ''
         if (hasIndex) {
-          let text = ''
           if (index) {
+            // 没有index的不考虑，所以可能index和lastIndex之间还会夹杂着没有index的目录
+            // 上下目录之间差了几个目录的（通过index 是否连续判断）
             if (index - lastIndex > 1) {
               let insertedNum = 0
               const currentIndex = index
@@ -1058,13 +1110,15 @@ export class FixdataController {
                 if (!originMenus || !Array.isArray(originMenus) || !originMenus.length) {
                   break;
                 }
-                // originMenus.map((item) => {
-                //   oRriginalMenus[item.title] = item
-                // })
               }
               let startMatching = false
               for (let i = lastFixIndex, len = originMenus.length; i < len; i++) {
-                const { url, index, title, mname, moriginalname } = originMenus[i]
+                const item = originMenus[i]
+                const { url, index, title, mname } = item
+                // 没有 index 的还管它做甚
+                if (!index) {
+                  continue
+                }
                 if (title === moriginalname) {
                   lastFixIndex = i
                   break
@@ -1076,70 +1130,119 @@ export class FixdataController {
                   break
                 }
                 if (startMatching) {
-                  const currentMenuId: any = await this.getValidNextMenuId(lastMenuId, novelId)
-                  if (typeof currentMenuId !== 'number') {
-                    text = `目录id: ${lastMenuId}(书id: ${novelId}), 第 ${lastIndex} 章, 目录名：${lastOriginalName} 之后，${currentMenuId}, 下一章id为 ${id}，目录名${moriginalname}`
-                    break
+                  const res: any = await insertMenuAndPage(item, id, moriginalname, from)
+                  text = res.text
+                  if (res.currentMenuId) {
+                    lastMenuId = res.currentMenuId
+                  }
+                  if (res.break) {
+                    break;
                   }
                   insertedNum++
-                  const host = getHostFromUrl(from);
-                  const _url = getValidUrl(host, url, from)
-                  try {
-                    await this.sqlmenusService.create({
-                      id: currentMenuId,
-                      novelId,
-                      mname,
-                      moriginalname: title,
-                      index,
-                      ErrorType: 0,
-                      from: _url,
-                      isOnline: false
-                    })
-                    // 插入page数据，把 getbook 里的insertPages里的抽离出来复用吧
-
-                    // await this.sqlpagesService.create({
-                    //   id: currentMenuId,
-                    //   novelId,
-                    //   mname,
-                    //   moriginalname: title,
-                    //   index,
-                    //   ErrorType: 0,
-                    //   from: _url,
-                    //   isOnline: false
-                    // })
-                  } catch (error) {
-                    text = `目录id: ${currentMenuId}(书id: ${novelId}), 第 ${index} 章, 目录名：${title} ，目录或page插入失败`
-                  }
                 } else if (title === lastOriginalName) {
                   startMatching = true
                 }
               }
-
+              if (insertedNum < needFixedNum) {
+                const _t = text ? text + '\n' : ''
+                text = _t + `目录id: ${id}(书id: ${novelId}), 第 ${currentIndex} 章, 目录名：${moriginalname}, 此章和上一章（index为${lastIndex}）之间需要补充${needFixedNum}章，但是只插入了${insertedNum}章，还有几章缺失呢，需要去其他网站找资源`
+              }
             } else if (index === lastIndex) {
               text = `目录id: ${id}(书id: ${novelId}), 第 ${index} 章, 目录名：${moriginalname}, 章节上和一章重复了`
             } else if (index - lastIndex < 0) {
               text = `目录id: ${id}(书id: ${novelId}), 第 ${index} 章, 目录名：${moriginalname}, index 居然比上一章的还小！`
             }
+            // 没有index的不考虑，所以可能index和lastIndex之间还会夹杂着没有index的目录
             lastIndex = index
-          }
-          if (text) {
-            await this.sqlerrorsService.create({
-              menuId: id,
-              novelId,
-              menuIndex: index,
-              type: IErrors.PAGE_LOST,
-              info: text,
-            })
-            this.logger.log(`### ${text} ###`);
+            lastMenuId = id
+            lastOriginalName = moriginalname
           }
         } else {
+          // 所有目录都没有index，一个一个遍历匹配
+          const from = novel.from[0]
+          if (!originMenus) {
+            originMenus = await this.getBookService.getMenus(from, 0)
+            if (!originMenus || !Array.isArray(originMenus) || !originMenus.length) {
+              break;
+            }
+          }
 
+          let hasFindCurrentMenu = false
+          let needInsertedData = []
+          for (let i = lastFixIndex, len = originMenus.length; i < len; i++) {
+            const { url, index, title, mname } = originMenus[i]
+            // 先收集需要插入的目录，如果下一个menu表里的目录对不上抓取的目录里的就得中断了，避免抓取的目录被删掉了然后插入了没必要的目录
+            if (title === moriginalname) {
+              hasFindCurrentMenu = true
+              lastFixIndex = i;
+              // 一次性要插入的超过了 20章那得人工确认一下了
+              if (_allowFixGt20 || needInsertedData.length <= 20) {
+                // 大招只能用一次，下次还是得人工确认了才能再使用
+                _allowFixGt20 && (_allowFixGt20 = false)
+                while (needInsertedData.length) {
+                  const item = needInsertedData.shift()
+                  // const { url, index, title, mname } = item
+                  const res: any = await insertMenuAndPage(item, id, moriginalname, from)
+                  text = typeof res === 'string' ? res : res.text
+                  if (typeof res === 'object') {
+                    break;
+                  }
+                }
+
+              } else {
+                text = `目录id: ${id}(书id: ${novelId}), 第 ${index} 章, 目录名：${moriginalname}, 本次要插入的目录超过20章，也缺失太多了吧，需要人工确认一下`
+                needBreak = true
+              }
+              break;
+            }
+            needInsertedData.push({ url, index, title, mname })
+          }
+
+          if (!hasFindCurrentMenu) {
+            text = `目录id: ${id}(书id: ${novelId}), 第 ${index} 章, 目录名：${moriginalname}, 当前目录在抓取的目录里找不到了`
+            needBreak = true
+          }
         }
-        lastMenuId = id
-        lastOriginalName = moriginalname
+        if (text) {
+          await this.sqlerrorsService.create({
+            menuId: id,
+            novelId,
+            menuIndex: index,
+            type: IErrors.PAGE_LOST,
+            info: text,
+          })
+          this.logger.log(`### ${text} ###`);
+          lastMenuId = id
+          lastOriginalName = moriginalname
+        }
+        if (needBreak) {
+          break
+        }
       }
+      this.logger.log(`### 书id: ${novelId}，共修复了 ${fixedMenuNum.length} 个目录(前20个：${fixedMenuNum.slice(0, 20).join(', ')})，还有${ids.length}本书待修复 ###`);
     }
-    this.logger.end(`\n ### 【end】 修复结束 ### \n\n`);
+    this.logger.end(`\n ### 【end】 修复${this.isFixAllMenus ? '结束' : '中断'} ### \n\n`);
+    this.isFixAllMenus = false
+  }
+
+  @Post('fixLostMenus')
+  // allowFixGt20, 允许单次修复的目录超过20个，但一本书里只能用一次（同一本书里多次需要确认的每次都应该去确认），
+  // 这是为了某本书人工确认确实连续缺失了 20 章以上后能再通过后台修复
+  async fixLostMenus(@Body('ids') ids?: number[], @Body('allowFixGt20') allowFixGt20?: Boolean) {
+    let _ids = ids
+    if (typeof ids === 'undefined') {
+      const novels = await this.sqlnovelsService.getAllBooks()
+      _ids = novels.map(({ id }) => id)
+    } else if (!Array.isArray(ids)) {
+      return '参数有问题'
+    }
+    if (this.isFixAllMenus) {
+      this.isFixAllMenus = false
+      return '修复中断'
+    }
+    this.isFixAllMenus = true
+    this._fixLostMenus(_ids, allowFixGt20)
+    return '修复开始'
   }
 
   // 用完了记得注释掉

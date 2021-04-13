@@ -185,7 +185,11 @@ export class SqlnovelsService {
   }
 
   async getAllBooks(): Promise<novels[]> {
-    return await this.sqlnovelsRepository.find();
+    return await this.sqlnovelsRepository.find({
+      order: {
+        id: 'ASC'
+      }
+    });
   }
 
   async getBooksWhereLtId(id: number): Promise<[novels[], number]> {

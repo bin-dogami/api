@@ -311,9 +311,13 @@ export class GetBookController {
   }
 
   // @NOTE: 定时任务，每天 1点到晚上11点多个时间点执行
-  @Cron('30 16 1,6,8,10,12,15,18,21,23 * * *')
+  @Cron('30 16 2,6,8,10,12,15,18,21,23 * * *')
   async cronSpiderAll() {
     this.logger.start(`\n ### 【start】 到点自动开始抓取所有新目录了，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`, this.logger.createAutoSpiderAll());
+    if (this.currentSpiderStatus) {
+      this.logger.end(`\n ### 【end】有抓取任务在进行中，本次自动抓取任务取消 ###`);
+      return
+    }
     this.currentSpiderStatus = 2
     await this.spiderAll(true)
   }
@@ -580,62 +584,78 @@ export class GetBookController {
     // 插入page
     try {
       this.logger.log(`# 第${index} 章开始抓取数据 # 来源：${_url} `);
-      const list = await this.getBookService.getPageInfo(_url);
-      if (!list || !Array.isArray(list) || 'err' in list) {
-        const err = list && list.err ? `(${list.err})` : ''
-        this.logger.log(`###[failed] 获取章节内容失败 ${err}, 目录名：【${moriginalname} 】, 是第${index} 章 ###`);
+      const inserted = await this.getBookService.insertPage(_url, id, mId, {
+        moriginalname,
+        // mname,
+        index,
+        // from,
+        // url,
+        res,
+        menus
+      })
+      if (typeof inserted === 'string') {
         if (res) {
           index > 0 && res.failedIndex.push(index)
-          await this.insertPageFailed(mId, id, index, _url, moriginalname, '获取章节内容失败: ' + err)
-        }
-
-        return false
-      }
-
-      const tumorList = await this.sqltumorService.findList(false, getHost(_url));
-      const contentList: string[] = await this.dealContent(list, tumorList)
-      if (res && !menus.length) {
-        res.lastPage = `第${index} 章: 【${moriginalname} 】 <br />${contentList[0]}`;
-      }
-      if (!contentList[0].trim().length) {
-        this.logger.log(`# [failed] 插入章节内容失败，抓到的内容为空或错误 # 目录名：【${moriginalname}】, 是第${index}章, 错误信息：一个字也没抓到 \n`)
-        if (res) {
-          index > 0 && res.failedIndex.push(index)
-          await this.insertPageFailed(mId, id, index, _url, moriginalname, '插入章节内容失败，抓到的内容为空或错误')
+          await this.insertPageFailed(mId, id, index, from, moriginalname, '获取章节内容失败, ' + inserted)
         }
         return false
       }
-      let i = 0
-      let nextId = mId
+      // const list = await this.getBookService.getPageInfo(_url);
+      // if (!list || !Array.isArray(list) || 'err' in list) {
+      //   const err = list && list.err ? `(${list.err})` : ''
+      //   this.logger.log(`###[failed] 获取章节内容失败 ${err}, 目录名：【${moriginalname} 】, 是第${index} 章 ###`);
+      //   if (res) {
+      //     index > 0 && res.failedIndex.push(index)
+      //     await this.insertPageFailed(mId, id, index, _url, moriginalname, '获取章节内容失败: ' + err)
+      //   }
 
-      // @TODO: 先用修复的清理内容的文本简单地再次替换一下，之后再优化吧
-      if (this.tumorUseFixList === null) {
-        this.tumorUseFixList = await this.sqltumorService.findList(true);
-      }
+      //   return false
+      // }
 
-      while (contentList.length) {
-        let content = contentList.shift()
+      // const tumorList = await this.sqltumorService.findList(false, getHost(_url));
+      // const contentList: string[] = await this.dealContent(list, tumorList)
+      // if (res && !menus.length) {
+      //   res.lastPage = `第${index} 章: 【${moriginalname} 】 <br />${contentList[0]}`;
+      // }
+      // if (!contentList[0].trim().length) {
+      //   this.logger.log(`# [failed] 插入章节内容失败，抓到的内容为空或错误 # 目录名：【${moriginalname}】, 是第${index}章, 错误信息：一个字也没抓到 \n`)
+      //   if (res) {
+      //     index > 0 && res.failedIndex.push(index)
+      //     await this.insertPageFailed(mId, id, index, _url, moriginalname, '插入章节内容失败，抓到的内容为空或错误')
+      //   }
+      //   return false
+      // }
+      // let i = 0
+      // let nextId = mId
 
-        // @TODO: 先用修复的清理内容的文本简单地再次替换一下，之后再优化吧
-        Array.isArray(this.tumorUseFixList) && this.tumorUseFixList.forEach(({ text }: { text: string }) => {
-          content = content.replace(text, '')
-        })
+      // // @TODO: 先用修复的清理内容的文本简单地再次替换一下，之后再优化吧
+      // if (this.tumorUseFixList === null) {
+      //   this.tumorUseFixList = await this.sqltumorService.findList(true);
+      // }
 
-        i++
-        const page = i > 1 ? `第${i}页` : ''
-        this.logger.log(`# 第${index} 章${page}开始插入page，此章节共 ${content.length} 个字 #`);
-        const pageId = i === 1 ? mId : nextId
-        nextId = contentList.length ? await this.getBookService.getNextPageId(pageId) : 0
-        await this.sqlpagesService.create({
-          id: pageId,
-          nextId,
-          novelId: id,
-          content: content,
-          wordsnum: content.length,
-        });
-        const mIdText = i === 1 ? '' : `目录id: ${mId}`
-        this.logger.log(`# 插入章节内容成功 # 目录名：【${moriginalname}】, 是第${index}章${page}, 字数：${content.length}；id: ${pageId}；${mIdText} \n`)
-      }
+      // while (contentList.length) {
+      //   let content = contentList.shift()
+
+      //   // @TODO: 先用修复的清理内容的文本简单地再次替换一下，之后再优化吧
+      //   Array.isArray(this.tumorUseFixList) && this.tumorUseFixList.forEach(({ text }: { text: string }) => {
+      //     content = content.replace(text, '')
+      //   })
+
+      //   i++
+      //   const page = i > 1 ? `第${i}页` : ''
+      //   this.logger.log(`# 第${index} 章${page}开始插入page，此章节共 ${content.length} 个字 #`);
+      //   const pageId = i === 1 ? mId : nextId
+      //   nextId = contentList.length ? await this.getBookService.getNextPageId(pageId) : 0
+      //   await this.sqlpagesService.create({
+      //     id: pageId,
+      //     nextId,
+      //     novelId: id,
+      //     content: content,
+      //     wordsnum: content.length,
+      //   });
+      //   const mIdText = i === 1 ? '' : `目录id: ${mId}`
+      //   this.logger.log(`# 插入章节内容成功 # 目录名：【${moriginalname}】, 是第${index}章${page}, 字数：${content.length}；id: ${pageId}；${mIdText} \n`)
+      // }
       res && res.successLen++
       return true
     } catch (err) {
@@ -646,21 +666,6 @@ export class GetBookController {
       }
       return false
     }
-  }
-
-  // 获取失败page对应的书ID列表
-  @Get('getFailedPages')
-  async getFailedPages() {
-    const list = await this.sqlerrorsService.getFailedPageList();
-    const ids = list.map(({ id }) => id)
-    const books = await this.sqlnovelsService.getBookByIds(ids)
-    books.length && list.forEach((item) => {
-      const fBook = books.filter((b) => b.id === item.id)
-      if (fBook.length) {
-        Object.assign(item, fBook[0])
-      }
-    })
-    return list
   }
 
   async getMenus(url: string, len?: number, lastMenu?: any) {
@@ -675,62 +680,6 @@ export class GetBookController {
       type: IErrors.PAGE_LOST,
       info: `第${index}章(${moriginalname}), ${error}, 来源: ${from}`,
     })
-  }
-
-  // 把字数过多的章节拆分成段
-  async splitContent(list: string[], tumorList: any[], max: number) {
-    const cList = []
-    let arr = []
-    let len = 0
-    const fn = async (arr: any[], cList: any[]) => {
-      const contentList = await this.dealContent(arr, tumorList)
-      if (contentList.length && contentList[0]) {
-        cList.push(contentList[0])
-      }
-    }
-    while (1) {
-      if (!list.length) {
-        await fn(arr, cList)
-        break;
-      }
-      const item = list.shift()
-      // 7 为 <p></p>
-      if (item.length + 7 + len < max) {
-        arr.push(item)
-        len += item.length + 7
-      } else {
-        // 最后一个应该再减掉，不然就超了
-        list.unshift(item)
-        arr.pop()
-        await fn(arr, cList)
-        arr = []
-        len = 0
-      }
-    }
-
-    return cList
-  }
-
-  async dealContent(list: string[], tumorList: any[]) {
-    if (!list || !list.length) {
-      return ['']
-    }
-
-    const splitStr = '$&$#@@@#$&$'
-    const content = list.join(splitStr)
-    // 直接替换 的排前面，避免 直接替换 的内容部分里含其他类型的
-    const _tumorList = tumorList.sort(({ type }) => type === ITumor.JUST_REPLACE ? -1 : 1)
-    let _content = formula(content, _tumorList)
-    _content = _content.split(splitStr).map((str) => {
-      const _str = str.trim()
-      return _str.length ? `<p>${_str}</p>` : ''
-    }).join('')
-    // TEXT 能存 65535 / 4（utf8mb4类型每一个字符占4个字节） 个汉字
-    // 字数超出 text 限制时多分几次存储
-    if (_content.length > 16000) {
-      return await this.splitContent(list, tumorList, 16000)
-    }
-    return [_content]
   }
 
   async setSpiderComplete(id: number, noReset?: boolean, justSpider5Page?: boolean) {
@@ -888,10 +837,25 @@ export class GetBookController {
     return list
   }
 
-  // 获取抓取到的index是重复的目录列表
-  @Get('getRepeatedMenuIds')
-  async getRepeatedMenuIds(@Query('id') id: number) {
-    const list = await this.sqlerrorsService.getRepeatedMenuIdsByNovelId(id);
+  // 获取失败page对应的书ID列表
+  @Get('getFailedPages')
+  async getFailedPages() {
+    const list = await this.sqlerrorsService.getFailedPageList();
+    const ids = list.map(({ id }) => id)
+    const books = await this.sqlnovelsService.getBookByIds(ids)
+    books.length && list.forEach((item) => {
+      const fBook = books.filter((b) => b.id === item.id)
+      if (fBook.length) {
+        Object.assign(item, fBook[0])
+      }
+    })
+    return list
+  }
+
+  // 根据type类型获取error表中书id对应的目录列表
+  @Get('getErrorMenuIds')
+  async getErrorMenuIds(@Query('id') id: number, @Query('type') type: string) {
+    const list = await this.sqlerrorsService.getMenuIdsByNovelId(id, type);
     const mIds = list.map(({ menuId }) => menuId)
     const menus = await this.sqlmenusService.getMenusByIds(mIds)
     menus.length && list.forEach((item) => {

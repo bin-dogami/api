@@ -138,15 +138,25 @@ export class SqlerrorsService {
   }
 
   // 获取抓取到的index是重复的目录列表
-  async getRepeatedMenuIdsByNovelId(novelId: number): Promise<sqlerrors[]> {
+  async getMenuIdsByNovelId(novelId: number, type: string): Promise<sqlerrors[]> {
     return await this.sqlerrorsRepository.find({
       select: ["id", "menuId", "menuIndex", "info"],
-      where: { novelId, type: IErrors.MENU_INDEX_ABNORMAL },
+      where: { novelId, type },
     })
   }
 
   async remove(id: number): Promise<any> {
     return await this.sqlerrorsRepository.delete(id);
+  }
+
+  // 删除书id相关的信息
+  async deletePageLostDataByNovelId(novelId: number): Promise<any> {
+    return await this.sqlerrorsRepository
+      .createQueryBuilder()
+      .delete()
+      .where("novelId = :novelId", { novelId })
+      .andWhere("`type` = :type", { type: IErrors.PAGE_LOST })
+      .execute()
   }
 
   // 删除书id相关的信息
