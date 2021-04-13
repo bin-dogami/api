@@ -17,6 +17,7 @@ import { SqlvisitorsService } from '../sqlvisitors/sqlvisitors.service';
 import { SitemapService } from '../sitemap/sitemap.service';
 import { GetBookService } from '../getbook/getbook.service';
 import { CommonService } from '../common/common.service';
+import { Cron, Interval } from '@nestjs/schedule';
 
 const dayjs = require('dayjs')
 
@@ -1018,6 +1019,11 @@ export class FixdataController {
         break;
       }
       const novelId = ids.shift()
+      const hasFixedData = await this.sqlerrorsService.getErrorsByNovelIdAndType(novelId, IErrors.PAGE_LOST, 0, 1)
+      if (hasFixedData.length) {
+        this.logger.log(`\n ### id: ${novelId}，这本书已经修复过了，不必再修 ### \n\n`);
+        continue;
+      }
       const menus = await this.sqlmenusService.findAll(+novelId)
       const prev10Menus = menus.slice(0, 10)
       let hasIndex = false
@@ -1244,6 +1250,19 @@ export class FixdataController {
     this._fixLostMenus(_ids, allowFixGt20)
     return '修复开始'
   }
+
+  // @TODO: 全部修复了一遍后就注释掉，在自动抓取任务前 10分钟中断 fixLostMenus 修复
+  @Cron('30 6 2,6,8,10,12,15,18,21,23 * * *')
+  async setIsFixAllMenusfalse() {
+    this.isFixAllMenus = false
+  }
+
+  // @TODO: 全部修复了一遍后就注释掉，在自动抓取任务半个小时后继续 fixLostMenus 修复
+  @Cron('30 46 2,6,8,10,12,15,18,21,23 * * *')
+  async setIsFixAllMenustrue() {
+    await this.fixLostMenus()
+  }
+
 
   // 用完了记得注释掉
   // @Get('findAllBooksIndexEq0')

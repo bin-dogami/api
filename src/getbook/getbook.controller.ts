@@ -816,11 +816,11 @@ export class GetBookController {
   }
 
   // 获取书的前20条page列表
-  @Get('getFailedMenuIds')
-  async getFailedMenuIds(@Query('id') id: number) {
-    const mIds = await this.sqlerrorsService.getSqlerrorsByNovelId(id);
-    return mIds.map(({ menuId }: { menuId: number }) => menuId)
-  }
+  // @Get('getFailedMenuIds')
+  // async getFailedMenuIds(@Query('id') id: number) {
+  //   const mIds = await this.sqlerrorsService.getSqlerrorsByNovelId(id);
+  //   return mIds.map(({ menuId }: { menuId: number }) => menuId)
+  // }
 
   // 获取抓取到的index是重复的目录对应的书ID列表
   @Get('getRepeatedMenuBooks')

@@ -94,10 +94,10 @@ export class SqlerrorsService {
     })
   }
 
-  async getSqlerrorsByNovelId(novelId: number, skip?: number, size?: number): Promise<any[]> {
+  async getErrorsByNovelIdAndType(novelId: number, type: string, skip?: number, size?: number): Promise<any[]> {
     return await this.sqlerrorsRepository.find({
       select: ["menuId", "menuIndex"],
-      where: { novelId },
+      where: { novelId, type },
       order: {
         menuId: "ASC"
       },
