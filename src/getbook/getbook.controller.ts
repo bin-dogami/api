@@ -436,9 +436,7 @@ export class GetBookController {
 
     const text = lastMenu ? `上一次抓取的最后的目录id为${lastMenus[0].id}；index为${lastMenus[0].index}；moriginalname为${lastMenus[0].moriginalname}；` : '本书从第一章开始抓取'
     this.logger.log(`### ${text} ###`);
-    console.log(menus, args.from, args.mnum, lastMenu)
     menus = menus || await this.getMenus(args.from, args.mnum, lastMenu);
-    console.log(menus)
     if (!Array.isArray(menus)) {
       const err = menus ? menus.err : ''
       this.logger.end(`###[failed] 获取目录失败 ${err} ###`)

@@ -79,8 +79,8 @@ const menusAnalysis = (m, $, len, lastMenuInfo = null) => {
   let lastmname = ''
   let lastIndex = -1
   if (lastMenuInfo) {
-    lastOrigTitle = lastMenuInfo.moriginalname
-    lastmname = lastMenuInfo.mname
+    lastOrigTitle = lastMenuInfo.moriginalname.trim()
+    lastmname = lastMenuInfo.mname.trim()
     lastIndex = lastMenuInfo.index
   }
 
