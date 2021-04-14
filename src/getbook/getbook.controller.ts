@@ -740,6 +740,7 @@ export class GetBookController {
       }
     }
     const mIds = await this.sqlerrorsService.getAllPageLostByNovelId(id);
+    const mIds = []
     this.reSpiderInfo.index++
     this.logger.start(`\n ### 【start】 开始抓取上次未抓取成功的章节内容，这是第 *** ${this.reSpiderInfo.index} *** 次抓取，有 ${mIds.length} 章需要重新抓取 ###`);
 
@@ -766,7 +767,7 @@ export class GetBookController {
     }
     const from = book.from[book.from.length - 1]
     const filePath = this.logger.log(`# 书名: ${book.title}；作者: ${book.author}；id: ${id}；来源: ${from}； #`, {
-      bookname: `[${book.title}][章节内容抓取失败修复`
+      bookname: `[${book.title}]章节内容抓取失败修复`
     });
     const ids = mIds.map(({ menuId }: { menuId: number }) => menuId)
     const menuInfos = await this.sqlmenusService.getMenusByIds(ids)
