@@ -876,6 +876,35 @@ export class FixdataController {
     }
   }
 
+  @Post('modifyPage')
+  async modifyPage(@Body('content') content: string[], @Body('mId') mId: string | number, @Body('novelId') novelId: string | number) {
+    let i = 0
+    let nextId = mId
+
+    while (content.length) {
+      i++
+      let text = content.shift()
+      const page = i > 1 ? `第${i}页` : ''
+      this.logger.log(`# 目录id: ${mId} ${page}开始插入page，此章节共 ${text.length} 个字 #`);
+      const pageId = i === 1 ? mId : nextId
+      nextId = content.length ? await this.getBookService.getNextPageId(+pageId) : 0
+      try {
+        await this.sqlpagesService.create({
+          id: +pageId,
+          nextId: +nextId,
+          novelId: +novelId,
+          content: text,
+          wordsnum: text.length,
+        });
+      } catch (error) {
+        break
+      }
+      const mIdText = i === 1 ? '' : `目录id: ${mId}`
+      this.logger.log(`# 插入章节内容成功 # ${page}, 字数：${text.length}；id: ${pageId}；${mIdText} \n`)
+    }
+    return i
+  }
+
   // 要添加的目录是在 prevMenuId 之后，在 nextMenu 之前
   @Post('createMenu')
   async createMenu(@Body('mname') mname: string, @Body('index') index: string, @Body('content') content: string[], @Body('prevMenuId') prevMenuId: string, @Body('novelId') novelId: string) {
@@ -893,25 +922,6 @@ export class FixdataController {
       } else {
         return `创建目录失败，${res}`
       }
-      // // const nextMenu = await this.sqlmenusService.getNextMenus(_prevMenuId, _novelId, 1, false, 0)
-      // // if (nextMenu.length) {
-      // //   const nextMenuId = nextMenu[0].id
-      // //   while (1) {
-      // //     // _prevMenuId 与 nextMenu 紧挨着就没有空间插入目录了
-      // //     if (nextMenuId - _prevMenuId <= 1) {
-      // //       return `创建目录失败，下一个目录之前没有空间可供新目录插入`
-      // //     }
-      // //     currentMenuId = _prevMenuId + 1
-      // //     // 需要确认这个 id 是不是被其他书的目录占了
-      // //     if (await this.detectCurrentMenuIdValid(currentMenuId)) {
-      // //       break
-      // //     } else {
-      // //       _prevMenuId = currentMenuId
-      // //     }
-      // //   }
-      // } else {
-      //   // _prevMenuId 是最后一个目录用 currentMenuId 就行
-      // }
     } else {
       const count = await this.sqlmenusService.findCountByNovelId(_novelId)
       // 在第一个目录前增加一个目录
@@ -962,34 +972,12 @@ export class FixdataController {
     })
     this.logger.log(`\n ### 开始插入内容 ###`)
 
-    let i = 0
-    let nextId = currentMenuId
+    const successNum = await this.modifyPage(content, currentMenuId, _novelId)
 
-    while (content.length) {
-      i++
-      let text = content.shift()
-      const page = i > 1 ? `第${i}页` : ''
-      this.logger.log(`# 第${index} 章${page}开始插入page，此章节共 ${text.length} 个字 #`);
-      const pageId = i === 1 ? currentMenuId : nextId
-      nextId = content.length ? await this.getBookService.getNextPageId(pageId) : 0
-      try {
-        await this.sqlpagesService.create({
-          id: pageId,
-          nextId,
-          novelId: _novelId,
-          content: text,
-          wordsnum: text.length,
-        });
-      } catch (error) {
-        break
-      }
-      const mIdText = i === 1 ? '' : `目录id: ${currentMenuId}`
-      this.logger.log(`# 插入章节内容成功 # ${page}, 字数：${text.length}；id: ${pageId}；${mIdText} \n`)
-    }
     this.logger.log(`\n ### [end] 插入目录及内容结束 ###`)
     return {
       id: currentMenuId,
-      msg: `创建目录及插入内容成功，内容成功插入${i}页，失败的内容页数：${content.length}页`
+      msg: `创建目录及插入内容成功，内容成功插入${successNum}页，失败的内容页数：${content.length}页`
     }
   }
 
@@ -1254,12 +1242,18 @@ export class FixdataController {
   // @TODO: 全部修复了一遍后就注释掉，在自动抓取任务前 10分钟中断 fixLostMenus 修复
   @Cron('30 6 2,6,8,10,12,15,18,21,23 * * *')
   async setIsFixAllMenusfalse() {
+    if (process.env.NODE_ENV === 'development') {
+      return
+    }
     this.isFixAllMenus = false
   }
 
   // @TODO: 全部修复了一遍后就注释掉，在自动抓取任务半个小时后继续 fixLostMenus 修复
   @Cron('30 46 2,6,8,10,12,15,18,21,23 * * *')
   async setIsFixAllMenustrue() {
+    if (process.env.NODE_ENV === 'development') {
+      return
+    }
     await this.fixLostMenus()
   }
 

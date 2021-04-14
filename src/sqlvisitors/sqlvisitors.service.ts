@@ -128,12 +128,18 @@ export class SqlvisitorsService {
   // 每个小时， 从第 30 分钟 第 1 秒开始执行一次
   @Cron('1 30 * * * *')
   everyHourExcuteOneTime() {
+    if (process.env.NODE_ENV === 'development') {
+      return
+    }
     this.collectNginxLogs()
   }
 
   // @NOTE: 定时任务，每天 晚上 12 点前执行一次
   @Cron('30 59 23 * * *')
   handleInterval() {
+    if (process.env.NODE_ENV === 'development') {
+      return
+    }
     this.collectNginxLogs()
   }
 

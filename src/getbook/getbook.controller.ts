@@ -313,6 +313,9 @@ export class GetBookController {
   // @NOTE: 定时任务，每天 1点到晚上11点多个时间点执行
   @Cron('30 16 2,6,8,10,12,15,18,21,23 * * *')
   async cronSpiderAll() {
+    if (process.env.NODE_ENV === 'development') {
+      return
+    }
     this.logger.start(`\n ### 【start】 到点自动开始抓取所有新目录了，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`, this.logger.createAutoSpiderAll());
     if (this.currentSpiderStatus) {
       this.logger.end(`\n ### 【end】有抓取任务在进行中，本次自动抓取任务取消 ###`);
