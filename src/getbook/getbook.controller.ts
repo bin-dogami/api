@@ -739,7 +739,7 @@ export class GetBookController {
         return '因抓取状态不是抓取中，取消重新抓取'
       }
     }
-    const mIds = await this.sqlerrorsService.getAllPageLostByNovelId(id);
+    // const mIds = await this.sqlerrorsService.getAllPageLostByNovelId(id);
     const mIds = []
     this.reSpiderInfo.index++
     this.logger.start(`\n ### 【start】 开始抓取上次未抓取成功的章节内容，这是第 *** ${this.reSpiderInfo.index} *** 次抓取，有 ${mIds.length} 章需要重新抓取 ###`);
