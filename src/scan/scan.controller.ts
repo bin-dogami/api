@@ -127,6 +127,7 @@ export class ScanController {
     ]
   }
 
+  // 获取最新更新的前 100 本书的最新目录
   @Get('getLastUpdates')
   @UseInterceptors(CacheInterceptor)
   async getLastUpdates(): Promise<any[]> {

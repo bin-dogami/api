@@ -1,0 +1,25 @@
+import { getNovelId } from './../utils/index';
+import { Entity, Column, PrimaryGeneratedColumn, Index } from 'typeorm';
+
+@Entity()
+export class sqldatahandler {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Index()
+  @Column()
+  novelId: number;
+
+  @Index()
+  @Column()
+  type: string;
+
+  // 不同的类型里这个 key 代表的字段可能不一样，比如目录id
+  @Index()
+  @Column()
+  key: number;
+
+  @Index()
+  @Column()
+  text: string;
+}

@@ -14,6 +14,7 @@ import { IErrors, SqlerrorsService } from '../sqlerrors/sqlerrors.service';
 import { TumorTypes, SqltumorService } from '../sqltumor/sqltumor.service';
 import { ISpiderStatus, SqlspiderService, SpiderStatus } from '../sqlspider/sqlspider.service';
 import { SqlvisitorsService } from '../sqlvisitors/sqlvisitors.service';
+import { SqldatahandlerService } from '../sqldatahandler/sqldatahandler.service';
 import { SitemapService } from '../sitemap/sitemap.service';
 import { GetBookService } from '../getbook/getbook.service';
 import { CommonService } from '../common/common.service';
@@ -46,6 +47,7 @@ export class FixdataController {
     private readonly sqlrecommendsService: SqlrecommendsService,
     private readonly sqltypesdetailService: SqltypesdetailService,
     private readonly sqlvisitorsService: SqlvisitorsService,
+    private readonly sqldatahandlerService: SqldatahandlerService,
     private readonly sitemapService: SitemapService,
   ) { }
 
@@ -1240,21 +1242,27 @@ export class FixdataController {
   }
 
   // @TODO: 全部修复了一遍后就注释掉，在自动抓取任务前 10分钟中断 fixLostMenus 修复
-  @Cron('30 6 2,6,8,10,12,15,18,21,23 * * *')
-  async setIsFixAllMenusfalse() {
-    if (process.env.NODE_ENV === 'development') {
-      return
-    }
-    this.isFixAllMenus = false
-  }
+  // @Cron('30 6 2,6,8,10,12,15,18,21,23 * * *')
+  // async setIsFixAllMenusfalse() {
+  //   if (process.env.NODE_ENV === 'development') {
+  //     return
+  //   }
+  //   this.isFixAllMenus = false
+  // }
 
-  // @TODO: 全部修复了一遍后就注释掉，在自动抓取任务半个小时后继续 fixLostMenus 修复
-  @Cron('30 46 2,6,8,10,12,15,18,21,23 * * *')
-  async setIsFixAllMenustrue() {
-    if (process.env.NODE_ENV === 'development') {
-      return
-    }
-    await this.fixLostMenus()
+  // // @TODO: 全部修复了一遍后就注释掉，在自动抓取任务半个小时后继续 fixLostMenus 修复
+  // @Cron('30 46 2,6,8,10,12,15,18,21,23 * * *')
+  // async setIsFixAllMenustrue() {
+  //   if (process.env.NODE_ENV === 'development') {
+  //     return
+  //   }
+  //   await this.fixLostMenus()
+  // }
+
+  @Post('fixPageInvalid')
+  async fixPageInvalid() {
+    const lastFixedInvalidPage = await this.sqldatahandlerService.findLastInvalidPageId()
+
   }
 
 
