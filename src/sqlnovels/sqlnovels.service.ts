@@ -25,6 +25,7 @@ export class SqlnovelsService {
       order: {
         // @TODO: 首页书 先以书 id 倒序吧
         id: "DESC",
+        updatetime: 'DESC'
       },
       take: size || 6
     })
@@ -72,7 +73,7 @@ export class SqlnovelsService {
       },
       order: {
         id: "DESC",
-        viewnum: "DESC"
+        updatetime: "DESC"
       },
       skip,
       take: size && size <= 50 ? size : 20,
