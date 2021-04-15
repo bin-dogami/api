@@ -93,6 +93,11 @@ export class ScanController {
     const types = await this.sqltypesService.findAll(false)
     const hotsData = await this.getBooksByHot(0, 6)
     const typesData = [];
+    const last100Books = await this.getLastUpdateBooks()
+    const oLast100Books = {}
+    last100Books.forEach((item) => {
+      oLast100Books[item.id] = item
+    })
     for (const { id, name } of types) {
       const books = await this.sqlnovelsService.getIndexBooksByType(id, 6)
       typesData.push({
@@ -100,11 +105,50 @@ export class ScanController {
         name,
         books
       })
+      books.forEach(({ id }) => {
+        if (id in oLast100Books) {
+          delete oLast100Books[id]
+        }
+      })
     }
+    // 打乱顺序并且取前5个
+    const last5BookIds = shuffle(Object.keys(oLast100Books)).slice(0, 5)
+    const lastUpdateMenus = await this.sqlmenusService.findLastMenuByNovelIds(last5BookIds)
     return [
       typesData,
-      hotsData
+      hotsData,
+      lastUpdateMenus.map(({ id, novelId, index, mname }) => ({
+        id: novelId,
+        title: oLast100Books[novelId].title,
+        pageId: id,
+        pageName: mname,
+        index
+      }))
     ]
+  }
+
+  @Get('getLastUpdates')
+  @UseInterceptors(CacheInterceptor)
+  async getLastUpdates(): Promise<any[]> {
+    const last100Books = await this.getLastUpdateBooks()
+    const oLast100Books = {}
+    last100Books.forEach((item) => {
+      oLast100Books[item.id] = item
+    })
+    const last100BookIds = shuffle(Object.keys(oLast100Books))
+    const lastUpdateMenus = await this.sqlmenusService.findLastMenuByNovelIds(last100BookIds)
+    return lastUpdateMenus.map(({ id, novelId, index, mname }) => ({
+      id: novelId,
+      title: oLast100Books[novelId].title,
+      pageId: id,
+      pageName: mname,
+      index
+    }))
+  }
+
+  @UseInterceptors(CacheInterceptor)
+  async getLastUpdateBooks() {
+    return await this.sqlnovelsService.getLastUpdateBooks()
   }
 
   // 根据分类获取书list，skip： 从第几个开始，不是从第几页开始 @NOTE: 缓存
@@ -168,7 +212,7 @@ export class ScanController {
   // 获取当前目录前面的目录或者后面的目录
   @Get('getPrevNextMenus')
   async getPrevNextMenus(@Query('id') id: number, @Query('novelId') novelId: number, @Query('isPrev') isPrev?: string | number): Promise<menus[]> {
-    if (+isPrev) {
+    if (+ isPrev) {
       // getPrevMenus 和 getNextMenus 的第四个参数还不一样
       return await this.sqlmenusService.getPrevMenus(+id, +novelId, 50, false);
     } else {

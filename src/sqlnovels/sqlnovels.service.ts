@@ -210,6 +210,15 @@ export class SqlnovelsService {
     });
   }
 
+  async getLastUpdateBooks(size?: number): Promise<novels[]> {
+    return await this.sqlnovelsRepository.find({
+      order: {
+        updatetime: "DESC"
+      },
+      take: size || 100
+    });
+  }
+
   // 批量设置书本线上可访问
   async batchSetBooksOnline(ids: number[]): Promise<any> {
     return await this.sqlnovelsRepository.createQueryBuilder()
