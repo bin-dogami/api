@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThan } from 'typeorm';
 import { sqlpages as pages } from './sqlpages.entity';
 import { CreateSqlpages } from "./create-sqlpages.dto";
 
@@ -65,5 +65,27 @@ export class SqlpagesService {
       return await this.getWholeContent(nextPage, content + nextPage.content)
     }
     return content
+  }
+
+  async getListGtId(id: number, take: number): Promise<pages[]> {
+    return await this.sqlpagesRepository.find({
+      select: ["id", "content"],
+      where: {
+        id: MoreThan(id)
+      },
+      order: {
+        id: 'ASC'
+      },
+      take
+    })
+  }
+
+  async getLastId(): Promise<pages> {
+    return await this.sqlpagesRepository.findOne({
+      select: ["id", "novelId"],
+      order: {
+        id: 'DESC'
+      }
+    })
   }
 }

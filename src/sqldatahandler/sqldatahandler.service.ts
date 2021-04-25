@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { sqldatahandler } from './sqldatahandler.entity';
 import { CreateSqldatahandler } from "./create-sqldatahandler.dto";
 
+// 占位数据
+export const pageInvalidPlaceholderText = 'PAGE_INVALID 占位数据。page内容没问题，这条数据只为下次继续修复时知道到哪了'
 export enum IDataHandler {
   PAGE_INVALID = '1',
 }
@@ -25,8 +27,8 @@ export class SqldatahandlerService {
     return await this.sqldatahandlerRepository.save(oData);
   }
 
-  async findLastInvalidPageId(): Promise<number> {
-    const data = await this.sqldatahandlerRepository.findOne({
+  async findLastInvalidPage(): Promise<sqldatahandler> {
+    return await this.sqldatahandlerRepository.findOne({
       where: {
         type: IDataHandler.PAGE_INVALID
       },
@@ -34,7 +36,12 @@ export class SqldatahandlerService {
         key: 'DESC'
       }
     })
-    return data ? data.key : 0
+  }
+
+  async getListByParams(params: any): Promise<[sqldatahandler[], number]> {
+    return await this.sqldatahandlerRepository.findAndCount({
+      ...params
+    });
   }
 
   async remove(id: number): Promise<any> {

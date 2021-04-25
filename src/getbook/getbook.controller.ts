@@ -446,6 +446,7 @@ export class GetBookController {
       lastMenu && await this.cannotFindLastMenu(lastMenu.id, args.id, lastMenu.index, args.from, lastMenu.moriginalname)
       if (this.justSpiderOne) {
         this.resetSpiderStatus()
+        this.setSpiderComplete(args.id, this.justSpiderOne)
         return {
           '错误': `获取目录失败 ${err}`
         }

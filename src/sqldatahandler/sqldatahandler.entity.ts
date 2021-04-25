@@ -2,6 +2,8 @@ import { getNovelId } from './../utils/index';
 import { Entity, Column, PrimaryGeneratedColumn, Index } from 'typeorm';
 
 @Entity()
+// @NOTE: 也许还要加上 novelId 
+@Index(["type", "key"], { unique: true })
 export class sqldatahandler {
   @PrimaryGeneratedColumn()
   id: number;
@@ -19,7 +21,6 @@ export class sqldatahandler {
   @Column()
   key: number;
 
-  @Index()
   @Column()
   text: string;
 }

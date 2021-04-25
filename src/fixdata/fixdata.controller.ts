@@ -14,7 +14,7 @@ import { IErrors, SqlerrorsService } from '../sqlerrors/sqlerrors.service';
 import { TumorTypes, SqltumorService } from '../sqltumor/sqltumor.service';
 import { ISpiderStatus, SqlspiderService, SpiderStatus } from '../sqlspider/sqlspider.service';
 import { SqlvisitorsService } from '../sqlvisitors/sqlvisitors.service';
-import { SqldatahandlerService } from '../sqldatahandler/sqldatahandler.service';
+import { SqldatahandlerService, IDataHandler, pageInvalidPlaceholderText } from '../sqldatahandler/sqldatahandler.service';
 import { SitemapService } from '../sitemap/sitemap.service';
 import { GetBookService } from '../getbook/getbook.service';
 import { CommonService } from '../common/common.service';
@@ -443,36 +443,36 @@ export class FixdataController {
   }
 
   // @TODO: 一次性清理所有的书的章节内容，用完就注释掉吧
-  @Get('clearAllBooks')
-  async clearAllBooks(): Promise<string> {
-    if (this.clearingAllBooksContents) {
-      return '已经在替换了'
-    }
-    this.clearingAllBooksContents = true
-    const [books, count] = await this.sqlnovelsService.getBooksWhereLtId(43495)   // 43495
-    while (books.length) {
-      const { id, title } = books.shift()
-      const pages = await this.sqlpagesService.findAll(+id)
-      if (!pages || !pages.length) {
-        continue
-      }
-      console.log(`------------------------   ${id}(${title})正在开始清理所有章节内容，共${pages.length}章   -------------------------`)
-      const tumorList = await this.getTumorList('', '1')
-      while (pages.length) {
-        const page = pages.shift()
-        tumorList.forEach(({ text }) => {
-          page.content = page.content.replace(text, '')
-        })
-        try {
-          await this.sqlpagesService.save(page)
-        } catch (error) {
-          //
-        }
-      }
-    }
-    this.clearingAllBooksContents = false
-    return '没有id小于 43495 的书需要替换'
-  }
+  // @Get('clearAllBooks')
+  // async clearAllBooks(): Promise<string> {
+  //   if (this.clearingAllBooksContents) {
+  //     return '已经在替换了'
+  //   }
+  //   this.clearingAllBooksContents = true
+  //   const [books, count] = await this.sqlnovelsService.getBooksWhereLtId(43495)   // 43495
+  //   while (books.length) {
+  //     const { id, title } = books.shift()
+  //     const pages = await this.sqlpagesService.findAll(+id)
+  //     if (!pages || !pages.length) {
+  //       continue
+  //     }
+  //     console.log(`------------------------   ${id}(${title})正在开始清理所有章节内容，共${pages.length}章   -------------------------`)
+  //     const tumorList = await this.getTumorList('', '1')
+  //     while (pages.length) {
+  //       const page = pages.shift()
+  //       tumorList.forEach(({ text }) => {
+  //         page.content = page.content.replace(text, '')
+  //       })
+  //       try {
+  //         await this.sqlpagesService.save(page)
+  //       } catch (error) {
+  //         //
+  //       }
+  //     }
+  //   }
+  //   this.clearingAllBooksContents = false
+  //   return '没有id小于 43495 的书需要替换'
+  // }
 
   @Post('addTumor')
   async addTumor(@Body('type') type: string, @Body('host') host: string, @Body('text') text: string, @Body('useFix') useFix: string): Promise<string> {
@@ -1259,12 +1259,128 @@ export class FixdataController {
   //   await this.fixLostMenus()
   // }
 
-  @Post('fixPageInvalid')
-  async fixPageInvalid() {
-    const lastFixedInvalidPage = await this.sqldatahandlerService.findLastInvalidPageId()
+  // 内容不完整的修复完了后依然还是不完全的
+  @Get('getContentInvalid')
+  async getContentInvalid(@Query('skip') skip: string, @Query('size') size: string): Promise<[any[], number]> {
+    const _skip = +skip
+    const _size = +size
+    const [list, count] = await this.sqldatahandlerService.getListByParams({
+      order: {
+        id: "ASC",
+      },
+      skip: _skip,
+      take: _size ? Math.min(100, _size) : 10,
+    })
+    const ids = list.map(({ novelId }) => novelId)
+    const books = await this.sqlnovelsService.getBookByIds(ids)
+    const oBooks = books.reduce((o, { id, title }: { id: number, title: string }) => {
+      o[id] = {
+        id,
+        title
+      }
+      return o
+    }, {})
 
+    const _list: any[] = list.map((item) => {
+      item['title'] = oBooks[item.novelId].title
+      return item
+    })
+
+    return [_list, count]
   }
 
+  @Post('deleteInvalidContent')
+  async deleteInvalidContent(@Body('id') id: number) {
+    try {
+      await this.sqldatahandlerService.remove(id)
+    } catch (error) {
+      return error
+    }
+    return ''
+  }
+
+  // 占位数据，每 3K 条数据修复完应该记一下最后一条数据，下次就从这条开始
+  async storeLastDealedPage(novelId: number, mId: number, end?: boolean) {
+    console.log(mId)
+    await this.sqldatahandlerService.create({
+      novelId,
+      type: IDataHandler.PAGE_INVALID,
+      key: mId,
+      text: pageInvalidPlaceholderText
+    })
+    !end && await this.fixPageInvalid()
+  }
+
+  // 修复内容不完整的，比如内容中有 正在手打中这样的字
+  @Post('fixPageInvalid')
+  async fixPageInvalid() {
+    const lastFixedInvalidPage = await this.sqldatahandlerService.findLastInvalidPage()
+    // 先把上一次修复的最后的占位数据给删掉
+    if (lastFixedInvalidPage && lastFixedInvalidPage.text === pageInvalidPlaceholderText) {
+      await this.sqldatahandlerService.remove(lastFixedInvalidPage.id)
+    }
+    const size = 3000
+    const pages = await this.sqlpagesService.getListGtId(lastFixedInvalidPage ? lastFixedInvalidPage.key : 0, size)
+    if (!pages.length) {
+      console.log(`\n ### 本轮所有内容修复完成 ###`)
+      const lastPage = await this.sqlpagesService.getLastId()
+      if (lastFixedInvalidPage && lastFixedInvalidPage.text === pageInvalidPlaceholderText) {
+        await this.storeLastDealedPage(lastPage.novelId, lastPage.id, true)
+      }
+      return
+    }
+    while (pages.length) {
+      const { id, content } = pages.shift()
+      if (content.includes('正在手打中') && !content.includes('请假')) {
+        const menu = await this.sqlmenusService.findOne(id)
+        if (menu) {
+          const { from, novelId, moriginalname, index } = menu
+          const res = await this.getBookService.insertPage(from, novelId, id, {
+            moriginalname,
+            index,
+          })
+
+          let text = ''
+          if (typeof res !== 'string') {
+            const page = await this.sqlpagesService.findOne(id)
+            if (page) {
+              if (!page.content.includes('正在手打中')) {
+                console.log(`目录id: ${id}(书id: ${novelId}), 第 ${index} 章, 目录名：${moriginalname} ，page内容更新成功`)
+                // 是最后一条数据了，那必须把这个数据插入数据库以便下次从这条数据开始取
+                if (!pages.length) {
+                  await this.storeLastDealedPage(novelId, id)
+                }
+                continue;
+              } else {
+                text = `page内容重新获取后还是有问题，需要另找资源更新下内容: ${moriginalname}`
+              }
+            } else {
+              console.log(`\n ### 这个问题应该不会出现 ###`)
+              if (!pages.length) {
+                await this.storeLastDealedPage(novelId, id)
+              }
+              continue;
+            }
+          } else {
+            text = `目录id: ${id}(书id: ${novelId}), 第 ${index} 章, 目录名：${moriginalname}，page内容插入失败：获取章节内容失败, ${res}`
+          }
+
+          console.log(`\n ### ${text} ###`)
+          await this.sqldatahandlerService.create({
+            novelId,
+            type: IDataHandler.PAGE_INVALID,
+            key: id,
+            text
+          })
+        } else {
+          await this.sqldatahandlerService.remove(id)
+        }
+      } else {
+        const menu = await this.sqlmenusService.findOne(id)
+        !pages.length && await this.storeLastDealedPage(menu ? menu.novelId : 0, id)
+      }
+    }
+  }
 
   // 用完了记得注释掉
   // @Get('findAllBooksIndexEq0')
