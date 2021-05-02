@@ -76,7 +76,7 @@ export class SqlnovelsService {
         updatetime: "DESC"
       },
       skip,
-      take: size && size <= 50 ? size : 20,
+      take: size && size <= 100 ? size : 20,
     })
   }
 
@@ -89,7 +89,7 @@ export class SqlnovelsService {
         viewnum: "DESC"
       },
       skip,
-      take: size && size <= 50 ? size : 20,
+      take: size && size <= 100 ? size : 20,
     })
   }
 

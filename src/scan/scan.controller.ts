@@ -79,7 +79,7 @@ export class ScanController {
   async getTypesData(@Query('id') id: number, @Query('skip') skip: number, @Query('size') size?: number): Promise<any> {
     const types = await this.sqltypesService.findAll(false)
     const _size = +size || 20
-    const list = await this.getBooksByType(id, +skip, Math.min(50, _size))
+    const list = await this.getBooksByType(id, +skip, Math.min(100, _size))
     return {
       types,
       list
@@ -111,8 +111,8 @@ export class ScanController {
         }
       })
     }
-    // 打乱顺序并且取前5个
-    const last5BookIds = shuffle(Object.keys(oLast100Books)).slice(0, 5)
+    // 打乱顺序并且取前3个
+    const last5BookIds = shuffle(Object.keys(oLast100Books)).slice(0, 3)
     const lastUpdateMenus = await this.sqlmenusService.findLastMenuByNovelIds(last5BookIds)
     return [
       typesData,

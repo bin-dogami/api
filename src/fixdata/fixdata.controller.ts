@@ -1301,7 +1301,6 @@ export class FixdataController {
 
   // 占位数据，每 3K 条数据修复完应该记一下最后一条数据，下次就从这条开始
   async storeLastDealedPage(novelId: number, mId: number, end?: boolean) {
-    console.log(mId)
     await this.sqldatahandlerService.create({
       novelId,
       type: IDataHandler.PAGE_INVALID,
