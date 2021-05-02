@@ -1,6 +1,4 @@
-import { sqlerrors } from './../sqlerrors/sqlerrors.entity';
-// import { log } from '../utils/index'
-import { CacheInterceptor, UseInterceptors, Controller, Get, Post, Query, Body, Param, HttpCode } from '@nestjs/common';
+import { Inject, CACHE_MANAGER, CacheInterceptor, UseInterceptors, Controller, Get, Post, Query, Body, Param, HttpCode } from '@nestjs/common';
 import { ScanService } from './scan.service';
 
 import { SqlnovelsService } from '../sqlnovels/sqlnovels.service';
@@ -48,6 +46,7 @@ export class ScanController {
     private readonly sqlrecommendsService: SqlrecommendsService,
     private readonly sqltypesdetailService: SqltypesdetailService,
     private readonly sqlvisitorsService: SqlvisitorsService,
+    @Inject(CACHE_MANAGER) private cacheManager
   ) { }
 
   // 阅读历史
@@ -168,9 +167,24 @@ export class ScanController {
 
   // 根据热门推荐书 list @NOTE: 缓存
   @Get('getBooksByHot')
-  @UseInterceptors(CacheInterceptor)
   async getBooksByHot(@Query('skip') skip: number, @Query('size') size?: number): Promise<recommends[]> {
-    return await this.sqlrecommendsService.getList(+skip, +size, true);
+    // return await this.sqlrecommendsService.getList(+skip, +size, true);
+    const _skip = +skip
+    const list = await this.getAllRecommends()
+    return list.slice(_skip, +size + _skip)
+  }
+
+  // @NOTE: 单个方法的缓存
+  async getAllRecommends() {
+    const cachedList = await this.cacheManager.wrap(
+      '/getAllRecommends',
+      async () => {
+        const list = await this.sqlrecommendsService.getAllOnline()
+        return shuffle(list)
+      },
+      { ttl: 3600 }
+    )
+    return cachedList
   }
 
   // 前100个里随机取 size 个 推荐书

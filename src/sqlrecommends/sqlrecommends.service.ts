@@ -30,6 +30,15 @@ export class SqlrecommendsService {
     });
   }
 
+  async getAllOnline() {
+    return await this.sqlrecommendsRepository.find({
+      select: ["id", "title", "author", "authorId", "description", "thumb"],
+      where: {
+        isOnline: true
+      },
+    });
+  }
+
   async findById(id: number): Promise<recommends> {
     return await this.sqlrecommendsRepository.findOne(
       {
