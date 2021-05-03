@@ -2,6 +2,7 @@ export class CreateSqlnovels {
   id: number;
   title: string;
   otitle: string;
+  seotitle?: string;
   description: string;
   authorId: number;
   author: string;

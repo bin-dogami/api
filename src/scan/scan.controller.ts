@@ -176,6 +176,9 @@ export class ScanController {
 
   // @NOTE: 单个方法的缓存
   async getAllRecommends() {
+    if (process.env.NODE_ENV === 'development') {
+      return await this.sqlrecommendsService.getAllOnline()
+    }
     const cachedList = await this.cacheManager.wrap(
       '/getAllRecommends',
       async () => {

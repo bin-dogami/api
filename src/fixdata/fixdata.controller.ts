@@ -262,6 +262,13 @@ export class FixdataController {
         fileds.author = newAuthor.name
       }
       const res = await this.sqlnovelsService.updateFields(+id, fileds) || '';
+      if (typeof res === 'object') {
+        const recommend = await this.sqlrecommendsService.findById(+id)
+        if (recommend && fieldName in recommend) {
+          recommend[fieldName] = fieldValue
+          await this.sqlrecommendsService.save(recommend)
+        }
+      }
       if (fieldName === 'authorId' && res && typeof res === 'object' && bookInfo) {
         const oldAuthor: any = await this.getAuthorInfo(bookInfo.authorId);
         if (oldAuthor) {
@@ -1287,6 +1294,21 @@ export class FixdataController {
     })
 
     return [_list, count]
+  }
+
+  @Post('fixRecommends')
+  async fixRecommends() {
+    const recommends = await this.sqlrecommendsService.getList(0, 10000)
+    while (recommends.length) {
+      const r = recommends.shift()
+      const novel = await this.sqlnovelsService.findById(r.id)
+      if (novel) {
+        const { title, author, authorId, description, thumb } = novel
+        Object.assign(r, { title, author, authorId, description, thumb })
+        await this.sqlrecommendsService.save(r)
+      }
+    }
+    return '修复完成'
   }
 
   @Post('deleteInvalidContent')

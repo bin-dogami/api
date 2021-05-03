@@ -20,13 +20,13 @@ export class SqlrecommendsService {
   async getList(skip: number, size?: number, needOnline?: boolean): Promise<recommends[]> {
     const where = needOnline ? { isOnline: true } : undefined
     return await this.sqlrecommendsRepository.find({
-      order: {
-        level: "DESC",
-        index: "DESC"
-      },
+      // order: {
+      //   level: "DESC",
+      //   index: "DESC"
+      // },
       where,
       skip,
-      take: size && size <= 100 ? size : 20,
+      take: size || 20,
     });
   }
 

@@ -10,9 +10,13 @@ export class sqlnovels {
   @Column({ length: 128 })
   title: string;
 
-  // 抓取的title
+  // 抓取的原title
   @Column({ length: 128 })
   otitle: string;
+
+  // 页面的title中的补充部分，上面的title+seotitle = 页面中的title
+  @Column({ length: 128, default: '' })
+  seotitle: string;
 
   @Column({ length: 1000 })
   description: string;

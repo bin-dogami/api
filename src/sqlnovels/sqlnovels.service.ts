@@ -136,7 +136,7 @@ export class SqlnovelsService {
   async findById(id: number, getAllFields?: boolean): Promise<novels> {
     return await this.sqlnovelsRepository.findOne(
       {
-        select: getAllFields ? undefined : ["id", "title", "author", "authorId", "typeid", "typename", "description", "thumb", "isComplete"],
+        select: getAllFields ? undefined : ["id", "title", "seotitle", "author", "authorId", "typeid", "typename", "description", "thumb", "isComplete"],
         where: { id },
       }
     );
