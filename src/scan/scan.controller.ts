@@ -210,11 +210,22 @@ export class ScanController {
     return list
   }
 
+  // 获取书信息，书简介页
+  @Get('getBookInfo')
+  async getBookInfo(@Query('id') id: number): Promise<[novels, menus, any[]]> {
+    const novel = await this.sqlnovelsService.findById(+id, false)
+    // console.log(novel, id)
+    const lastMenus = await this.sqlmenusService.getLastTakeMenusByNovelId(+id, 1)
+    const recommendBooks = await this.getRecommendBooks()
+    return [novel, lastMenus.length ? lastMenus[0] : null, this.filterRecommendBooks(recommendBooks, id)]
+  }
+
+
   // 获取书信息，缓存一下
   @Get('getBookById')
   async getBookById(@Query('id') id: number, @Query('skip') skip?: number, @Query('desc') desc?: number): Promise<[novels, menus[], menus[], number, any[]]> {
     const _desc = +desc
-    const novel = await this.sqlnovelsService.findById(+id, true)
+    const novel = await this.sqlnovelsService.findById(+id, false)
     const [menus, total] = await this.getMenusByBookId(id, +skip, 100, _desc)
     const [DescMenus] = !_desc && total > 40 ? await this.getMenusByBookId(id, 0, 5, 1) : [[]]
     const recommendBooks = await this.getRecommendBooks()
@@ -273,7 +284,7 @@ export class ScanController {
     }
 
     if (page) {
-      const novel: novels = await this.sqlnovelsService.findById(page.novelId, true)
+      const novel: novels = await this.sqlnovelsService.findById(page.novelId, false)
       if (novel) {
         page['title'] = novel.title
         page['typeid'] = novel.typeid

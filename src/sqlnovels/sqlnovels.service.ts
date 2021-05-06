@@ -133,10 +133,10 @@ export class SqlnovelsService {
     return novel && novel.id ? novel.id : getFirstNovelId();
   }
 
-  async findById(id: number, getAllFields?: boolean): Promise<novels> {
+  async findById(id: number, getAllFields?: any): Promise<novels> {
     return await this.sqlnovelsRepository.findOne(
       {
-        select: getAllFields ? undefined : ["id", "title", "seotitle", "author", "authorId", "typeid", "typename", "description", "thumb", "isComplete"],
+        select: getAllFields ? undefined : ["id", "title", "seotitle", "author", "authorId", "typeid", "typename", "description", "thumb", "isComplete", "updatetime"],
         where: { id },
       }
     );

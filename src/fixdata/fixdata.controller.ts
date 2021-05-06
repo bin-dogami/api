@@ -1248,6 +1248,20 @@ export class FixdataController {
     return '修复开始'
   }
 
+  @Get('getAllOnlineBooks')
+  async getAllOnlineBooks() {
+    const [list, count] = await this.sqlnovelsService.getBooksByParams({
+      select: ["id"],
+      where: {
+        isOnline: true
+      },
+      order: {
+        id: 'ASC'
+      }
+    })
+    return list
+  }
+
   // @TODO: 全部修复了一遍后就注释掉，在自动抓取任务前 10分钟中断 fixLostMenus 修复
   // @Cron('30 6 2,6,8,10,12,15,18,21,23 * * *')
   // async setIsFixAllMenusfalse() {

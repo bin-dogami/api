@@ -274,7 +274,7 @@ export class SqlmenusService {
   // @NOTE: 给sitemap 用的
   async getLastTakeMenusByNovelId(id: number, take: number) {
     return await this.sqlmenusRepository.find({
-      select: ["id", "ctime"],
+      select: ["id", "ctime", "mname", "index"],
       where: {
         novelId: id,
         isOnline: true,
