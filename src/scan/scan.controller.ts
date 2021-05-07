@@ -90,7 +90,7 @@ export class ScanController {
   @UseInterceptors(CacheInterceptor)
   async getIndexData(): Promise<any[]> {
     const types = await this.sqltypesService.findAll(false)
-    const hotsData = await this.getBooksByHot(0, 6)
+    const hotsData = await this.getBooksByHot(0, 12)
     const typesData = [];
     const last100Books = await this.getLastUpdateBooks()
     const oLast100Books = {}
@@ -115,14 +115,15 @@ export class ScanController {
     const lastUpdateMenus = await this.sqlmenusService.findLastMenuByNovelIds(last5BookIds)
     return [
       typesData,
-      hotsData,
+      hotsData.slice(0, 6),
       lastUpdateMenus.map(({ id, novelId, index, mname }) => ({
         id: novelId,
         title: oLast100Books[novelId].title,
         pageId: id,
         pageName: mname,
         index
-      }))
+      })),
+      hotsData.slice(6),
     ]
   }
 
