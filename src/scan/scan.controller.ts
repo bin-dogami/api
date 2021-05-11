@@ -75,14 +75,15 @@ export class ScanController {
   // 分类页 @NOTE: 缓存
   @Get('getTypesData')
   @UseInterceptors(CacheInterceptor)
-  async getTypesData(@Query('id') id: number, @Query('skip') skip: number, @Query('size') size?: number): Promise<any> {
+  async getTypesData(@Query('id') id: number, @Query('skip') skip: number, @Query('size') size?: number): Promise<[any[], novels[], boolean]> {
     const types = await this.sqltypesService.findAll(false)
-    const _size = +size || 20
-    const list = await this.getBooksByType(id, +skip, Math.min(100, _size))
-    return {
+    const _size = Math.min(100, +size || 20)
+    const [list, hasMore] = await this.getBooksByType(id, +skip, _size)
+    return [
       types,
-      list
-    }
+      list,
+      hasMore
+    ]
   }
 
   // 首页 @NOTE: 缓存
@@ -155,15 +156,18 @@ export class ScanController {
   // 根据分类获取书list，skip： 从第几个开始，不是从第几页开始 @NOTE: 缓存
   @Get('getBooksByType')
   @UseInterceptors(CacheInterceptor)
-  async getBooksByType(@Query('typeId') typeId: number, @Query('skip') skip: number, @Query('size') size?: number): Promise<novels[]> {
-    return await this.sqlnovelsService.getBooksByType(+typeId, +skip, +size);
+  async getBooksByType(@Query('typeId') typeId: number, @Query('skip') skip: number, @Query('size') size?: number): Promise<[novels[], boolean]> {
+    const [list, total] = await this.sqlnovelsService.getBooksByType(+typeId, +skip, +size);
+    return [list, total > +skip + +size]
   }
 
   // 根据全本书list @NOTE: 缓存
   @Get('getBooksByCompleted')
   @UseInterceptors(CacheInterceptor)
-  async getBooksByCompleted(@Query('skip') skip: number, @Query('size') size?: number): Promise<novels[]> {
-    return await this.sqlnovelsService.getBooksByCompleted(+skip, size ? +size : 20);
+  async getBooksByCompleted(@Query('skip') skip: number, @Query('size') size?: number): Promise<[novels[], boolean]> {
+    const _size = size ? +size : 20
+    const [list, total] = await this.sqlnovelsService.getBooksByCompleted(+skip, _size);
+    return [list, total > +skip + _size]
   }
 
   // 根据热门推荐书 list @NOTE: 缓存
@@ -213,14 +217,19 @@ export class ScanController {
 
   // 获取书信息，书简介页
   @Get('getBookInfo')
-  async getBookInfo(@Query('id') id: number): Promise<[novels, menus, any[]]> {
+  async getBookInfo(@Query('id') id: number): Promise<[novels, menus, any[], string]> {
     const novel = await this.sqlnovelsService.findById(+id, false)
     // console.log(novel, id)
-    const lastMenus = await this.sqlmenusService.getLastTakeMenusByNovelId(+id, 1)
+    const lastMenu = await this.sqlmenusService.getLastTakeMenusByNovelId(+id, 1)
+    const firstMenuId = await this.sqlmenusService.findFirstMenuId(+id)
+    let firstPageContent = ''
+    if (firstMenuId) {
+      const firstPage = await this.sqlpagesService.findOne(firstMenuId)
+      firstPage && (firstPageContent = firstPage.content)
+    }
     const recommendBooks = await this.getRecommendBooks()
-    return [novel, lastMenus.length ? lastMenus[0] : null, this.filterRecommendBooks(recommendBooks, id)]
+    return [novel, lastMenu.length ? lastMenu[0] : null, this.filterRecommendBooks(recommendBooks, id), firstPageContent]
   }
-
 
   // 获取书信息，缓存一下
   @Get('getBookById')
@@ -229,6 +238,8 @@ export class ScanController {
     const novel = await this.sqlnovelsService.findById(+id, false)
     const [menus, total] = await this.getMenusByBookId(id, +skip, 100, _desc)
     const [DescMenus] = !_desc && total > 40 ? await this.getMenusByBookId(id, 0, 5, 1) : [[]]
+    const currentRecommend = await this.sqlrecommendsService.findById(+id)
+    novel['isRec'] = !!currentRecommend
     const recommendBooks = await this.getRecommendBooks()
     return [novel, menus, DescMenus, total, this.filterRecommendBooks(recommendBooks, id)]
   }

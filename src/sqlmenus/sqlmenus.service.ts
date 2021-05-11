@@ -77,6 +77,19 @@ export class SqlmenusService {
     return menu && menu.id ? menu.id : getFirstMenuId();
   }
 
+  // 获取书的第一条目录的id
+  async findFirstMenuId(id: number): Promise<any> {
+    const menu = await this.sqlmenusRepository.findOne({
+      where: {
+        novelId: id,
+      },
+      order: {
+        id: "ASC"
+      }
+    });
+    return menu && menu.id ? menu.id : 0;
+  }
+
   // 获取书的目录，以分页的形式
   async getMenusByBookId(id: number, skip: number, size?: number, isDesc?: boolean, getAllFields?: boolean, getOnline?: number): Promise<[menus[], number]> {
     // getOnline 为0或不传时，不分上线不上线，为1时，只查上线的，为2时，只查不上线的

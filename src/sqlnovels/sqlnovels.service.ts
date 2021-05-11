@@ -63,9 +63,9 @@ export class SqlnovelsService {
     })
   }
 
-  async getBooksByType(typeid: number, skip: number, size?: number): Promise<novels[]> {
+  async getBooksByType(typeid: number, skip: number, size?: number): Promise<[novels[], number]> {
     const w1 = typeid === 0 ? {} : { typeid }
-    return await this.sqlnovelsRepository.find({
+    return await this.sqlnovelsRepository.findAndCount({
       select: ["id", "title", "author", "authorId", "description", "thumb"],
       where: {
         isOnline: true,
@@ -80,8 +80,8 @@ export class SqlnovelsService {
     })
   }
 
-  async getBooksByCompleted(skip: number, size?: number): Promise<novels[]> {
-    return await this.sqlnovelsRepository.find({
+  async getBooksByCompleted(skip: number, size?: number): Promise<[novels[], number]> {
+    return await this.sqlnovelsRepository.findAndCount({
       select: ["id", "title", "author", "authorId", "description", "thumb"],
       where: { isComplete: true, isOnline: true },
       order: {

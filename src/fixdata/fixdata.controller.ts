@@ -20,6 +20,8 @@ import { GetBookService } from '../getbook/getbook.service';
 import { CommonService } from '../common/common.service';
 import { Cron, Interval } from '@nestjs/schedule';
 
+var crawler = require("../../spider/modules/crawler/index");
+
 const dayjs = require('dayjs')
 
 import { sqlnovels as novels } from '../sqlnovels/sqlnovels.entity';
@@ -1415,6 +1417,65 @@ export class FixdataController {
         !pages.length && await this.storeLastDealedPage(menu ? menu.novelId : 0, id)
       }
     }
+  }
+
+  // 抓取到的数据为 json 而不是 html
+  getBaiduLongKeywordByKeyword(keyword: string): Promise<any[] | string> {
+    const _keyword = encodeURIComponent(keyword)
+    return new Promise((resolve, reject) => {
+      crawler(`https://www.baidu.com/sugrec?pre=1&p=3&ie=utf-8&json=1&prod=pc&from=pc_web&sugsid=33797,33968,31254,34004,33675,33607,26350&wd=${_keyword}&req=2&bs=${_keyword}&csor=8&cb=jQuery1102033120000164875973_1620667601198&_=1620667601199`, function f(res) {
+        const str = res.body.replace(/.*\(/, '').replace(')', '')
+        try {
+          const o = JSON.parse(str)
+          if (o && o.g && Array.isArray(o.g)) {
+            resolve(o.g.map(({ q }: { q: string }) => q))
+          } else {
+            reject('返回的数据为`null/undefined等`，或者格式不对，没有g这个key值，或者g不是数组')
+          }
+        } catch (error) {
+          reject(typeof error === 'string' ? error : JSON.stringify(error))
+        }
+      }, function f(error) {
+        reject(typeof error === 'string' ? error : JSON.stringify(error))
+      }, true);
+    })
+  }
+
+  @Get('queryKeywords')
+  async queryKeywords(@Query('id') id: string, @Query('keywords') keywords: string, @Query('len') len: string): Promise<any[] | string> {
+    return await this.getBaiduLongKeywordByKeyword('长生界境界划分')
+
+    const _len = +len || 10
+    let list = []
+    const novel: any = await this.sqlnovelsService.findById(+id, true);
+    const _keywords = keywords.split(',')
+    if (novel && keywords && keywords.trim().length) {
+      const pages = await this.sqlpagesService.findAll(+id)
+      while (pages.length) {
+        const { id, content } = pages.shift()
+        let getEnoughNum = false
+        _keywords.forEach((keyword: string) => {
+          if (content.includes(keyword)) {
+            const reg = new RegExp('<p>[^<]*' + keyword + '[^<]*<\\/p>', 'g')
+            const match = content.match(reg)
+            if (match && match.length) {
+              // 没办法，(?<=<p>) 起作用了， 但是 (?<=<\\/p>)不生效
+              list.push({ id, content: match.map((str: string) => str.replace('<p>', '').replace('</p>', '')) })
+              if (_len && list.length >= _len) {
+                getEnoughNum = true
+              }
+            }
+          }
+        })
+        if (getEnoughNum) {
+          break
+        }
+      }
+    } else {
+      return '此书不存在'
+    }
+
+    return list
   }
 
   // 用完了记得注释掉
