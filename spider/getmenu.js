@@ -78,7 +78,7 @@ const getAllMenus = async (spider, nextUrl, len, allMenus) => {
 }
 
 if (process.argv.length > 2) {
-  const [url, spider, isMultiPagesSpider] = getSpider(process.argv[2])
+  const [url, spider, isMultiPagesSpider] = getSpider(process.argv[2], false, JSON.parse(process.argv[5]))
   let len = process.argv[3] ? +process.argv[3] : 0
   const lastMenuInfo = process.argv[4] || null
 

@@ -1,8 +1,8 @@
-var { xbqg, bqg } = require("../modules/getBook/index");
-var { pageXbqg, pageBqg } = require("../modules/getPage/index");
+var { base, xbqg, bqg } = require("../modules/getBook/index");
+var { pagebase, pageXbqg, pageBqg } = require("../modules/getPage/index");
 
 
-const getSpider = (_url, isPage) => {
+const getSpider = (_url, isPage = false, spiderHostDoms = '') => {
   let url = _url
   const spiderList = {
     xbqg: ['xbiquge.la', 'paoshuzw.com'],
@@ -11,6 +11,21 @@ const getSpider = (_url, isPage) => {
   const _xbqg = isPage ? pageXbqg : xbqg
   const _bqg = isPage ? pageBqg : bqg
   let spider = _xbqg
+  if (spiderHostDoms && typeof spiderHostDoms === 'object') {
+    Object.keys(spiderHostDoms).forEach((key) => {
+      let value = spiderHostDoms[key]
+      if (typeof value === 'string' && value.includes('{')) {
+        spiderHostDoms[key] = eval(`(${value})`)
+      }
+    })
+    if (isPage) {
+      const {mname, content} = spiderHostDoms
+      return [url, new pagebase('', mname, content), false]
+    } else {
+      const {menus, ...selectors} = spiderHostDoms
+      return [url, new base(selectors, menus), false]
+    }
+  }
   Object.keys(spiderList).map((key) => {
     const filterS = spiderList[key].filter((host) => url.includes(host))
     if (filterS.length) {
@@ -28,6 +43,7 @@ const getSpider = (_url, isPage) => {
       url = url.replace('paoshuzw.com', 'xbiquge.la')
     }
   })
+  // 目录是否是分页的
   const isMultiPagesSpider = spider === _bqg
   return [url, spider, isMultiPagesSpider]
 }

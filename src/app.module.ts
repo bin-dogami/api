@@ -7,6 +7,7 @@ import { Connection } from 'typeorm';
 import { AppController } from './app.controller';
 import { GetbookModule } from './getbook/getbook.module';
 import { FixdataModule } from './fixdata/fixdata.module';
+import { Fixdata2Module } from './fixdata2/fixdata2.module';
 import { ScanModule } from './scan/scan.module';
 import { ScheduleService } from './schedule/schedule.service';
 import { MyloggerModule } from './mylogger/mylogger.module';
@@ -39,6 +40,7 @@ import { SitemapModule } from './sitemap/sitemap.module';
     SitemapModule,
     GetbookModule,
     FixdataModule,
+    Fixdata2Module,
     ScanModule,
   ],
   controllers: [AppController],

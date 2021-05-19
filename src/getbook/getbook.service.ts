@@ -9,6 +9,7 @@ import { SqlauthorsService } from '../sqlauthors/sqlauthors.service';
 import { ITumor, formula, SqltumorService } from '../sqltumor/sqltumor.service';
 import { getNovelId, downloadImage, ImagePath, getHost } from '../utils/index'
 import { Mylogger } from '../mylogger/mylogger.service';
+import { SqlhostspiderstructorService } from '../sqlhostspiderstructor/sqlhostspiderstructor.service';
 
 @Injectable()
 export class GetBookService {
@@ -20,12 +21,15 @@ export class GetBookService {
     private readonly sqlnovelsService: SqlnovelsService,
     private readonly sqlpagesService: SqlpagesService,
     private readonly sqltumorService: SqltumorService,
+    private readonly sqlhostspiderstructorService: SqlhostspiderstructorService,
   ) {
   }
 
-  _getBook(url: string) {
+  async _getBook(url: string) {
+    const host = getHost(url)
+    const structor = await this.sqlhostspiderstructorService.findByHost(host)
     return new Promise((resolve, reject) => {
-      const child = child_process.fork('./spider/getbook.js', [url]);
+      const child = child_process.fork('./spider/getbook.js', [url, JSON.stringify(structor || '')]);
       child.on('message', function (v, error) {
         if (error) {
           reject(error);
@@ -50,9 +54,11 @@ export class GetBookService {
   }
 
   // @TODO: 抓取 fyxfcw.com 的目录会卡住不动
-  _getMenu(url: string, len: number, lastMenus?: any) {
+  async _getMenu(url: string, len: number, lastMenus?: any) {
+    const host = getHost(url)
+    const structor = await this.sqlhostspiderstructorService.findByHost(host)
     return new Promise((resolve, reject) => {
-      const child = child_process.fork('./spider/getmenu.js', [url, len || '', JSON.stringify(lastMenus || null)]);
+      const child = child_process.fork('./spider/getmenu.js', [url, len || '', JSON.stringify(lastMenus || null), JSON.stringify(structor || '')]);
       child.on('message', function (v, error) {
         if (error) {
           reject(error);
@@ -88,9 +94,11 @@ export class GetBookService {
     }
   }
 
-  _getPage(url: string): Promise<any> {
+  async _getPage(url: string): Promise<any> {
+    const host = getHost(url)
+    const structor = await this.sqlhostspiderstructorService.findByHost(host)
     return new Promise((resolve, reject) => {
-      const child = child_process.fork('./spider/getpage.js', [url]);
+      const child = child_process.fork('./spider/getpage.js', [url, JSON.stringify(structor || '')]);
       child.on('message', function (v, error) {
         if (error) {
           reject(error);

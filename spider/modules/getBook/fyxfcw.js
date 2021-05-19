@@ -8,24 +8,24 @@ class Bqw extends GetInfo {
     super(selectors, selectorMenu)
   }
 
-  // 干掉作者不相干字
-  filterAuthor (selector) {
-    const content = selector.text()
-    if (typeof content === 'string') {
-      return content.replace(/\s/g, '').replace('作者:', '').replace('作者：', '');
-    } else {
-      return content;
-    }
-  }
+  // // 干掉作者不相干字
+  // filterAuthor (selector) {
+  //   const content = selector.text()
+  //   if (typeof content === 'string') {
+  //     return content.replace(/\s/g, '').replace('作者:', '').replace('作者：', '');
+  //   } else {
+  //     return content;
+  //   }
+  // }
 
-  filterDescription (selector) {
-    const content = selector.text()
-    if (typeof content === 'string') {
-      return content.replace(/\s/g, '').replace('简介:', '').replace('简介：', '')
-    } else {
-      return content
-    }
-  }
+  // filterDescription (selector) {
+  //   const content = selector.text()
+  //   if (typeof content === 'string') {
+  //     return content.replace(/\s/g, '').replace('简介:', '').replace('简介：', '')
+  //   } else {
+  //     return content
+  //   }
+  // }
 
   filterType (selector) {
     const content = selector.text()
@@ -38,9 +38,9 @@ class Bqw extends GetInfo {
     }
   }
 
-  filterThumb (selector) {
-    return selector.attr('src');
-  }
+  // filterThumb (selector) {
+  //   return selector.attr('src');
+  // }
 
   getNextPageUrl = ($) => {
     return $('.right a').attr('href')

@@ -13,7 +13,6 @@ $ npm run start:prod
 pm2 start --name api ./dist/main.js
 ```
 
-
 ## Support
 https://docs.nestjs.com/support
 
@@ -42,3 +41,8 @@ skip 不是第几页，而是第几个，比如要查第二页的，skip 就是 
 
 ### 定时任务
 定时任务参考 sqlvisitors/sqlvisitors.service.ts
+
+### 本地编译不报错但是服务起不来（不会出现编译成功时的一大堆router信息）原因分析
+* 排查是不是mysql没起来
+* 排查是不是没网了
+* 排查mysql错误，比如 @Index() 和 @Column({ length: 32, unique: true }) 里的 unique 同时存在的时候
