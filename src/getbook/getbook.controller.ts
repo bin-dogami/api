@@ -14,6 +14,7 @@ import { ISpiderStatus, SqlspiderService, CreateSqlspider } from '../sqlspider/s
 import { Mylogger } from '../mylogger/mylogger.service';
 import { CommonService } from '../common/common.service';
 import { SitemapService } from '../sitemap/sitemap.service';
+import { SqlhostspiderstructorService } from '../sqlhostspiderstructor/sqlhostspiderstructor.service';
 import { Cron, Interval } from '@nestjs/schedule';
 
 const dayjs = require('dayjs')
@@ -25,7 +26,7 @@ export class GetBookController {
   // 重新抓取的次数限制
   reSpiderInfo = null;
   tumorUseFixList = null;
-  // 1 是后台点的 抓取全部，2 是定时任务在抓取全部，3 是单个的抓取，0 是没有在抓取
+  // 1 是后台点的 抓取全部，2 是定时任务在抓取全部，3 是单个的抓取，4 是每小时每隔10分钟抓取新书，0 是没有在抓取
   currentSpiderStatus = 0;
 
   constructor(
@@ -42,6 +43,7 @@ export class GetBookController {
     private readonly sqlspiderService: SqlspiderService,
     private readonly sqlrecommendsService: SqlrecommendsService,
     private readonly sqltypesdetailService: SqltypesdetailService,
+    private readonly sqlhostspiderstructorService: SqlhostspiderstructorService,
   ) {
   }
 
@@ -309,6 +311,39 @@ export class GetBookController {
     }
     this.logger.end(`\n ### 【end】，本次抓取结束，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`);
   }
+
+  async spiderBooks() {
+    const list = await this.sqlhostspiderstructorService.getAll();
+    while (list.length) {
+      const { host, navs } = list.shift()
+      const maxFindBookUrl = 1000
+      let iFindBookUrl = 0
+
+      // 1、确定每一个分类页（包括主页），如，在添加抓取结构弹窗里增加一个分类页添加字段，值可能为 .nav li a 
+      // 根据 host 依次抓取 host 和 1里的分类页 里的书链接（不能是分类页，爬这个页面看里面是否有书应有的元素，还是 抓取结构表里的 字段去判断）；或者根据链接的名称去判断，这个应该更快，先排除掉分类页里的链接，然后查链接名是否在书表里有这本书，没有就爬这个链接，是一本书，如果目录 小于500？就爬，>=500 则把这个写到一个表里？方便下次再抓时查看这本书应不应该爬（同时还可以手动查看这些书值不值得爬，所以这个表应该存一个目录数，书名等和书表里一些字段一样的）
+      // 上一步里，如果一个 链接不是一本书，那它的同类链接都不需要判断了；先判断它们是不是同一级，再判断它们的上一级是不是同一个，上上级是不是同一个，依次判断5个？ target.parentNode === target2.parentNode 这样判断试试
+      // 或者想个办法分析出每一个包含链接的最小块，然后判断这个块的第一个是不是书，还是对 dom 树整个分析一遍比较靠谱，人家有改动也好应对，然后分析好了的写到数据库里，就  sqlhostspiderstructorService  这个库里就行，新加一个字段
+      // 抓取完了自动上线，自动提百度收录，<= 100章的提书+所有目录，否则只提书
+    }
+    this.currentSpiderStatus = 0
+  }
+
+  // @NOTE: 定时任务，每个小时候里每隔10分钟抓取目标网站的新书
+  // @Cron('30 0,10,20,30,40,50 * * * *')
+  // async cronSpiderBooks() {
+  //   console.log('抓取中')
+  //   if (process.env.NODE_ENV === 'development') {
+  //     return
+  //   }
+  //   this.logger.log(`\n ### 【start】 到点自动新书，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`);
+  //   if (this.currentSpiderStatus) {
+  //     this.logger.log(`\n ### 【end】有抓取任务在进行中，本次自动抓取任务取消 ###`);
+  //     return
+  //   }
+
+  //   this.currentSpiderStatus = 4
+  //   await this.spiderBooks()
+  // }
 
   // @NOTE: 定时任务，每天 1点到晚上11点多个时间点执行
   @Cron('30 16 2,6,8,10,12,15,18,21,23 * * *')

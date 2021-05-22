@@ -11,7 +11,7 @@ import { SqlrecommendsService } from '../sqlrecommends/sqlrecommends.service';
 import { SqltypesdetailService } from '../sqltypesdetail/sqltypesdetail.service';
 import { SqlauthorsService } from '../sqlauthors/sqlauthors.service';
 import { IErrors, SqlerrorsService } from '../sqlerrors/sqlerrors.service';
-import { TumorTypes, SqltumorService } from '../sqltumor/sqltumor.service';
+import { TumorTypes, ITumor, SqltumorService } from '../sqltumor/sqltumor.service';
 import { ISpiderStatus, SqlspiderService, SpiderStatus } from '../sqlspider/sqlspider.service';
 import { SqlvisitorsService } from '../sqlvisitors/sqlvisitors.service';
 import { SqldatahandlerService, IDataHandler, pageInvalidPlaceholderText } from '../sqldatahandler/sqldatahandler.service';
@@ -439,15 +439,52 @@ export class FixdataController {
     }
     while (pages.length) {
       const page = pages.shift()
+      const content = page.content
       page.content = page.content.replace(text, '')
       try {
         // @TODO: 加个结束的记录？再次更新 content 的时候判断一下
         // @TODO: 写一个方法，能探查所有内容都被替换干净了，有点麻烦
-        await this.sqlpagesService.save(page)
+        if (content !== page.content) {
+          this.logger.log(`# 正在修复章节内容，章节id为${page.id} #`);
+          await this.sqlpagesService.save(page)
+        }
       } catch (error) {
         //
       }
     }
+    return ''
+  }
+
+  // 修复所有>= 某个page id 的章节内容，替换掉不需要的词/语句
+  @Post('fixPagesContentGtId')
+  async fixPagesContentGtId(@Body('id') id: string | number): Promise<any> {
+    const pages = await this.sqlpagesService.getListGtId(+id, 10000)
+    if (!pages || !pages.length) {
+      return '找不到目录'
+    }
+    const lastPageId = pages[pages.length - 1].id
+    const texts = await this.sqltumorService.findList(true);
+    while (pages.length) {
+      const page = pages.shift()
+      const content = page.content
+      texts.forEach(({ type, text }) => {
+        if (type !== ITumor.JUST_REPLACE) {
+          return
+        }
+        page.content = page.content.replace(text, '')
+      })
+      try {
+        // @TODO: 加个结束的记录？再次更新 content 的时候判断一下
+        // @TODO: 写一个方法，能探查所有内容都被替换干净了，有点麻烦
+        if (content !== page.content) {
+          this.logger.log(`# 正在修复章节内容，章节id为${page.id} #`);
+          await this.sqlpagesService.save(page)
+        }
+      } catch (error) {
+        //
+      }
+    }
+    await this.fixPagesContentGtId(lastPageId)
     return ''
   }
 
@@ -745,10 +782,11 @@ export class FixdataController {
   // }
 
   @Get('getVisitorsList')
-  async getVisitorsList(@Query('host') host: string, @Query('skip') skip: string, @Query('size') size: string, @Query('sDate') sDate: string, @Query('eDate') eDate: string, @Query('spider') spider: string): Promise<any[]> {
+  async getVisitorsList(@Query('host') host: string, @Query('skip') skip: string, @Query('size') size: string, @Query('sDate') sDate: string, @Query('eDate') eDate: string, @Query('spider') spider: string, @Query('responseStatus') responseStatus: string): Promise<any[]> {
     const _host = host === 'admin' ? 'ttttt5' : host
     const _spider = spider === '1' ? '' : (spider === '2' ? 'spider' : 'normal')
-    return await this.sqlvisitorsService.getList(+skip, +size, _host, sDate, eDate, _spider)
+    const _responseStatus = responseStatus === '1' ? 200 : 0
+    return await this.sqlvisitorsService.getList(+skip, +size, _host, sDate, eDate, _spider, _responseStatus)
   }
 
   @Get('createSitemap')

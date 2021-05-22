@@ -6,4 +6,5 @@ export class CreateSqlhostspiderstructor {
   thumb: string;
   type: string;
   menus: string;
+  navs: string;
 }

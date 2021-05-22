@@ -148,18 +148,22 @@ export class SqlvisitorsService {
     return await this.sqlvisitorsRepository.save(oVisitor);
   }
 
-  async getList(skip: number, size: number, host: string, sDate: string, eDate: string, spider: string): Promise<[visitors[], any[]]> {
+  async getList(skip: number, size: number, host: string, sDate: string, eDate: string, spider: string, status: number): Promise<[visitors[], any[]]> {
     const hostWhere = host ? 'host = :host' : 'host != :host'
     const spiderWhere = spider === 'normal' ? 'spider = :spider' : 'spider != :spider'
     // {全部: spider != '', 只看spider: spider != 'normal', 不看spider: spider = 'normal'}
     const _spider = spider ? 'normal' : ''
 
-    const queryBuilder = this.sqlvisitorsRepository
+    let queryBuilder = this.sqlvisitorsRepository
       .createQueryBuilder("visitors")
       .where(hostWhere, { host: host || '' })
       .andWhere(spiderWhere, { spider: _spider })
       .andWhere("ctime >= :sDate", { sDate })
       .andWhere("ctime < :eDate", { eDate: eDate || '2100-01-01' })
+
+    if (status) {
+      queryBuilder = queryBuilder.andWhere('status = :status', { status })
+    }
 
     return [
       // list
