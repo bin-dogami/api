@@ -7,4 +7,5 @@ export class CreateSqlhostspiderstructor {
   type: string;
   menus: string;
   navs: string;
+  bookUrlRule: string;
 }

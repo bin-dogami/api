@@ -36,6 +36,9 @@ export class sqlhostspiderstructor {
   @Column({ length: 120 })
   navs: string;
 
+  @Column({ length: 120 })
+  bookUrlRule: string;
+
   @Column({ type: 'timestamp', default: () => 'current_timestamp' })
   ctime: Timestamp;
 }

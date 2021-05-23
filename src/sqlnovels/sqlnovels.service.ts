@@ -159,6 +159,14 @@ export class SqlnovelsService {
     );
   }
 
+  async findByOnlyTitle(otitle: string): Promise<novels> {
+    return await this.sqlnovelsRepository.findOne(
+      {
+        otitle,
+      }
+    );
+  }
+
   async findByTitle(title: string, author: string): Promise<novels> {
     return await this.sqlnovelsRepository.findOne(
       {

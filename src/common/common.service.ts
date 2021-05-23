@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { SqlnovelsService } from '../sqlnovels/sqlnovels.service';
 import { IMenuErrors, SqlmenusService } from '../sqlmenus/sqlmenus.service';
+import { SqlrecommendsService } from '../sqlrecommends/sqlrecommends.service';
 import { isNumber } from '../utils/index'
 
 // https://github.com/request/request#promises--asyncawait
@@ -12,6 +13,7 @@ export class CommonService {
   constructor(
     private readonly sqlnovelsService: SqlnovelsService,
     private readonly sqlmenusService: SqlmenusService,
+    private readonly sqlrecommendsService: SqlrecommendsService,
   ) {
   }
 
@@ -81,6 +83,47 @@ export class CommonService {
     return {
       success: false,
       msg: 'links 不能为空'
+    }
+  }
+
+  async getLastTakeMenusByNovels(ids: number[], take?: string): Promise<number[]> {
+    let menus = []
+    while (ids.length) {
+      const id = ids.shift()
+      if (!+id) {
+        continue
+      }
+      const lastMenus = await this.sqlmenusService.findLastMenusByNovelId(+id, +take || 100)
+      Array.isArray(lastMenus) && (menus = [...menus, ...lastMenus.map(({ id }: { id: number }) => id)])
+    }
+    return menus
+  }
+
+  async setAllBooksOnline(ids: string, allmenus: string) {
+    if (typeof ids !== 'string') {
+      return '数据类型不对'
+    }
+    if (ids === '') {
+      return '所有书本一次性上线功能取消'
+      // 所有书本上线，还是不了吧
+      // 获取所有未上线的书
+      // const [novels, count] = await this.sqlnovelsService.getBooksByParams({
+      //   where: { isOnline: false }
+      // })
+      // const nIds = novels.map(({ id }: { id: number }) => id)
+      // await this.sqlmenusService.batchSetMenusOnlineByNovels(nIds)
+      // return await this.sqlnovelsService.setAllBooksOnline()
+    } else {
+      const aIds = ids.split(',').map((id) => isNumber(id) ? +id : 0).filter((id) => !!id)
+      await this.sqlmenusService.batchSetMenusOnlineByNovels(aIds)
+      await this.sqlnovelsService.batchSetBooksOnline(aIds)
+      const recommends = await this.sqlrecommendsService.findByIds(aIds)
+      while (recommends.length) {
+        const item = recommends.shift()
+        item.isOnline = true
+        await this.sqlrecommendsService.save(item)
+      }
+      return await this.getLastTakeMenusByNovels(aIds, +allmenus ? '100000' : '100')
     }
   }
 }

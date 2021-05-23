@@ -7,7 +7,7 @@ export class sqlspider {
   @PrimaryColumn()
   id: number;
 
-  // 状态: {0: 未抓取, 1: 已抓取完, 3: 抓取异常, 4: 手动添加书}，每次集体抓取前给状态 1 的设置为 0
+  // 状态: {0: 未抓取, 1: 抓取中, 2: 已抓取完, 3: 抓取异常, 4: 手动添加书}，每次集体抓取前给状态 1 的设置为 0
   @Index()
   @Column()
   status: number;

@@ -56,7 +56,7 @@ export class Fixdata2Controller {
   ) { }
 
   @Post('addSpiderHostObj')
-  async addSpiderHostObj(@Body('host') host: string, @Body('title') title: string, @Body('description') description: string, @Body('author') author: string, @Body('thumb') thumb: string, @Body('type') type: string, @Body('menus') menus: string, @Body('mname') mname: string, @Body('content') content: string, @Body('navs') navs: string): Promise<any> {
+  async addSpiderHostObj(@Body('host') host: string, @Body('title') title: string, @Body('description') description: string, @Body('author') author: string, @Body('thumb') thumb: string, @Body('type') type: string, @Body('menus') menus: string, @Body('mname') mname: string, @Body('content') content: string, @Body('navs') navs: string, @Body('bookUrlRule') bookUrlRule: string): Promise<any> {
     const data = {
       host,
       title,
@@ -68,6 +68,7 @@ export class Fixdata2Controller {
       mname,
       content,
       navs,
+      bookUrlRule
     }
     try {
       const structor = await this.sqlhostspiderstructorService.findByHost(host)
@@ -86,17 +87,18 @@ export class Fixdata2Controller {
     return await this.sqlhostspiderstructorService.getAll();
   }
 
-  @Post('fixBoosFrom')
-  async fixBoosFrom() {
-    const novels: novels[] = await this.sqlnovelsService.getAllBooks()
-    while (novels.length) {
-      const novel = novels.shift()
-      if (!novel.from.join(',').includes('paoshuzw.com')) {
-        continue
-      }
-      novel.from = novel.from.map((f: string) => f.replace('paoshuzw.com', 'xbiquge.la'))
-      await this.sqlnovelsService.saveNovel(novel)
-    }
-    return '修复成功'
-  }
+  // paoshuzw.com => xbiquge.la，用不上了
+  // @Post('fixBoosFrom')
+  // async fixBoosFrom() {
+  //   const novels: novels[] = await this.sqlnovelsService.getAllBooks()
+  //   while (novels.length) {
+  //     const novel = novels.shift()
+  //     if (!novel.from.join(',').includes('paoshuzw.com')) {
+  //       continue
+  //     }
+  //     novel.from = novel.from.map((f: string) => f.replace('paoshuzw.com', 'xbiquge.la'))
+  //     await this.sqlnovelsService.saveNovel(novel)
+  //   }
+  //   return '修复成功'
+  // }
 }

@@ -708,16 +708,17 @@ export class FixdataController {
   //  获取某些书的最后 take 章目录
   @Get('getLastTakeMenusByNovels')
   async getLastTakeMenusByNovels(@Query('ids') ids: number[], @Query('take') take?: string): Promise<number[]> {
-    let menus = []
-    while (ids.length) {
-      const id = ids.shift()
-      if (!+id) {
-        continue
-      }
-      const lastMenus = await this.sqlmenusService.findLastMenusByNovelId(+id, +take || 100)
-      Array.isArray(lastMenus) && (menus = [...menus, ...lastMenus.map(({ id }: { id: number }) => id)])
-    }
-    return menus
+    return await this.commonService.getLastTakeMenusByNovels(ids, take)
+    // let menus = []
+    // while (ids.length) {
+    //   const id = ids.shift()
+    //   if (!+id) {
+    //     continue
+    //   }
+    //   const lastMenus = await this.sqlmenusService.findLastMenusByNovelId(+id, +take || 100)
+    //   Array.isArray(lastMenus) && (menus = [...menus, ...lastMenus.map(({ id }: { id: number }) => id)])
+    // }
+    // return menus
   }
 
   // 设置未上线的目录上线
@@ -729,31 +730,7 @@ export class FixdataController {
   // 设置指定或全部未上线的书本上线，如果是指定书，则返回书的后一百章ID
   @Post('setAllBooksOnline')
   async setAllBooksOnline(@Body('ids') ids: string, @Body('allmenus') allmenus: string): Promise<any> {
-    if (typeof ids !== 'string') {
-      return '数据类型不对'
-    }
-    if (ids === '') {
-      return '所有书本一次性上线功能取消'
-      // 所有书本上线，还是不了吧
-      // 获取所有未上线的书
-      // const [novels, count] = await this.sqlnovelsService.getBooksByParams({
-      //   where: { isOnline: false }
-      // })
-      // const nIds = novels.map(({ id }: { id: number }) => id)
-      // await this.sqlmenusService.batchSetMenusOnlineByNovels(nIds)
-      // return await this.sqlnovelsService.setAllBooksOnline()
-    } else {
-      const aIds = ids.split(',').map((id) => isNumber(id) ? +id : 0).filter((id) => !!id)
-      await this.sqlmenusService.batchSetMenusOnlineByNovels(aIds)
-      await this.sqlnovelsService.batchSetBooksOnline(aIds)
-      const recommends = await this.sqlrecommendsService.findByIds(aIds)
-      while (recommends.length) {
-        const item = recommends.shift()
-        item.isOnline = true
-        await this.sqlrecommendsService.save(item)
-      }
-      return await this.getLastTakeMenusByNovels(aIds, +allmenus ? '100000' : '100')
-    }
+    return await this.commonService.setAllBooksOnline(ids, allmenus)
   }
 
   async detectNovelMenusIndexIsAllEq0(id: number): Promise<boolean> {

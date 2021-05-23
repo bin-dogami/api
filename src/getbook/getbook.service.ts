@@ -25,6 +25,18 @@ export class GetBookService {
   ) {
   }
 
+  async getAllBookLinks(url: string, navsSelector: string, bookUrlRule: string) {
+    return new Promise((resolve, reject) => {
+      const child = child_process.fork('./spider/geturls.js', [url, navsSelector, bookUrlRule]);
+      child.on('message', function (v, error) {
+        if (error) {
+          reject(error);
+        }
+        resolve(v);
+      });
+    })
+  }
+
   async _getBook(url: string) {
     const host = getHost(url)
     const structor = await this.sqlhostspiderstructorService.findByHost(host)
