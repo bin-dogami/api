@@ -442,7 +442,7 @@ export class GetBookController {
         }
         const [bookUrls] = indexUrls
         this.logger.log(`开始抓取 ${navUrl} 的新书list，此页面共${indexUrls[0].length}本书需要过滤或抓取`)
-        iSpiderHostNewBookLen += await this._spiderBooks(bookUrls, iSpiderHostNewBookLen)
+        iSpiderHostNewBookLen = await this._spiderBooks(bookUrls, iSpiderHostNewBookLen)
         this.logger.log(`${navUrl} 的新书list 抓取完毕`)
         if (iSpiderHostNewBookLen >= maxSpiderBooksOneTime) {
           this.logger.log(`已经抓到${iSpiderHostNewBookLen}本新书了，这个网站下次再抓取新书了`)
@@ -459,12 +459,11 @@ export class GetBookController {
     this.logger.end(`本次抓取新书完毕，共抓取了${iSpiderNewBookLen}本新书，接下来抓取新书的5章之后的章节`)
     // 有新书的话就把新书剩下的章节抓取一下，之前不是只抓了前5章
     if (iSpiderNewBookLen) {
+      // spiderAll 里把目录都抓取完了会自动上线，自动提百度收录等，见 this.getUnOnlineMenusAndSubmitSEO
       await this.spiderAll(true)
     } else {
       this.currentSpiderStatus = 0
     }
-
-    // spiderAll 里把目录都抓取完了会自动上线，自动提百度收录等，见 this.getUnOnlineMenusAndSubmitSEO
   }
 
   // @NOTE: 定时任务，每个小时候里每隔10分钟抓取目标网站的新书
