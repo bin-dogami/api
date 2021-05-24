@@ -20,7 +20,7 @@ import { Cron, Interval } from '@nestjs/schedule';
 const dayjs = require('dayjs')
 
 // 定时任务抓取新书每个网站每次最多抓取 maxSpiderBooksOneTime 本新书
-const maxSpiderBooksOneTime = 3;
+const maxSpiderBooksOneTime = 2;
 // 定时任务抓取新书，当书的目录<=isNewBookWhenMenusLenLtNum时被判定为新书，开发环境 10000 是为了早点抓到 3本书
 const isNewBookWhenMenusLenLtNum = process.env.NODE_ENV === 'development' ? 10000 : 150;
 @Controller('getbook')
