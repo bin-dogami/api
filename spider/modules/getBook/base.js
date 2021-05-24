@@ -19,19 +19,24 @@ class GetInfo {
         return
       }
       const v = this.selectors[key];
-      // 特殊结构的里面一定有 dom 这个key
+      // 特殊结构的里面一定有 dom 这个key，可能是 {dom: '.con_top', children: 'a', index: 1}
+      // 也可能是 {dom: '.con_top', replace: [/.*顶点小说\s+>\s+/, /\s+>\s+.*/]}	
       const vIsSpecialStructor = typeof v === 'object' ? 'dom' in v : false
       let selector = null
       if (typeof v === 'string') {
-        selector = $(v)
+        selector = $(v).eq(0)
       } else if (vIsSpecialStructor) {
         selector = $(v.dom)
+        if ('children' in v) {
+          selector = selector.children(v.children)
+        }
+        selector = selector.eq('index' in v ? v.index : 0)
       } else {
-        selector = v($)
+        selector = v($).eq(0)
       }
       const filterFnName = this.getFilterFuncName(key);
       const filterFn = this[filterFnName] || (dom => dom.text());
-      let value = filterFn(selector.eq(0))
+      let value = filterFn(selector)
       if (Array.isArray(v['replace'])) {
         value = value.replace(/[\n\r]/g, '')
         v['replace'].forEach((reg) => {

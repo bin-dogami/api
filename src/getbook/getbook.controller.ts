@@ -1,5 +1,6 @@
 import { getValidUrl, getHostFromUrl, getHost, getNovelId, getMenuId, downloadImage, ImagePath } from '../utils/index'
 import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { MoreThanOrEqual } from 'typeorm';
 import { GetBookService } from './getbook.service';
 import { SqlnovelsService } from '../sqlnovels/sqlnovels.service';
 import { SqltypesService } from '../sqltypes/sqltypes.service';
@@ -21,8 +22,10 @@ const dayjs = require('dayjs')
 
 // 定时任务抓取新书每个网站每次最多抓取 maxSpiderBooksOneTime 本新书
 const maxSpiderBooksOneTime = 2;
+const maxSpiderBooksOneDay = 50;
 // 定时任务抓取新书，当书的目录<=isNewBookWhenMenusLenLtNum时被判定为新书，开发环境 10000 是为了早点抓到 3本书
 const isNewBookWhenMenusLenLtNum = process.env.NODE_ENV === 'development' ? 10000 : 150;
+
 @Controller('getbook')
 export class GetBookController {
   private readonly logger = new Mylogger(GetBookController.name);
@@ -310,7 +313,6 @@ export class GetBookController {
     if (process.env.NODE_ENV === 'development') {
       return
     }
-    console.log(this.currentSpiderStatus, 'getUnOnlineMenusAndSubmitSEO')
     let list = []
     if (this.currentSpiderStatus === 4) {
       // 自动抓取的新书list
@@ -421,36 +423,42 @@ export class GetBookController {
       iSpiderHostNewBookLen = await this._spiderBooks(bookUrls)
       this.logger.log(`${_HOST} 的新书list 抓取完毕`)
 
-      // 再一个一个搞定 navs 里的各个栏目和分页
-      // 分类+分页最多20个页面，太多了浪费时间
-      const _navUrls = navUrls.slice(0, 15)
-      while (_navUrls.length) {
-        let navUrl = _navUrls.shift()
-        // 首页
-        if (`${_HOST}/`.includes(navUrl)) {
-          continue;
-        }
+      if (iSpiderHostNewBookLen >= maxSpiderBooksOneTime) {
+        this.logger.log(`已经抓到${iSpiderHostNewBookLen}本新书了，这个网站下个时间段再抓吧 \n\n\n`)
+        iSpiderNewBookLen += iSpiderHostNewBookLen
+        continue;
+      } else {
+        // 再一个一个搞定 navs 里的各个栏目和分页
+        // 分类+分页最多20个页面，太多了浪费时间
+        const _navUrls = navUrls.slice(0, 15)
+        while (_navUrls.length) {
+          let navUrl = _navUrls.shift()
+          // 首页
+          if (`${_HOST}/`.includes(navUrl)) {
+            continue;
+          }
 
-        // 相对域名的改成绝对域名
-        if (!navUrl.includes(host)) {
-          navUrl = `${_HOST}${navUrl}`
-        }
-        const indexUrls = await this.getBookService.getAllBookLinks(navUrl, navs, bookUrlRule)
-        if (!Array.isArray(indexUrls) || indexUrls.length !== 2) {
-          this.logger.log(`${navUrl} 页找不到书list/分类list`)
-          continue
-        }
-        const [bookUrls] = indexUrls
-        this.logger.log(`开始抓取 ${navUrl} 的新书list，此页面共${indexUrls[0].length}本书需要过滤或抓取`)
-        iSpiderHostNewBookLen = await this._spiderBooks(bookUrls, iSpiderHostNewBookLen)
-        this.logger.log(`${navUrl} 的新书list 抓取完毕`)
-        if (iSpiderHostNewBookLen >= maxSpiderBooksOneTime) {
-          this.logger.log(`已经抓到${iSpiderHostNewBookLen}本新书了，这个网站下次再抓取新书了`)
-          break;
-        }
-        if (this.hasSpiderBookNames.length - lastSpiderBookLength > 2000) {
-          this.logger.log(`本次已经过滤过足够多的新书了，下次再继续（这个提示应该很少出现）`)
-          break;
+          // 相对域名的改成绝对域名
+          if (!navUrl.includes(host)) {
+            navUrl = `${_HOST}${navUrl}`
+          }
+          const indexUrls = await this.getBookService.getAllBookLinks(navUrl, navs, bookUrlRule)
+          if (!Array.isArray(indexUrls) || indexUrls.length !== 2) {
+            this.logger.log(`${navUrl} 页找不到书list/分类list`)
+            continue
+          }
+          const [bookUrls] = indexUrls
+          this.logger.log(`开始抓取 ${navUrl} 的新书list，此页面共${indexUrls[0].length}本书需要过滤或抓取`)
+          iSpiderHostNewBookLen = await this._spiderBooks(bookUrls, iSpiderHostNewBookLen)
+          this.logger.log(`${navUrl} 的新书list 抓取完毕`)
+          if (iSpiderHostNewBookLen >= maxSpiderBooksOneTime) {
+            this.logger.log(`已经抓到${iSpiderHostNewBookLen}本新书了，这个网站下个时间段再抓吧 \n\n\n`)
+            break;
+          }
+          if (this.hasSpiderBookNames.length - lastSpiderBookLength > 2000) {
+            this.logger.log(`本次已经过滤过足够多的新书了，下次再继续（这个提示应该很少出现）`)
+            break;
+          }
         }
       }
 
@@ -467,7 +475,7 @@ export class GetBookController {
   }
 
   // @NOTE: 定时任务，每个小时候里每隔10分钟抓取目标网站的新书
-  @Cron('50 1,30 * * * *')
+  @Cron('50 17,47 * * * *')
   async cronSpiderBooks() {
     if (process.env.NODE_ENV === 'development') {
       return
@@ -475,6 +483,18 @@ export class GetBookController {
     this.logger.log(`\n ### 【start】 到点了自动新书，当前内存里的书数量是${this.hasSpiderBookNames.length}，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`);
     if (this.currentSpiderStatus) {
       this.logger.log(`\n ### 【end】有抓取任务在进行中，本次自动抓取任务取消 ###`);
+      return
+    }
+    // 每天只抓取 50? 本新书
+    const lastDate = dayjs().format('YYYY-MM-DD')
+    const [n, hasSpideredNovelsCountToday] = await this.sqlnovelsService.getBooksByParams({
+      select: ["id"],
+      where: {
+        ctime: MoreThanOrEqual(lastDate)
+      },
+    })
+    this.logger.log(`\n ### 今天已经抓取了${hasSpideredNovelsCountToday} 本书了${hasSpideredNovelsCountToday >= maxSpiderBooksOneDay ? '，最多抓' + maxSpiderBooksOneDay + '本书，今天就歇着吧，明天再抓' : ''} ###`);
+    if (hasSpideredNovelsCountToday >= maxSpiderBooksOneDay) {
       return
     }
 

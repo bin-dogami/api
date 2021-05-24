@@ -14,7 +14,11 @@ if (process.argv.length > 3) {
         const url = _item.attr('href');
         if (url) {
           const _url = url.trim()
-          _url && navUrls.push(_url)
+          const title = _item.text();
+          // https://www.xbiquge.la/ 里我的书架这个导航要去掉，因为它要登陆
+          if (_url && !title.includes('我的') && !title.includes('书架')) {
+            navUrls.push(_url)
+          }
         }
       })
     })
