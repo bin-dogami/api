@@ -1,5 +1,6 @@
 var crawler = require("./modules/crawler/index");
 
+// 获取要抓取的几个网站里的导航页list、书目录list
 if (process.argv.length > 3) {
   const url = process.argv[2]
   const navsSelector = eval(`(${process.argv[3]})`)

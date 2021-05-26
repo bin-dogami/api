@@ -11,6 +11,7 @@ const getSpider = (_url, isPage = false, spiderHostDoms = '') => {
   const _xbqg = isPage ? pageXbqg : xbqg
   const _bqg = isPage ? pageBqg : bqg
   let spider = _xbqg
+  // 根据抓取的dom结构去抓取
   if (spiderHostDoms && typeof spiderHostDoms === 'object') {
     Object.keys(spiderHostDoms).forEach((key) => {
       let value = spiderHostDoms[key]
