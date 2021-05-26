@@ -354,10 +354,10 @@ export class GetBookController {
   }
 
   // 每天最多抓取 maxSpiderBooksOneDay 本新书
-  async spiderBooksInNav(urls: any[], isIndex: boolean, spiderUrl: string): Promise<number> {
+  async spiderBooksInNav(urls: any[], isIndex: boolean, spiderUrl: string, index: any): Promise<number> {
     // 每个网站的首页每次最多抓取 20 本书，且每本书的目录只能<= 100
     // 非首页的每个网站最多只能抓取 1 本书，且每本书的目录只能<=50
-    const maxSpiderNumOneTime = isIndex ? (process.env.NODE_ENV === 'development' ? 3 : 10) : 1
+    const maxSpiderNumOneTime = isIndex ? (process.env.NODE_ENV === 'development' ? 2 : 10) : 1
     const menuLenMustLt = process.env.NODE_ENV === 'development' ? 10000 : (isIndex ? 100 : 50)
     let hasSpiderNum = 0
     while (urls.length) {
@@ -367,6 +367,11 @@ export class GetBookController {
       }
 
       const { url, title } = urls.shift()
+      let _url = url
+      // 相对域名的改成绝对域名
+      if (!_url.includes(index.host)) {
+        _url = `${index.link}${_url}`
+      }
       // 内存里已经有的忽略
       if (this.hasSpiderBookNames.includes(title)) {
         continue;
@@ -377,15 +382,15 @@ export class GetBookController {
         this.hasSpiderBookNames.push(title)
         continue;
       }
-      const menus = await this.getMenus(url, menuLenMustLt + 1)
-      this.logger.log(`${spiderUrl}页 抓取书 ${url} 的目录数为 ${menus.length}`)
+      const menus = await this.getMenus(_url, menuLenMustLt + 1)
+      this.logger.log(`${spiderUrl}页 抓取书 ${_url} 的目录数为 ${menus.length}`)
       this.hasSpiderBookNames.push(title)
       if (menus.length > menuLenMustLt) {
         continue;
       } else {
         // 先抓取前5章
-        this.logger.log(`开始抓取书 ${url}`)
-        await this.spider(url, '', 0)
+        this.logger.log(`开始抓取书 ${_url}`)
+        await this.spider(_url, '', 0)
         hasSpiderNum++
       }
     }
@@ -402,11 +407,11 @@ export class GetBookController {
     while (list.length) {
       const { host, navs, bookUrlRule } = list.shift()
       // 先判断https可访问否，不能再试http
-      let _host = `https://${host}/`
-      let indexUrls = await this.getBookService.getAllBookLinks(_host, navs, bookUrlRule)
+      let _host = `https://${host}`
+      let indexUrls = await this.getBookService.getAllBookLinks(`${_host}/`, navs, bookUrlRule)
       if (!Array.isArray(indexUrls) || indexUrls.length !== 2) {
         _host = `http://${host}`
-        indexUrls = await this.getBookService.getAllBookLinks(_host, navs, bookUrlRule)
+        indexUrls = await this.getBookService.getAllBookLinks(`${_host}/`, navs, bookUrlRule)
         if (!Array.isArray(indexUrls) || indexUrls.length !== 2) {
           this.logger.log(`${host} https和http 主页都获取不到书list/分类list`)
           continue
@@ -414,8 +419,9 @@ export class GetBookController {
       }
       this.logger.start(`开始抓取 ${_host} 的新书list，此页面共${indexUrls[0].length}本书需要过滤或抓取`)
       const [bookUrls, navUrls] = indexUrls
-      iSpiderNewBookLen += await this.spiderBooksInNav(bookUrls, true, _host)
-      this.logger.log(`${_host} 的新书list 抓取完毕`)
+      const index = { link: _host, host }
+      iSpiderNewBookLen += await this.spiderBooksInNav(bookUrls, true, _host, index)
+      this.logger.log(`${_host} 的新书list 抓取完毕\n\n\n`)
 
       // 非首页的先收集起来，之后再集中去抓取
       const _navUrls = navUrls.slice(0, 15)
@@ -427,39 +433,31 @@ export class GetBookController {
           break;
         }
         // 首页要去掉，每个网站只取前15个要抓取的导航页里的
-        if (_host.includes(navUrl)) {
+        if (`${_host}/`.includes(navUrl)) {
           // 相对域名的改成绝对域名
           if (!navUrl.includes(host)) {
-            navUrl = `${_host}${navUrl}`
+            navUrl = `${_host}/${navUrl}`
           }
           needSpiderNavLinks.push({
             navUrl,
             navs,
             bookUrlRule,
+            index
           })
         }
       }
-
-      // if (iSpiderHostNewBookLen >= maxSpiderBooksOneTime) {
-      //   this.logger.log(`已经抓到${iSpiderHostNewBookLen}本新书了，这个网站下个时间段再抓吧 \n\n\n`)
-      //   iSpiderNewBookLen += iSpiderHostNewBookLen
-      //   continue;
-      // } else {
-      //   // 再一个一个搞定 navs 里的各个栏目和分页
-      //   // 分类+分页最多20个页面，太多了浪费时间
-
-      // }
     }
 
-    // 当首页抓到的书 < 6 的时候其他页面每个页面可抓一本新书
-    if (iSpiderNewBookLen < 6) {
+    // 当首页抓到的书 < indexShouldSpiderNum 的时候其他页面每个页面可抓一本新书
+    const indexShouldSpiderNum = process.env.NODE_ENV === 'development' ? 100 : 6
+    if (iSpiderNewBookLen < indexShouldSpiderNum) {
       while (needSpiderNavLinks.length) {
         // 防止没抓够数量时没完没了的抓
         if (this.hasSpiderBookNames.length - lastSpiderBookLength > 1000) {
           this.logger.log(`本次已经过滤足够多的新书了，下次再继续（这个提示应该很少出现）`)
           break;
         }
-        let { navUrl, navs, bookUrlRule } = needSpiderNavLinks.shift()
+        let { navUrl, navs, bookUrlRule, index } = needSpiderNavLinks.shift()
         const indexUrls = await this.getBookService.getAllBookLinks(navUrl, navs, bookUrlRule)
         if (!Array.isArray(indexUrls) || indexUrls.length !== 2) {
           this.logger.log(`${navUrl} 页找不到书list/分类list`)
@@ -467,7 +465,7 @@ export class GetBookController {
         }
         const [bookUrls] = indexUrls
         this.logger.log(`开始抓取 ${navUrl} 的新书list，此页面共${indexUrls[0].length}本书需要过滤或抓取`)
-        iSpiderNewBookLen += await this.spiderBooksInNav(bookUrls, false, navUrl)
+        iSpiderNewBookLen += await this.spiderBooksInNav(bookUrls, false, navUrl, index)
         this.logger.log(`${navUrl} 的新书list 抓取完毕`)
         // if (iSpiderHostNewBookLen >= maxSpiderBooksOneTime) {
         //   this.logger.log(`已经抓到${iSpiderHostNewBookLen}本新书了，这个网站下个时间段再抓吧 \n\n\n`)
@@ -487,11 +485,11 @@ export class GetBookController {
   }
 
   // @NOTE: 定时任务，每个小时候里每隔10分钟抓取目标网站的新书
-  @Cron('50 1,15,30,45 * * * *')
+  @Cron('40 2,17,32,47 * * * *')
   async cronSpiderBooks() {
-    // if (process.env.NODE_ENV === 'development') {
-    //   return
-    // }
+    if (process.env.NODE_ENV === 'development') {
+      return
+    }
     this.logger.log(`\n ### 【start】 到点了自动新书，当前内存里的书数量是${this.hasSpiderBookNames.length}，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`);
     if (this.currentSpiderStatus) {
       this.logger.log(`\n ### 【end】有抓取任务在进行中，本次自动抓取任务取消 ###`);

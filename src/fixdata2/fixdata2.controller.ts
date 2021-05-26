@@ -88,20 +88,20 @@ export class Fixdata2Controller {
   }
 
   // 修复所有otitle为空的书，用完注释掉吧
-  @Post('fixAllOtitle')
-  async fixAllOtitle() {
-    const [novels] = await this.sqlnovelsService.getBooksByParams({
-      where: {
-        otitle: ''
-      },
-    })
-    while (novels.length) {
-      const novel = novels.shift()
-      novel.otitle = novel.title
-      await this.sqlnovelsService.saveNovel(novel)
-    }
-    return '修复完成'
-  }
+  // @Post('fixAllOtitle')
+  // async fixAllOtitle() {
+  //   const [novels] = await this.sqlnovelsService.getBooksByParams({
+  //     where: {
+  //       otitle: ''
+  //     },
+  //   })
+  //   while (novels.length) {
+  //     const novel = novels.shift()
+  //     novel.otitle = novel.title
+  //     await this.sqlnovelsService.saveNovel(novel)
+  //   }
+  //   return '修复完成'
+  // }
 
   // paoshuzw.com => xbiquge.la，用不上了
   // @Post('fixBoosFrom')
