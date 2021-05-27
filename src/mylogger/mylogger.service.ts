@@ -90,15 +90,15 @@ export class Mylogger extends Logger {
   }
   // 重命名文件名等特殊操作
   dealSpecialSituation(info?: any) {
-    // 有书名在log文件名上加上书名
-    if (info && info.bookname) {
-      this.renameFileName(this.filePath, (p) => {
-        if (p.includes(info.bookname)) {
-          return p;
-        }
-        return p.replace(/\.log/, `[${info.bookname}].log`);
-      })
-    }
+    // 有书名在log文件名上加上书名 @NOTE: 书名去掉了，产生的文件太多了
+    // if (info && info.bookname) {
+    //   this.renameFileName(this.filePath, (p) => {
+    //     if (p.includes(info.bookname)) {
+    //       return p;
+    //     }
+    //     return p.replace(/\.log/, `_抓取[新]书及目录.log`);
+    //   })
+    // }
   }
 
   // 防止一次性写入太多日志内容

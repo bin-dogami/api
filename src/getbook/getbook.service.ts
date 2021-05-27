@@ -11,6 +11,10 @@ import { getNovelId, downloadImage, ImagePath, getHost } from '../utils/index'
 import { Mylogger } from '../mylogger/mylogger.service';
 import { SqlhostspiderstructorService } from '../sqlhostspiderstructor/sqlhostspiderstructor.service';
 
+const fs = require('fs');
+// const path = require('path')
+const spideredBooksJsonFile = `./__spideredBooks.json`;
+
 @Injectable()
 export class GetBookService {
   private readonly logger = new Mylogger(GetBookService.name);
@@ -348,5 +352,28 @@ export class GetBookService {
       return await this.splitContent(list, tumorList, 16000)
     }
     return [_content]
+  }
+
+  // 每次抓取新书的时候会先检查新书是否在数据库里有，且目录数是否符合预期，不符合新书的也要记下来，以便下次不再重复判断
+  storeSpideredBooks(list: Record<string, string>) {
+    const stderr = fs.createWriteStream(spideredBooksJsonFile, {
+      encoding: 'utf8',
+    });
+    stderr.on('error', err => this.logger.log(`写入spideredBooks.json文件（抓取新书时的书list集合）失败`));
+    stderr.write(JSON.stringify(list));
+    stderr.end();
+  }
+
+  getSpideredBooks() {
+    try {
+      if (!fs.existsSync(spideredBooksJsonFile)) {
+        return {}
+      }
+      const data = fs.readFileSync(spideredBooksJsonFile, 'utf-8');
+      return JSON.parse(data)
+    } catch (e) {
+      this.logger.log('spideredBooks.json文件（抓取新书时的书list集合）失败`');
+      return false
+    }
   }
 }
