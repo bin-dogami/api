@@ -493,7 +493,7 @@ export class GetBookController {
   }
 
   // @NOTE: 定时任务，每个小时候里每隔10分钟抓取目标网站的新书
-  @Cron('30 2,17,32,47 * * * *')
+  @Cron('30 12,27,42,57 * * * *')
   async cronSpiderBooks() {
     if (process.env.NODE_ENV === 'development') {
       return
