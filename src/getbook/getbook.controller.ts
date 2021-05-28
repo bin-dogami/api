@@ -466,7 +466,7 @@ export class GetBookController {
     }
 
     // 当首页抓到的书 < indexShouldSpiderNum 的时候其他页面每个页面可抓一本新书
-    const indexShouldSpiderNum = process.env.NODE_ENV === 'development' ? 100 : 3
+    const indexShouldSpiderNum = process.env.NODE_ENV === 'development' ? 100 : 4
     if (iSpiderNewBookLen < indexShouldSpiderNum) {
       while (needSpiderNavLinks.length) {
         // 防止没抓够数量时没完没了的抓
