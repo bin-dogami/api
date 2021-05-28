@@ -87,6 +87,11 @@ export class Fixdata2Controller {
     return await this.sqlhostspiderstructorService.getAll();
   }
 
+  @Get('getCanSubmitSeoNum')
+  getCanSubmitSeoNum(): number {
+    return this.commonService.getCanSubmitSeoNum();
+  }
+
   // 修复所有otitle为空的书，用完注释掉吧
   // @Post('fixAllOtitle')
   // async fixAllOtitle() {

@@ -108,8 +108,8 @@ export class GetBookController {
     if (!fs.existsSync(logPath)) {
       fs.mkdirSync(logPath);
     }
-    const fileName = dayjs().format('YYYY-MM-DD') + '.log';
-    const _filePath = `${logPath}/${fileName}.log`;
+    const date = dayjs().format('YYYY-MM-DD')
+    const _filePath = `${logPath}/${date}.log`;
     const filePath = this.logger.start(`\n ### 【start】 开始抓取书信息 ${this.currentSpiderStatus === 4 ? '[自动抓取新书]' : ''} ###`, _filePath);
     const bookInfo = await this.getBookService.getBookInfo(url);
     if (!bookInfo || bookInfo.err) {
@@ -340,9 +340,16 @@ export class GetBookController {
         let links = ''
         if (this.currentSpiderStatus === 4) {
           // 上线所有新书及其章节
-          await this.commonService.setAllBooksOnline(list.join(','), '1')
+          const menuIds = await this.commonService.setAllBooksOnline(list.join(','), '1')
           this.logger.log(`\n ### 新书及目录上线成功，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`);
-          links = list.map(id => `https://m.zjjdxr.com/book/${id}`).join('\n')
+          const canSubmitSeoNum = this.commonService.getCanSubmitSeoNum()
+          const novelsLink = list.map(id => `https://m.zjjdxr.com/book/${id}`).join('\n').trim()
+          if (canSubmitSeoNum - list.length <= 1000) {
+            links = novelsLink
+          } else if (Array.isArray(menuIds)) {
+            const menusCanSubmitNum = Math.min(canSubmitSeoNum - list.length - 1000, menuIds.length)
+            links = novelsLink + menuIds.slice(0, menusCanSubmitNum).map(id => `https://m.zjjdxr.com/page/${id}`).join('\n').trim()
+          }
         } else {
           await this.sqlmenusService.batchSetMenusOnline(list.map(({ id }) => id))
           this.logger.log(`\n ### 目录上线成功，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`);
@@ -459,7 +466,7 @@ export class GetBookController {
     }
 
     // 当首页抓到的书 < indexShouldSpiderNum 的时候其他页面每个页面可抓一本新书
-    const indexShouldSpiderNum = process.env.NODE_ENV === 'development' ? 100 : 6
+    const indexShouldSpiderNum = process.env.NODE_ENV === 'development' ? 100 : 3
     if (iSpiderNewBookLen < indexShouldSpiderNum) {
       while (needSpiderNavLinks.length) {
         // 防止没抓够数量时没完没了的抓
@@ -493,7 +500,7 @@ export class GetBookController {
   }
 
   // @NOTE: 定时任务，每个小时候里每隔10分钟抓取目标网站的新书
-  @Cron('30 9,24,39,54 * * * *')
+  @Cron('20 7,22,37,52 * * * *')
   async cronSpiderBooks() {
     if (process.env.NODE_ENV === 'development') {
       return

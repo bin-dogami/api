@@ -10,6 +10,8 @@ var rp = require('request-promise');
 
 @Injectable()
 export class CommonService {
+  remainBaiduSeoNum = 3000;
+
   constructor(
     private readonly sqlnovelsService: SqlnovelsService,
     private readonly sqlmenusService: SqlmenusService,
@@ -41,7 +43,12 @@ export class CommonService {
     }
   }
 
-  async curlBaiduSeo(links: string) {
+  getCanSubmitSeoNum(): number {
+    return this.remainBaiduSeoNum
+  }
+
+  async curlBaiduSeo(links: string, isSubmitNewBooksAndMenus?: true) {
+    console.log(`将提交 ${links.split('\n').length} 条数据去收录`)
     if (process.env.NODE_ENV === 'development') {
       return {
         success: true,
@@ -71,6 +78,7 @@ export class CommonService {
       let text = JSON.stringify(res)
       if (success !== undefined) {
         let more = not_valid ? `不合法的url: ${not_valid.join(', ')}` : ''
+        this.remainBaiduSeoNum = remain
         text = `提交收录成功，剩余收录数: ${remain}, ${more}`
       } else if (error !== undefined) {
         text = `提交收录失败(${error})，错误信息: ${message}`
@@ -99,7 +107,7 @@ export class CommonService {
     return menus
   }
 
-  async setAllBooksOnline(ids: string, allmenus: string) {
+  async setAllBooksOnline(ids: string, allmenus: string): Promise<string | number[]> {
     if (typeof ids !== 'string') {
       return '数据类型不对'
     }
