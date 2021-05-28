@@ -450,7 +450,7 @@ export class GetBookController {
           break;
         }
         // 首页要去掉，每个网站只取前15个要抓取的导航页里的
-        if (!`${_host}/`.includes(navUrl)) {
+        if (navUrl && !`${_host}/`.includes(navUrl)) {
           // 相对域名的改成绝对域名
           if (!navUrl.includes(host)) {
             navUrl = `${_host}/${navUrl}`
@@ -500,7 +500,7 @@ export class GetBookController {
   }
 
   // @NOTE: 定时任务，每个小时候里每隔10分钟抓取目标网站的新书
-  @Cron('20 7,22,37,52 * * * *')
+  @Cron('30 7,22,37,52 * * * *')
   async cronSpiderBooks() {
     if (process.env.NODE_ENV === 'development') {
       return
