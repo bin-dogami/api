@@ -151,6 +151,12 @@ export class SqlspiderService {
       .execute()
   }
 
+  async updateUpdateDate(id: number): Promise<sqlspider> {
+    const spider = await this.getById(id)
+    spider.updateDate = dayjs().format('YYYY-MM-DD')
+    return await this.update(spider)
+  }
+
   async update(oSpider: CreateSqlspider): Promise<sqlspider> {
     return await this.sqlspiderRepository.save(oSpider)
   }

@@ -538,7 +538,7 @@ export class GetBookController {
 
   // @NOTE: 定时任务，每天 1点到晚上11点多个时间点执行
   // 4 点只对3天内没有更新的书进行抓取，其他时间点只抓取3天内有更新的
-  @Cron('30 46 0,2,4,6,8,10,12,15,18,21,23 * * *')
+  @Cron('10 7 1,2,4,6,8,10,12,15,18,21,23 * * *')
   async cronSpiderAll() {
     if (process.env.NODE_ENV === 'development') {
       return
@@ -732,6 +732,10 @@ export class GetBookController {
     }
     let currentMenuId = await this.sqlmenusService.findLastMenuId()
     let menusInsertFailedInfo = ''
+    // 有新目录就更新一下抓取表里的最新抓取日期，以便自动抓取时决定是每天只更新一次 or not
+    if (menus.length) {
+      await this.sqlspiderService.updateUpdateDate(id)
+    }
     while (menus.length) {
       const currentMenuInfo = menus.shift();
       // moriginalname === title
@@ -743,7 +747,7 @@ export class GetBookController {
           continue;
         }
       }
-      // 每抓取5次内容检查一下是否在抓取状态，如果被取消了抓取就中止
+      // 每次内容检查一下是否在抓取状态，如果被取消了抓取就中止
       if (!this.currentSpiderStatus) {
         const text = `因抓取状态不是抓取中，中止抓取，index: ${index} ，title: ${title} `
         this.logger.log(`# ${text} #`)
