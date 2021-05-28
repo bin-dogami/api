@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan, In } from 'typeorm';
 import { sqlspider } from './sqlspider.entity';
 import { CreateSqlspider } from "./create-sqlspider.dto";
+const dayjs = require('dayjs')
 
 export { CreateSqlspider }
 
@@ -35,7 +36,8 @@ export class SqlspiderService {
       id,
       status: status === undefined ? ISpiderStatus.UNSPIDER : status,
       allIndexEq0,
-      text: ''
+      text: '',
+      updateDate: dayjs().format('YYYY-MM-DD')
     });
     const one = await this.getById(oSpider.id)
     if (one) {
@@ -134,11 +136,18 @@ export class SqlspiderService {
   }
 
   // 把已抓取完的统一改为待抓取状态以便开始抓取
-  async setSpideredToUnSpider() {
+  // lastUpdateStatus: {0: 全部都要抓取, 1: 正常抓取，每次都抓, -1: 3天内没有更新的每天只抓取一次}
+  async setSpideredToUnSpider(lastUpdateStatus?: number) {
+    // lastUpdateStatus 没传时所有时间的都设置为待抓取
+    const updateDate = lastUpdateStatus ? dayjs().subtract(3, 'd').format('YYYY-MM-DD') : ''
+    // >= 3 天没更新的一天抓取一次
+    const calcSymbol = !lastUpdateStatus || lastUpdateStatus > 0 ? '>=' : '<'
+
     return await this.sqlspiderRepository.createQueryBuilder("spiders")
       .update()
       .set({ status: ISpiderStatus.UNSPIDER })
       .where("status = :status", { status: ISpiderStatus.SPIDERED })
+      .andWhere(`updateDate ${calcSymbol} :updateDate`, { updateDate })
       .execute()
   }
 

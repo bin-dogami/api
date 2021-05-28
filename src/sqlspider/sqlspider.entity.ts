@@ -28,6 +28,11 @@ export class sqlspider {
   })
   updatetime: Timestamp;
 
+  // 上一次抓取到新章节的时间，需要根据这个来区别抓取书，太久没更新的书每天或者每两天抓一次
+  @Index()
+  @Column({ default: '2021-05-29' })  // 默认值先写死，以后去掉
+  updateDate: string;
+
   // 是否忽略 index 的问题，忽略了index 重复就不会往 error 表里记录此书的 index 重复数据了，主要是title 太奇葩了，不好获取 index，就用moriginalname好了
   // @TODO: 洗一下数据，重复 index 问题处理一下
   @Column({ default: false })

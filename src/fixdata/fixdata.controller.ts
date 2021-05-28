@@ -759,15 +759,11 @@ export class FixdataController {
   // }
 
   @Get('getVisitorsList')
-  async getVisitorsList(@Query('host') host: string, @Query('skip') skip: string, @Query('size') size: string, @Query('sDate') sDate: string, @Query('eDate') eDate: string, @Query('spider') spider: string, @Query('responseStatus') responseStatus: string, @Query('noApi') noApi: string): Promise<any[]> {
+  async getVisitorsList(@Query('host') host: string, @Query('skip') skip: string, @Query('size') size: string, @Query('sDate') sDate: string, @Query('eDate') eDate: string, @Query('spider') spider: string, @Query('responseStatus') responseStatus: string): Promise<any[]> {
     const _host = host === 'admin' ? 'ttttt5' : host
     const _spider = spider === '1' ? '' : (spider === '2' ? 'spider' : 'normal')
     const _responseStatus = responseStatus === '1' ? 200 : 0
-    let [list, count] = await this.sqlvisitorsService.getList(+skip, +size, _host, sDate, eDate, _spider, _responseStatus)
-    if (noApi === '1') {
-      list = list.filter(({ url }) => !url.includes('/scan/') && !url.includes('/fixdata'))
-    }
-    return [list, count]
+    return await this.sqlvisitorsService.getList(+skip, +size, _host, sDate, eDate, _spider, _responseStatus)
   }
 
   @Get('createSitemap')

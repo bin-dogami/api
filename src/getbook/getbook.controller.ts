@@ -537,7 +537,8 @@ export class GetBookController {
   }
 
   // @NOTE: 定时任务，每天 1点到晚上11点多个时间点执行
-  @Cron('30 16 2,6,8,10,12,15,18,21,23 * * *')
+  // 4 点只对3天内没有更新的书进行抓取，其他时间点只抓取3天内有更新的
+  @Cron('30 46 0,2,4,6,8,10,12,15,18,21,23 * * *')
   async cronSpiderAll() {
     if (process.env.NODE_ENV === 'development') {
       return
@@ -574,7 +575,9 @@ export class GetBookController {
     }
     // 先把已抓取完的统一改为待抓取状态再一个一个抓取
     try {
-      await this.sqlspiderService.setSpideredToUnSpider()
+      const currentHour = +dayjs().format('HH')
+      let lastUpdateStatus = currentHour === 4 ? -1 : 1
+      await this.sqlspiderService.setSpideredToUnSpider(lastUpdateStatus)
     } catch (error) {
       //
     }
