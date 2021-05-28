@@ -450,7 +450,7 @@ export class GetBookController {
           break;
         }
         // 首页要去掉，每个网站只取前15个要抓取的导航页里的
-        if (`${_host}/`.includes(navUrl)) {
+        if (!`${_host}/`.includes(navUrl)) {
           // 相对域名的改成绝对域名
           if (!navUrl.includes(host)) {
             navUrl = `${_host}/${navUrl}`
