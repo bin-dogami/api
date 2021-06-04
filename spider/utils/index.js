@@ -42,6 +42,7 @@ const getSpider = (_url, isPage = false, spiderHostDoms = '') => {
           break;
       }
       url = url.replace('paoshuzw.com', 'xbiquge.la')
+      url = url.replace('x23us.us', '23us.tw')
     }
   })
   // 目录是否是分页的
