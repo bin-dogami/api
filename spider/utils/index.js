@@ -19,6 +19,7 @@ const getSpider = (_url, isPage = false, spiderHostDoms = '') => {
         spiderHostDoms[key] = eval(`(${value})`)
       }
     })
+    url = url.replace('x23us.us', '23us.tw')
     if (isPage) {
       const {mname, content} = spiderHostDoms
       return [url, new pagebase('', mname, content), false]
