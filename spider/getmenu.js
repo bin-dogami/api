@@ -6,12 +6,16 @@ const getUrl = (url, index) => {
 }
 const crawlerMenus = (spider, url) => {
   return new Promise((resolve, reject) => {
-    crawler(url, function f ($) {
-      const menus = spider.getPageMenus($)
-      resolve([menus, spider.getNextPageUrl($)])
-    }, function f (error) {
+    try {
+      crawler(url, function f ($) {
+        const menus = spider.getPageMenus($)
+        resolve([menus, spider.getNextPageUrl($)])
+      }, function f (error) {
+        reject(error)
+      })
+    } catch (error) {
       reject(error)
-    })
+    }
   })
 }
 let respiderTime = 1
@@ -102,11 +106,15 @@ if (process.argv.length > 2) {
       }
     })
   } else {  // 一页就能把目录抓完
-    crawler(url, function f ($) {
-      process.send(spider.getMenus($, len, process.argv[4] || null));
-    }, function f (error) {
+    try {
+      crawler(url, function f ($) {
+        process.send(spider.getMenus($, len, process.argv[4] || null));
+      }, function f (error) {
+        process.send(false, error);
+      });
+    } catch (error) {
       process.send(false, error);
-    });
+    }
   }
 } else {
   process.send('false', '输入的参数有问题');
