@@ -81,7 +81,7 @@ export class GetBookController {
   // }
 
   // 删除大于等于目录id的数据
-  @Post('deleteMenusGtId')
+  // @Post('deleteMenusGtId')
   async deleteMenusGtId(@Body('id') id: string, @Body('novelId') novelId: string) {
     await this.sqlpagesService.batchDeleteGtPages(+id, +novelId, true)
     await this.sqlmenusService.batchDeleteGtMenus(+id, +novelId, true)
@@ -512,7 +512,7 @@ export class GetBookController {
     }
 
     this.logger.log(`\n ### 【start】 到点了自动新书，当前json文件里的书数量是${Object.keys(hasSpiderBookNames).length}，当前时间是 ${dayjs().format('YYYY-MM-DD HH:mm')} ###`);
-    if (this.currentSpiderStatus) {
+    if (this.currentSpiderStatus && this.currentSpiderStatus !== 4) {
       this.logger.log(`\n ### 【end】有抓取任务在进行中，本次自动抓取任务取消 ###`);
       return
     }
@@ -604,8 +604,16 @@ export class GetBookController {
     if (lastMenus.length) {
       // 之前才抓取了不到 3章的全删掉吧，重新抓取
       if (lastMenus.length < 3) {
-        this.logger.log(`### 上次抓取到的目录不足3章，先全删了再重新抓取 ###`)
-        await this.deleteMenusGtId('0', args.id)
+        this.logger.log(`### 上次抓取到的目录不足3章，先删了再重新抓取吧(手动删除吧，表里数据太多了可能会导致卡死，或者重写批量删除接口？) ###`)
+        // await this.deleteMenusGtId('0', args.id)
+        if (this.justSpiderOne) {
+          this.resetSpiderStatus()
+          this.setSpiderComplete(args.id, this.justSpiderOne)
+          return {
+            '错误': `上次抓取到的目录不足3章，先删了再重新抓取吧(手动删除吧，表里数据太多了可能会导致卡死，或者重写批量删除接口？)`
+          }
+        }
+        return await this.setSpiderComplete(args.id, this.justSpiderOne)
       } else {
         noNeedInsertMenus = lastMenus.map((item: any) => {
           if (lastMenu) {
